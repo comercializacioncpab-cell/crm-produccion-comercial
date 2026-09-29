@@ -72,12 +72,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         approvedById: currentUser.id,
       };
 
+      // 🔔 Send immediate approval notification with WhatsApp link & Email
       await sendNotification({
         userId: targetUser.id,
         type: 'APPROVED',
-        title: '🎉 ¡Tu cuenta ha sido aprobada!',
-        message: `El Administrador (${currentUser.name}) ha aprobado tu acceso con el rol de ${assignedRole}. Ya puedes ingresar al CRM.`,
+        title: '🎉 ¡Tu cuenta en Producción Comercial ha sido Aprobada!',
+        message: `El Administrador (${currentUser.name}) ha aprobado tu acceso con el rol de ${assignedRole}. Ya puedes ingresar con tu correo (${targetUser.email}) y contraseña.`,
         userPhone: targetUser.phone,
+        userEmail: targetUser.email,
       });
     }
     // 2. ACTION: REJECT USER
@@ -100,6 +102,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         title: '🔑 Tu contraseña ha sido actualizada',
         message: `El Administrador ha reasignado tu contraseña de acceso. Tu nueva contraseña es: ${newPassword}`,
         userPhone: targetUser.phone,
+        userEmail: targetUser.email,
       });
     }
     // 4. GENERAL PROFILE UPDATE
@@ -151,19 +154,16 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
       return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
     }
 
-    // Clean up notifications and activity logs related to this user
     await prisma.notification.deleteMany({ where: { userId: id } });
     await prisma.activityLog.deleteMany({ where: { userId: id } });
     await prisma.orderFile.deleteMany({ where: { uploaderId: id } });
     
-    // Delete orders created by this user or unlink assigned orders
     await prisma.productionOrder.deleteMany({ where: { creatorId: id } });
     await prisma.productionOrder.updateMany({
       where: { postProducerId: id },
       data: { postProducerId: null, status: 'NUEVA' },
     });
 
-    // Delete the user
     await prisma.user.delete({
       where: { id },
     });

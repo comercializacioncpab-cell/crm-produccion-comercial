@@ -102,14 +102,27 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         },
       });
 
-      // Send notification to Post-Productor (Email + WhatsApp ready)
+      // 🔔 NOTIFY 1: Post-Productor (New work assigned)
       await sendNotification({
         userId: targetPost.id,
         orderId: id,
         type: 'ASSIGNED',
         title: `🎯 Tienes una nueva asignación: ${order.orderNumber}`,
-        message: `${user.name} te ha asignado la orden ${order.orderNumber} (${order.clientAgency} - ${order.product}). Fecha al aire: ${order.airDate || 'Pronta'}.`,
+        message: `${user.name} te ha asignado la orden ${order.orderNumber} (${order.clientAgency} - ${order.product}). Fecha al aire: ${order.airDate || 'Por definir'}.`,
         userPhone: targetPost.phone,
+        userEmail: targetPost.email,
+        orderNumber: order.orderNumber,
+      });
+
+      // 🔔 NOTIFY 2: Ejecutiva Solicitante (Let her know WHO was assigned)
+      await sendNotification({
+        userId: order.creatorId,
+        orderId: id,
+        type: 'ASSIGNED',
+        title: `📋 Tu Solicitud ${order.orderNumber} ha sido Asignada`,
+        message: `Tu orden ${order.orderNumber} (${order.product}) fue asignada al post-productor ${targetPost.name} para su edición.`,
+        userPhone: order.creator.phone,
+        userEmail: order.creator.email,
         orderNumber: order.orderNumber,
       });
 
@@ -132,6 +145,18 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         },
       });
 
+      // 🔔 NOTIFY: Ejecutiva Solicitante (Work is in progress)
+      await sendNotification({
+        userId: order.creatorId,
+        orderId: id,
+        type: 'IN_PROGRESS',
+        title: `⏳ ${order.orderNumber} en Post-Producción`,
+        message: `El post-productor ${user.name} ha iniciado los trabajos de edición de tu orden ${order.orderNumber} (${order.product}).`,
+        userPhone: order.creator.phone,
+        userEmail: order.creator.email,
+        orderNumber: order.orderNumber,
+      });
+
       return NextResponse.json({ success: true, order: updatedOrder });
     }
 
@@ -149,7 +174,6 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         include: { creator: true, postProducer: true, files: true, activityLogs: true },
       });
 
-      // Save delivery file/link if provided
       if (fileName || externalUrl) {
         await prisma.orderFile.create({
           data: {
@@ -175,16 +199,32 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         },
       });
 
-      // Notify Solicitante that their order has been resolved!
+      // 🔔 NOTIFY 1: Solicitante (Order is resolved and deliverable is ready)
       await sendNotification({
         userId: order.creatorId,
         orderId: id,
         type: 'RESOLVED',
-        title: `✨ ¡Tu Solicitud ${order.orderNumber} ha sido Resuelta!`,
-        message: `${user.name} ha terminado el trabajo de producción para ${order.product}. Ya puedes revisar el material y aprobarlo.`,
+        title: `✨ ¡Tu Solicitud ${order.orderNumber} ha sido Resuelta y Atendida!`,
+        message: `${user.name} ha terminado el trabajo de producción para ${order.product} y subió el material requerido. Ya puedes descargarlo y aprobarlo.`,
         userPhone: order.creator.phone,
+        userEmail: order.creator.email,
         orderNumber: order.orderNumber,
       });
+
+      // 🔔 NOTIFY 2: Coordinadoras
+      const coordinators = await prisma.user.findMany({ where: { role: 'COORDINADOR' } });
+      for (const coord of coordinators) {
+        await sendNotification({
+          userId: coord.id,
+          orderId: id,
+          type: 'RESOLVED',
+          title: `✅ SP ${order.orderNumber} Entregada por ${user.name}`,
+          message: `${user.name} ha completado y subido la entrega para ${order.clientAgency} (${order.product}).`,
+          userPhone: coord.phone,
+          userEmail: coord.email,
+          orderNumber: order.orderNumber,
+        });
+      }
 
       return NextResponse.json({ success: true, order: updatedOrder });
     }
@@ -215,15 +255,15 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         },
       });
 
-      // Notify Post-Producer about the requested changes
       if (order.postProducerId) {
         await sendNotification({
           userId: order.postProducerId,
           orderId: id,
           type: 'CHANGES_REQUESTED',
-          title: `⚠️ Cambios solicitados en ${order.orderNumber}`,
-          message: `${user.name} ha solicitado ajustes: "${changeNotes}"`,
+          title: `⚠️ Cambios Solicitados en ${order.orderNumber}`,
+          message: `${user.name} ha solicitado ajustes en ${order.product}: "${changeNotes}". Por favor revisa y vuelve a entregar.`,
           userPhone: order.postProducer?.phone,
+          userEmail: order.postProducer?.email,
           orderNumber: order.orderNumber,
         });
       }
@@ -252,15 +292,15 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         },
       });
 
-      // Notify Post-Producer of approval
       if (order.postProducerId) {
         await sendNotification({
           userId: order.postProducerId,
           orderId: id,
           type: 'APPROVED',
-          title: `🎉 ¡Orden Aprobada! ${order.orderNumber}`,
+          title: `🎉 ¡Orden Aprobada para Salir al Aire! ${order.orderNumber}`,
           message: `La orden ${order.orderNumber} (${order.product}) fue aprobada por ${user.name}.`,
           userPhone: order.postProducer?.phone,
+          userEmail: order.postProducer?.email,
           orderNumber: order.orderNumber,
         });
       }
@@ -287,7 +327,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       return NextResponse.json({ success: true, order: updatedOrder });
     }
 
-    // Generic update (editable fields)
+    // Generic update
     const {
       clientAgency,
       product,
@@ -339,12 +379,10 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
 
     const { id } = params;
 
-    // Delete associated files, logs, and notifications first
     await prisma.notification.deleteMany({ where: { orderId: id } });
     await prisma.activityLog.deleteMany({ where: { orderId: id } });
     await prisma.orderFile.deleteMany({ where: { orderId: id } });
 
-    // Delete the order
     await prisma.productionOrder.delete({
       where: { id },
     });
