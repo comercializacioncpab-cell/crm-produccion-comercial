@@ -92,13 +92,29 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Cliente/Agencia y Producto son obligatorios' }, { status: 400 });
     }
 
-    // Calculate sequential number
-    const lastOrder = await prisma.productionOrder.findFirst({
+    // 🔢 Consecutive logic per user starting from 001 (e.g. SP-AR-001, SP-CM-001)
+    const userInitials = user.initials || 'SP';
+    const lastOrderForUser = await prisma.productionOrder.findFirst({
+      where: { creatorId: user.id },
       orderBy: { consecutive: 'desc' },
     });
-    const nextConsecutive = (lastOrder?.consecutive || 1127) + 1;
-    const userInitials = user.initials || 'SP';
-    const orderNumber = `SP-${userInitials}-${nextConsecutive}`;
+
+    let nextConsecutive = (lastOrderForUser?.consecutive || 0) + 1;
+    let paddedNumber = String(nextConsecutive).padStart(3, '0');
+    let orderNumber = `SP-${userInitials}-${paddedNumber}`;
+
+    // Ensure uniqueness
+    const existingWithSameCode = await prisma.productionOrder.findUnique({
+      where: { orderNumber },
+    });
+    if (existingWithSameCode) {
+      const allWithPrefix = await prisma.productionOrder.count({
+        where: { orderNumber: { startsWith: `SP-${userInitials}-` } },
+      });
+      nextConsecutive = allWithPrefix + 1;
+      paddedNumber = String(nextConsecutive).padStart(3, '0');
+      orderNumber = `SP-${userInitials}-${paddedNumber}`;
+    }
 
     // Create the order in PostgreSQL database
     const newOrder = await prisma.productionOrder.create({
@@ -147,7 +163,7 @@ export async function POST(req: Request) {
         orderId: newOrder.id,
         userId: user.id,
         action: 'CREADA',
-        details: `Solicitud de producción creada por ${user.name} (${user.email})`,
+        details: `Solicitud de producción ${orderNumber} creada por ${user.name} (${user.email})`,
       },
     });
 
@@ -162,7 +178,7 @@ export async function POST(req: Request) {
         orderId: newOrder.id,
         type: 'NEW_SP',
         title: `📥 ¡Nueva SP Recibida! ${orderNumber}`,
-        message: `${user.name} ha emitido una orden para ${clientAgency} (${product}). Fecha al aire: ${airDate || 'Por definir'}. Entra al CRM para asignarla a un post-productor.`,
+        message: `${user.name} ha emitido la orden ${orderNumber} para ${clientAgency} (${product}). Fecha al aire: ${airDate || 'Por definir'}. Entra al CRM para asignarla a un post-productor.`,
         userPhone: coord.phone,
         orderNumber,
       });
