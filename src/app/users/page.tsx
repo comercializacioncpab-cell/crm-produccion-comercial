@@ -207,14 +207,21 @@ export default function UsersPage() {
   };
 
   const handleCopyPassword = (u: any) => {
-    const pwd = u.plainPassword || '123456';
-    navigator.clipboard.writeText(pwd);
+    if (!u.plainPassword) {
+      alert(`Para el usuario ${u.name} aún no hay contraseña guardada. Haz clic en 'Cambiar' para asignarle una contraseña.`);
+      return;
+    }
+    navigator.clipboard.writeText(u.plainPassword);
     setCopiedUserId(u.id);
     setTimeout(() => setCopiedUserId(null), 2000);
   };
 
   const handleSendWhatsApp = (u: any) => {
-    const pwd = u.plainPassword || '123456';
+    if (!u.plainPassword) {
+      alert(`Para el usuario ${u.name} aún no hay contraseña guardada. Haz clic en 'Cambiar' para asignarle una contraseña.`);
+      return;
+    }
+    const pwd = u.plainPassword;
     const phone = (u.phone || '').replace(/[^0-9]/g, '');
     const msg = `Hola ${u.name}, tus credenciales de acceso para el CRM de Producción Comercial son:\n\n📧 Correo: ${u.email}\n🔑 Contraseña: ${pwd}\n\nIngresa aquí: ${window.location.origin}/login`;
     if (phone) {
@@ -395,7 +402,8 @@ export default function UsersPage() {
                     const isSelf = u.id === currentUser?.id;
                     const isSelected = selectedUserIds.includes(u.id);
                     const isPwdVisible = !!visiblePasswords[u.id];
-                    const displayedPwd = u.plainPassword || '123456';
+                    const hasPassword = !!u.plainPassword;
+                    const displayedPwd = hasPassword ? u.plainPassword : 'Sin guardar';
                     const isCopied = copiedUserId === u.id;
 
                     return (
@@ -466,7 +474,11 @@ export default function UsersPage() {
                         {/* Contraseña Visible para Admin con Botones de Copiar y Enviar WhatsApp */}
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-mono text-xs px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg text-slate-800 font-bold tracking-wider">
+                            <span className={`font-mono text-xs px-2.5 py-1 rounded-lg font-bold tracking-wider border ${
+                              hasPassword
+                                ? 'bg-slate-100 border-slate-200 text-slate-800'
+                                : 'bg-amber-50 border-amber-200 text-amber-800'
+                            }`}>
                               {isPwdVisible ? displayedPwd : '••••••••'}
                             </span>
                             <button
@@ -630,8 +642,12 @@ export default function UsersPage() {
                     </button>
                   </div>
                 </div>
-                <div className="font-mono text-sm font-black text-slate-900 bg-white px-3 py-2 rounded-xl border border-slate-200">
-                  {selectedUserForPassword.plainPassword || '123456'}
+                <div className={`font-mono text-sm font-black px-3 py-2 rounded-xl border ${
+                  selectedUserForPassword.plainPassword
+                    ? 'bg-white text-slate-900 border-slate-200'
+                    : 'bg-amber-50 text-amber-900 border-amber-200 text-xs'
+                }`}>
+                  {selectedUserForPassword.plainPassword || 'No guardada (asigna una contraseña nueva abajo)'}
                 </div>
               </div>
 

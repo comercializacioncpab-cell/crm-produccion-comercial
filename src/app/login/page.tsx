@@ -71,20 +71,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleQuickLogin = async (userEmail: string) => {
-    setEmail(userEmail);
-    setPassword('123456');
-    setLoading(true);
-    setError('');
-    const success = await login(userEmail, '123456');
-    if (success) {
-      router.push('/dashboard');
-    } else {
-      setError('Error al iniciar sesión.');
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
@@ -165,58 +151,6 @@ export default function LoginPage() {
               {loading ? 'Iniciando...' : 'Entrar al CRM'}
             </button>
           </form>
-
-          {/* Quick Demo Access Buttons */}
-          <div className="mt-6 pt-6 border-t border-slate-100">
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 text-center">
-              Acceso Rápido por Rol (Demostración)
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('adriana.rojas@comercial.tv')}
-                className="p-2.5 bg-pink-50 hover:bg-pink-100 border border-pink-200 rounded-xl text-left transition-all group"
-              >
-                <p className="text-xs font-bold text-pink-900 flex items-center gap-1">
-                  👩‍💼 Adriana Rojas
-                </p>
-                <p className="text-[10px] text-pink-700">Ejecutiva (Solicitante)</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('coordinacion@produccion.tv')}
-                className="p-2.5 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl text-left transition-all group"
-              >
-                <p className="text-xs font-bold text-purple-900 flex items-center gap-1">
-                  📋 Mariana Gómez
-                </p>
-                <p className="text-[10px] text-purple-700">Coordinadora</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('javier.post@produccion.tv')}
-                className="p-2.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl text-left transition-all group"
-              >
-                <p className="text-xs font-bold text-blue-900 flex items-center gap-1">
-                  🎬 Javier Post
-                </p>
-                <p className="text-[10px] text-blue-700">Post-Productor</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('admin@produccion.tv')}
-                className="p-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl text-left transition-all group"
-              >
-                <p className="text-xs font-bold text-slate-900 flex items-center gap-1">
-                  ⚡ Administrador
-                </p>
-                <p className="text-[10px] text-slate-700">Admin General</p>
-              </button>
-            </div>
-          </div>
 
           <div className="mt-6 text-center">
             <p className="text-xs text-slate-500">

@@ -145,14 +145,21 @@ export default function UserDetailPage() {
   };
 
   const handleCopyPassword = () => {
-    const pwd = targetUser?.plainPassword || '123456';
-    navigator.clipboard.writeText(pwd);
+    if (!targetUser?.plainPassword) {
+      alert(`Para el usuario ${targetUser?.name} aún no hay contraseña guardada. Haz clic en 'Reasignar Contraseña' abajo para asignarle una.`);
+      return;
+    }
+    navigator.clipboard.writeText(targetUser.plainPassword);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleSendWhatsApp = () => {
-    const pwd = targetUser?.plainPassword || '123456';
+    if (!targetUser?.plainPassword) {
+      alert(`Para el usuario ${targetUser?.name} aún no hay contraseña guardada. Haz clic en 'Reasignar Contraseña' abajo para asignarle una.`);
+      return;
+    }
+    const pwd = targetUser.plainPassword;
     const phone = (targetUser?.phone || '').replace(/[^0-9]/g, '');
     const msg = `Hola ${targetUser?.name}, tus credenciales de acceso para el CRM de Producción Comercial son:\n\n📧 Correo: ${targetUser?.email}\n🔑 Contraseña: ${pwd}\n\nIngresa aquí: ${window.location.origin}/login`;
     if (phone) {
@@ -365,9 +372,17 @@ export default function UserDetailPage() {
                     </button>
                   </div>
 
-                  <div className="bg-white p-3 rounded-2xl border border-slate-200 flex items-center justify-between">
-                    <span className="font-mono text-sm font-black text-slate-900 tracking-wider">
-                      {showPassword ? (targetUser.plainPassword || '123456') : '••••••••'}
+                  <div className={`p-3 rounded-2xl border flex items-center justify-between ${
+                    targetUser.plainPassword
+                      ? 'bg-white border-slate-200'
+                      : 'bg-amber-50 border-amber-200'
+                  }`}>
+                    <span className={`font-mono text-sm font-black tracking-wider ${
+                      targetUser.plainPassword ? 'text-slate-900' : 'text-amber-900 text-xs'
+                    }`}>
+                      {showPassword
+                        ? (targetUser.plainPassword || 'No guardada (Reasigna una nueva abajo)')
+                        : '••••••••'}
                     </span>
                     <button
                       type="button"
