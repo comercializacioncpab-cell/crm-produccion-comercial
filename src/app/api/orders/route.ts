@@ -180,6 +180,7 @@ export async function POST(req: Request) {
         title: `📥 ¡Nueva SP Recibida! ${orderNumber}`,
         message: `${user.name} ha emitido la orden ${orderNumber} para ${clientAgency} (${product}). Fecha al aire: ${airDate || 'Por definir'}. Entra al CRM para asignarla a un post-productor.`,
         userPhone: coord.phone,
+        userEmail: coord.email,
         orderNumber,
       });
     }
