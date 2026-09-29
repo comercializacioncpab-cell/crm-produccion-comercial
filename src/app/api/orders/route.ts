@@ -18,7 +18,6 @@ export async function GET(req: Request) {
 
     const where: any = {};
 
-    // Role-based filtering or requested scope
     if (scope === 'my_orders' || user.role === 'SOLICITANTE') {
       where.creatorId = user.id;
     } else if (scope === 'assigned_to_me' || user.role === 'POST_PRODUCTOR') {
@@ -35,10 +34,10 @@ export async function GET(req: Request) {
 
     if (search) {
       where.OR = [
-        { orderNumber: { contains: search } },
-        { clientAgency: { contains: search } },
-        { product: { contains: search } },
-        { program: { contains: search } },
+        { orderNumber: { contains: search, mode: 'insensitive' } },
+        { clientAgency: { contains: search, mode: 'insensitive' } },
+        { product: { contains: search, mode: 'insensitive' } },
+        { program: { contains: search, mode: 'insensitive' } },
       ];
     }
 
@@ -86,7 +85,7 @@ export async function POST(req: Request) {
       voiceoverType = 'GENERICA',
       voiceoverText,
       priority = 'MEDIA',
-      files = [], // list of uploaded file metadata
+      files = [],
     } = body;
 
     if (!clientAgency || !product) {
@@ -101,7 +100,7 @@ export async function POST(req: Request) {
     const userInitials = user.initials || 'SP';
     const orderNumber = `SP-${userInitials}-${nextConsecutive}`;
 
-    // Create the order in database
+    // Create the order in PostgreSQL database
     const newOrder = await prisma.productionOrder.create({
       data: {
         orderNumber,
@@ -152,7 +151,7 @@ export async function POST(req: Request) {
       },
     });
 
-    // Notify all Coordinators
+    // 🔔 OBLIGATORY NOTIFICATION TO ALL COORDINATORS AND ADMINS
     const coordinators = await prisma.user.findMany({
       where: { role: { in: ['COORDINADOR', 'ADMIN'] } },
     });
@@ -162,8 +161,8 @@ export async function POST(req: Request) {
         userId: coord.id,
         orderId: newOrder.id,
         type: 'NEW_SP',
-        title: `📥 Nueva SP Recibida: ${orderNumber}`,
-        message: `${user.name} ha registrado una nueva orden para ${clientAgency} (${product}). Fecha al aire: ${airDate || 'Por definir'}.`,
+        title: `📥 ¡Nueva SP Recibida! ${orderNumber}`,
+        message: `${user.name} ha emitido una orden para ${clientAgency} (${product}). Fecha al aire: ${airDate || 'Por definir'}. Entra al CRM para asignarla a un post-productor.`,
         userPhone: coord.phone,
         orderNumber,
       });

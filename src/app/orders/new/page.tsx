@@ -11,7 +11,7 @@ import {
   Save, 
   AlertCircle, 
   Check, 
-  Calendar, 
+  Calendar as CalendarIcon, 
   Clock, 
   Radio, 
   FilePlus2,
@@ -38,7 +38,7 @@ export default function NewOrderPage() {
     priority: 'MEDIA',
   });
 
-  const [files, setFiles] = useState<{ name: string; size: number; base64?: string; fileObj?: File }[]>([]);
+  const [files, setFiles] = useState<{ name: string; size: number; fileObj?: File }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -69,10 +69,25 @@ export default function NewOrderPage() {
     setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // Helper to format YYYY-MM-DD from date input to DD/MM/YYYY for display
+  const formatDateToDisplay = (isoDate: string) => {
+    if (!isoDate) return '';
+    if (isoDate.includes('/')) return isoDate;
+    const parts = isoDate.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return isoDate;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.clientAgency || !formData.product) {
       setError('Por favor completa el Cliente/Agencia y el Producto.');
+      return;
+    }
+    if (!formData.airDate) {
+      setError('Por favor selecciona la Fecha al Aire en el calendario.');
       return;
     }
 
@@ -80,19 +95,22 @@ export default function NewOrderPage() {
     setError('');
 
     try {
-      // 1. Create the SP record
+      const payload = {
+        ...formData,
+        materialDeliveryDate: formatDateToDisplay(formData.materialDeliveryDate),
+        airDate: formatDateToDisplay(formData.airDate),
+        files: files.map((f) => ({
+          fileName: f.name,
+          fileSize: f.size,
+          fileType: 'INPUT_BRIEF',
+          filePath: `/uploads/pending/${f.name}`,
+        })),
+      };
+
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          files: files.map((f) => ({
-            fileName: f.name,
-            fileSize: f.size,
-            fileType: 'INPUT_BRIEF',
-            filePath: `/uploads/pending/${f.name}`,
-          })),
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -102,7 +120,7 @@ export default function NewOrderPage() {
 
       const createdOrderId = data.order.id;
 
-      // 2. Upload actual files if attached
+      // Upload files if attached
       for (const fileItem of files) {
         if (fileItem.fileObj) {
           const uploadFormData = new FormData();
@@ -144,7 +162,7 @@ export default function NewOrderPage() {
           </div>
 
           <div className="bg-white/10 px-4 py-2 rounded-2xl border border-white/20 text-right">
-            <span className="text-[10px] text-slate-300 block font-semibold">Código SP sugerido:</span>
+            <span className="text-[10px] text-slate-300 block font-semibold">Código SP correlativo:</span>
             <span className="font-mono font-black text-amber-400 text-sm">
               SP-{user?.initials || 'SP'}-AUTO
             </span>
@@ -159,14 +177,14 @@ export default function NewOrderPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* SECCIÓN 1: INFORMACIÓN GENERAL (Yellow Header) */}
+          {/* SECCIÓN 1: INFORMACIÓN GENERAL */}
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="bg-[#fef08a] px-6 py-3 border-b border-yellow-300 flex items-center justify-between">
               <h2 className="text-xs font-black uppercase tracking-wider text-yellow-950">
                 1. INFORMACIÓN GENERAL
               </h2>
               <span className="text-[11px] font-bold text-yellow-900">
-                Ejecutiva: {user?.name}
+                Ejecutiva de Ventas: {user?.name}
               </span>
             </div>
 
@@ -230,41 +248,48 @@ export default function NewOrderPage() {
             </div>
           </div>
 
-          {/* SECCIÓN 2: MATERIAL Y FECHAS CRÍTICAS (Yellow Header) */}
+          {/* SECCIÓN 2: MATERIAL Y FECHAS CRÍTICAS CON CALENDARIO INTERACTIVO */}
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="bg-[#fef08a] px-6 py-3 border-b border-yellow-300 flex items-center justify-between">
-              <h2 className="text-xs font-black uppercase tracking-wider text-yellow-950">
-                2. MATERIAL Y FECHAS
+              <h2 className="text-xs font-black uppercase tracking-wider text-yellow-950 flex items-center gap-2">
+                <CalendarIcon className="w-4 h-4 text-yellow-900" /> 2. MATERIAL Y FECHAS (CALENDARIO)
               </h2>
+              <span className="text-[10px] text-yellow-900 font-bold">Haz clic en el icono para elegir día</span>
             </div>
 
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Fecha de Entrega de Material (Assets / Brief)
+                {/* CALENDARIO 1: ENTREGA DE MATERIAL */}
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                  <label className="block text-xs font-bold text-slate-800 mb-1.5 flex items-center gap-1.5">
+                    <CalendarIcon className="w-4 h-4 text-blue-600" /> Fecha de Entrega de Material (Brief/Assets)
                   </label>
                   <input
-                    type="text"
+                    type="date"
                     value={formData.materialDeliveryDate}
                     onChange={(e) => setFormData({ ...formData, materialDeliveryDate: e.target.value })}
-                    placeholder="DD/MM/AAAA (ej. 18/09/2026)"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-sm"
                   />
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    Selecciona en el calendario la fecha de recepción del material.
+                  </span>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-red-700 mb-1">
-                    Fecha al Aire (Emisión) *
+                {/* CALENDARIO 2: FECHA AL AIRE */}
+                <div className="bg-red-50/60 p-4 rounded-2xl border border-red-200">
+                  <label className="block text-xs font-bold text-red-900 mb-1.5 flex items-center gap-1.5">
+                    <CalendarIcon className="w-4 h-4 text-red-600" /> Fecha al Aire (Emisión Comercial) *
                   </label>
                   <input
-                    type="text"
+                    type="date"
                     required
                     value={formData.airDate}
                     onChange={(e) => setFormData({ ...formData, airDate: e.target.value })}
-                    placeholder="DD/MM/AAAA (ej. 22/09/2026)"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-red-300 bg-red-50/30 text-xs font-bold text-red-900 focus:outline-none focus:ring-2 focus:ring-red-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-red-300 bg-white text-xs font-black text-red-900 focus:outline-none focus:ring-2 focus:ring-red-500 cursor-pointer shadow-sm"
                   />
+                  <span className="text-[10px] text-red-700 mt-1 block font-medium">
+                    Fecha obligatoria en que el spot/billboard debe estar al aire.
+                  </span>
                 </div>
               </div>
 
@@ -310,7 +335,7 @@ export default function NewOrderPage() {
             </div>
           </div>
 
-          {/* SECCIÓN 3: TIPO DE AUSPICIO (Purple Header) */}
+          {/* SECCIÓN 3: TIPO DE AUSPICIO */}
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="bg-ev-rowHeader px-6 py-3 border-b border-indigo-200 text-white flex items-center justify-between">
               <h2 className="text-xs font-black uppercase tracking-wider">
@@ -359,7 +384,7 @@ export default function NewOrderPage() {
             </div>
           </div>
 
-          {/* SECCIÓN 4: LOCUCIÓN (Purple Header) */}
+          {/* SECCIÓN 4: LOCUCIÓN */}
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="bg-ev-rowHeader px-6 py-3 border-b border-indigo-200 text-white flex items-center justify-between">
               <h2 className="text-xs font-black uppercase tracking-wider">
@@ -484,7 +509,7 @@ export default function NewOrderPage() {
               className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white font-black px-6 py-3 rounded-xl text-xs shadow-lg transition-all flex items-center gap-2 disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
-              {loading ? 'Generando SP y Notificando...' : 'Crear y Registrar Solicitud (SP)'}
+              {loading ? 'Creando SP y Notificando a Coordinación...' : 'Crear y Notificar a Coordinadora'}
             </button>
           </div>
         </form>
