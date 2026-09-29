@@ -1,0 +1,137 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth';
+import bcrypt from 'bcryptjs';
+import { sendNotification } from '@/lib/notifications';
+
+export async function GET(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    const { id } = params;
+
+    const targetUser = await prisma.user.findUnique({
+      where: { id },
+      include: {
+        createdOrders: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            postProducer: { select: { id: true, name: true, initials: true } },
+          },
+        },
+        assignedOrders: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            creator: { select: { id: true, name: true, initials: true } },
+          },
+        },
+      },
+    });
+
+    if (!targetUser) {
+      return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
+    }
+
+    // Sanitize password from direct output (password hash remains secure)
+    const { password, ...safeUser } = targetUser;
+
+    return NextResponse.json({ user: safeUser });
+  } catch (error) {
+    console.error('Error fetching user detail:', error);
+    return NextResponse.json({ error: 'Error al obtener detalle del usuario' }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser || currentUser.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Solo los Administradores pueden gestionar usuarios y contraseñas' }, { status: 403 });
+    }
+
+    const { id } = params;
+    const body = await req.json();
+    const { action, role, newPassword, name, phone, initials, status } = body;
+
+    const targetUser = await prisma.user.findUnique({ where: { id } });
+    if (!targetUser) {
+      return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
+    }
+
+    let updateData: any = {};
+
+    // 1. ACTION: APPROVE USER REGISTRATION
+    if (action === 'APPROVE_USER') {
+      const assignedRole = role || targetUser.requestedRole || 'SOLICITANTE';
+      updateData = {
+        status: 'APROBADO',
+        role: assignedRole,
+        approvedAt: new Date(),
+        approvedById: currentUser.id,
+      };
+
+      // Notify the user on WhatsApp/Email
+      await sendNotification({
+        userId: targetUser.id,
+        type: 'APPROVED',
+        title: '🎉 ¡Tu cuenta ha sido aprobada!',
+        message: `El Administrador (${currentUser.name}) ha aprobado tu acceso con el rol de ${assignedRole}. Ya puedes ingresar al CRM.`,
+        userPhone: targetUser.phone,
+      });
+    }
+    // 2. ACTION: REJECT USER
+    else if (action === 'REJECT_USER') {
+      updateData = {
+        status: 'RECHAZADO',
+      };
+    }
+    // 3. ACTION: RESET PASSWORD
+    else if (action === 'RESET_PASSWORD' || newPassword) {
+      if (!newPassword || newPassword.length < 4) {
+        return NextResponse.json({ error: 'La nueva contraseña debe tener al menos 4 caracteres' }, { status: 400 });
+      }
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      updateData.password = hashedPassword;
+
+      // Log notification
+      await sendNotification({
+        userId: targetUser.id,
+        type: 'APPROVED',
+        title: '🔑 Tu contraseña ha sido actualizada',
+        message: `El Administrador ha reasignado tu contraseña de acceso. Tu nueva contraseña es: ${newPassword}`,
+        userPhone: targetUser.phone,
+      });
+    }
+    // 4. GENERAL PROFILE UPDATE
+    else {
+      if (role) updateData.role = role;
+      if (status) updateData.status = status;
+      if (name) updateData.name = name.trim();
+      if (phone !== undefined) updateData.phone = phone ? phone.trim() : null;
+      if (initials) updateData.initials = initials.toUpperCase();
+    }
+
+    const updated = await prisma.user.update({
+      where: { id },
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        requestedRole: true,
+        status: true,
+        initials: true,
+        phone: true,
+      },
+    });
+
+    return NextResponse.json({ success: true, user: updated });
+  } catch (error: any) {
+    console.error('Error updating user:', error);
+    return NextResponse.json({ error: 'Error al actualizar usuario' }, { status: 500 });
+  }
+}

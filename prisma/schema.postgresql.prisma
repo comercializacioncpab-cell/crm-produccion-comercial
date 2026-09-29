@@ -1,0 +1,117 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String            @id @default(uuid())
+  name          String
+  email         String            @unique
+  password      String
+  role          String            @default("SOLICITANTE") // SOLICITANTE, COORDINADOR, POST_PRODUCTOR, ADMIN
+  requestedRole String?           // Rol solicitado durante el registro
+  status        String            @default("APROBADO")    // PENDIENTE, APROBADO, RECHAZADO
+  initials      String            @default("SP")
+  phone         String?
+  avatar        String?
+  approvedAt    DateTime?
+  approvedById  String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  createdOrders   ProductionOrder[] @relation("CreatedOrders")
+  assignedOrders  ProductionOrder[] @relation("AssignedOrders")
+  orderFiles      OrderFile[]
+  notifications   Notification[]
+  activityLogs    ActivityLog[]
+}
+
+model ProductionOrder {
+  id                   String       @id @default(uuid())
+  orderNumber          String       @unique // e.g. SP-AR-1128
+  consecutive          Int
+  clientAgency         String       // e.g. MARKPLAN
+  product              String       // e.g. GARNIER
+  program              String?      // e.g. Novela 15h30 GYE Sorpresa del Destino
+  materialDeliveryDate String?      // e.g. 18/09/2026
+  airDate              String?      // e.g. 22/09/2026
+  materialNotes        String?      // Material instructions / notes
+  hasBrief             Boolean      @default(true)
+  sponsorshipTypes     String       @default("[]") // JSON array of types
+  customSponsorship    String?
+  voiceoverType        String       @default("GENERICA") // GENERICA / ESPECIFICA
+  voiceoverText        String?
+  status               String       @default("NUEVA") // NUEVA, ASIGNADA, EN_PROCESO, RESUELTA, CON_CAMBIOS, APROBADA, AL_AIRE, CANCELADA
+  priority             String       @default("MEDIA") // BAJA, MEDIA, ALTA, URGENTE
+  
+  creatorId            String
+  creator              User         @relation("CreatedOrders", fields: [creatorId], references: [id])
+  
+  coordinatorId        String?
+  
+  postProducerId       String?
+  postProducer         User?        @relation("AssignedOrders", fields: [postProducerId], references: [id])
+  
+  approved             Boolean?
+  approvedBy           String?
+  approvedAt           DateTime?
+  
+  hasChanges           Boolean?
+  changeNotes          String?
+  
+  deliveryNotes        String?
+  deliveredAt          DateTime?
+
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  files                OrderFile[]
+  activityLogs         ActivityLog[]
+  notifications        Notification[]
+}
+
+model OrderFile {
+  id          String          @id @default(uuid())
+  orderId     String
+  order       ProductionOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  uploaderId  String
+  uploader    User            @relation(fields: [uploaderId], references: [id])
+  fileType    String          // INPUT_BRIEF, INPUT_ASSET, INPUT_AUDIO, OUTPUT_DELIVERY, OUTPUT_PREVIEW
+  fileName    String
+  filePath    String
+  fileSize    Int             @default(0)
+  fileMime    String          @default("application/octet-stream")
+  externalUrl String?
+  notes       String?
+  createdAt   DateTime        @default(now())
+}
+
+model Notification {
+  id          String           @id @default(uuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId     String?
+  order       ProductionOrder? @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  type        String           // NEW_SP, ASSIGNED, RESOLVED, CHANGES_REQUESTED, APPROVED, USER_APPROVAL_PENDING
+  title       String
+  message     String
+  read        Boolean          @default(false)
+  whatsappUrl String?
+  createdAt   DateTime         @default(now())
+}
+
+model ActivityLog {
+  id        String          @id @default(uuid())
+  orderId   String
+  order     ProductionOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User            @relation(fields: [userId], references: [id])
+  action    String          // CREADA, ASIGNADA, EN_PRODUCCION, ENTREGADA, CAMBIOS, APROBADA, COMENTARIO
+  details   String?
+  createdAt DateTime        @default(now())
+}
