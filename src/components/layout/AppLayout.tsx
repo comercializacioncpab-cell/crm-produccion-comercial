@@ -10,12 +10,9 @@ import {
   FilePlus2, 
   Layers, 
   Inbox, 
-  CheckSquare, 
   Users, 
-  Printer, 
-  Sparkles,
-  Clapperboard,
-  Clock,
+  User, 
+  Clapperboard, 
   Radio
 } from 'lucide-react';
 
@@ -81,6 +78,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       icon: Users,
       roles: ['COORDINADOR', 'ADMIN'],
     },
+    {
+      name: 'Mi Perfil / Celular',
+      href: '/profile',
+      icon: User,
+      roles: ['SOLICITANTE', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN'],
+    },
   ];
 
   const filteredNavItems = navItems.filter((item) => item.roles.includes(user.role));
@@ -95,7 +98,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <aside className="lg:col-span-3 no-print">
             <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-4 sticky top-20">
               {/* User Profile Card */}
-              <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl p-4 text-white">
+              <Link href="/profile" className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl p-4 text-white block hover:opacity-95 transition-opacity">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-cyan-500 font-black text-white flex items-center justify-center text-sm shadow-inner">
                     {user.initials}
@@ -108,9 +111,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       {user.role === 'POST_PRODUCTOR' && '🎬 Post-Productor'}
                       {user.role === 'ADMIN' && '⚡ Administrador General'}
                     </span>
+                    {user.phone && <p className="text-[10px] text-slate-400 mt-1">📱 {user.phone}</p>}
                   </div>
                 </div>
-              </div>
+              </Link>
 
               {/* Navigation Links */}
               <nav className="space-y-1">
@@ -135,16 +139,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   );
                 })}
               </nav>
-
-              {/* Quick Info Box */}
-              <div className="bg-amber-50 rounded-xl p-3 border border-amber-200/70 text-xs">
-                <div className="flex items-center gap-1.5 font-bold text-amber-800 mb-1">
-                  <Radio className="w-3.5 h-3.5 text-amber-600 animate-pulse" /> Nomenclatura SP
-                </div>
-                <p className="text-slate-600 text-[11px] leading-relaxed">
-                  Las órdenes se generan con el formato <span className="font-mono font-bold text-amber-900">SP-{user.initials}-XXXX</span> vinculando automáticamente a la ejecutiva responsable.
-                </p>
-              </div>
             </div>
           </aside>
 
