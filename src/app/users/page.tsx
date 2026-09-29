@@ -69,7 +69,7 @@ export default function UsersPage() {
 
   // Checkbox handlers
   const toggleSelectUser = (id: string) => {
-    if (id === currentUser?.id) return; // Cannot select self
+    if (id === currentUser?.id) return;
     setSelectedUserIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
@@ -77,7 +77,7 @@ export default function UsersPage() {
 
   const toggleSelectAllApproved = () => {
     const deletableUsers = approvedUsers.filter((u) => u.id !== currentUser?.id);
-    if (selectedUserIds.length === deletableUsers.length) {
+    if (selectedUserIds.length >= deletableUsers.length && deletableUsers.length > 0) {
       setSelectedUserIds([]);
     } else {
       setSelectedUserIds(deletableUsers.map((u) => u.id));
@@ -193,8 +193,8 @@ export default function UsersPage() {
     }
   };
 
-  const isAllSelected = approvedUsers.filter((u) => u.id !== currentUser?.id).length > 0 && 
-    selectedUserIds.length === approvedUsers.filter((u) => u.id !== currentUser?.id).length;
+  const deletableCount = approvedUsers.filter((u) => u.id !== currentUser?.id).length;
+  const isAllSelected = deletableCount > 0 && selectedUserIds.length === deletableCount;
 
   return (
     <AppLayout>
@@ -206,7 +206,7 @@ export default function UsersPage() {
               <Users className="w-6 h-6 text-purple-600" /> Control de Usuarios y Credenciales
             </h1>
             <p className="text-xs text-slate-500">
-              Selecciona usuarios con las casillas para eliminarlos en lote, reasignar contraseñas o aprobar registros.
+              Selecciona usuarios con las casillas de verificación para eliminarlos en lote, reasignar contraseñas o aprobar registros.
             </p>
           </div>
 
@@ -236,38 +236,31 @@ export default function UsersPage() {
           </div>
         </div>
 
-        {/* FLOATING BULK ACTIONS BAR (When Checkboxes are selected) */}
-        {selectedUserIds.length > 0 && currentUser?.role === 'ADMIN' && (
-          <div className="bg-gradient-to-r from-red-600 to-rose-700 text-white p-4 rounded-2xl shadow-lg flex items-center justify-between animate-in fade-in slide-in-from-top-2">
-            <div className="flex items-center gap-3">
-              <CheckSquare className="w-5 h-5 text-white" />
-              <div>
-                <p className="text-xs font-black">
-                  {selectedUserIds.length} usuario(s) seleccionado(s)
-                </p>
-                <p className="text-[11px] text-white/80">
-                  Puedes eliminarlos todos juntos de la base de datos.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setSelectedUserIds([])}
-                className="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition-all"
-              >
-                Deseleccionar
-              </button>
-              <button
-                onClick={() => setShowBulkDeleteModal(true)}
-                className="bg-white hover:bg-red-50 text-red-700 text-xs font-black px-4 py-2 rounded-xl shadow transition-all flex items-center gap-1.5"
-              >
-                <Trash2 className="w-4 h-4 text-red-600" />
-                Eliminar Seleccionados ({selectedUserIds.length})
-              </button>
-            </div>
+        {/* TOP BULK ACTIONS BANNER (Always shows button or active selection) */}
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleSelectAllApproved}
+              className="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 border border-slate-300"
+            >
+              {isAllSelected ? <CheckSquare className="w-4 h-4 text-purple-600" /> : <Square className="w-4 h-4 text-slate-400" />}
+              {isAllSelected ? 'Deseleccionar Todos' : 'Seleccionar Todos para Borrar'}
+            </button>
+            <span className="text-xs font-semibold text-slate-500">
+              {selectedUserIds.length} de {deletableCount} usuarios seleccionados
+            </span>
           </div>
-        )}
+
+          {selectedUserIds.length > 0 && (
+            <button
+              onClick={() => setShowBulkDeleteModal(true)}
+              className="bg-red-600 hover:bg-red-700 text-white text-xs font-black px-4 py-2 rounded-xl shadow-md transition-all flex items-center gap-1.5 animate-bounce"
+            >
+              <Trash2 className="w-4 h-4 text-white" />
+              Eliminar {selectedUserIds.length} Usuario(s) Seleccionado(s)
+            </button>
+          )}
+        </div>
 
         {/* TAB 1: PENDING USERS AWAITING ADMIN APPROVAL */}
         {activeTab === 'pending' && (
@@ -312,29 +305,27 @@ export default function UsersPage() {
                       </div>
                     </div>
 
-                    {currentUser?.role === 'ADMIN' && (
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <button
-                          onClick={() => handleApproveUser(u.id, u.requestedRole || u.role)}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5"
-                        >
-                          <Check className="w-3.5 h-3.5" /> Aprobar
-                        </button>
-                        <button
-                          onClick={() => handleRejectUser(u.id)}
-                          className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold px-3 py-2 rounded-xl transition-all flex items-center gap-1.5"
-                        >
-                          <X className="w-3.5 h-3.5" /> Rechazar
-                        </button>
-                        <button
-                          onClick={() => setUserToDelete(u)}
-                          className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all"
-                          title="Eliminar Registro"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        onClick={() => handleApproveUser(u.id, u.requestedRole || u.role)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5"
+                      >
+                        <Check className="w-3.5 h-3.5" /> Aprobar
+                      </button>
+                      <button
+                        onClick={() => handleRejectUser(u.id)}
+                        className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold px-3 py-2 rounded-xl transition-all flex items-center gap-1.5"
+                      >
+                        <X className="w-3.5 h-3.5" /> Rechazar
+                      </button>
+                      <button
+                        onClick={() => setUserToDelete(u)}
+                        className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all"
+                        title="Eliminar Registro"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
@@ -342,29 +333,27 @@ export default function UsersPage() {
           </div>
         )}
 
-        {/* TAB 2: ACTIVE USERS DIRECTORY (WITH MULTI-SELECT CHECKBOXES) */}
+        {/* TAB 2: ACTIVE USERS DIRECTORY */}
         {activeTab === 'approved' && (
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]">
                   <tr>
-                    {currentUser?.role === 'ADMIN' && (
-                      <th className="px-4 py-3.5 w-10 text-center">
-                        <input
-                          type="checkbox"
-                          checked={isAllSelected}
-                          onChange={toggleSelectAllApproved}
-                          className="w-4 h-4 text-purple-600 rounded cursor-pointer"
-                          title="Seleccionar todos para borrar"
-                        />
-                      </th>
-                    )}
-                    <th className="px-4 py-3.5">Usuario / Prefijo</th>
-                    <th className="px-4 py-3.5">Correo y WhatsApp</th>
-                    <th className="px-4 py-3.5">Rol en Producción</th>
-                    <th className="px-4 py-3.5 text-center">Histórico SPs</th>
-                    <th className="px-4 py-3.5 text-right">Credenciales / Acciones</th>
+                    <th className="px-4 py-3.5 w-12 text-center">
+                      <input
+                        type="checkbox"
+                        checked={isAllSelected}
+                        onChange={toggleSelectAllApproved}
+                        className="w-4 h-4 text-purple-600 rounded cursor-pointer"
+                        title="Seleccionar todos"
+                      />
+                    </th>
+                    <th className="px-5 py-3.5">Usuario / Prefijo</th>
+                    <th className="px-5 py-3.5">Correo y WhatsApp</th>
+                    <th className="px-5 py-3.5">Rol en Producción</th>
+                    <th className="px-5 py-3.5 text-center">Histórico SPs</th>
+                    <th className="px-5 py-3.5 text-right">Credenciales / Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -377,25 +366,23 @@ export default function UsersPage() {
                       <tr
                         key={u.id}
                         className={`transition-colors ${
-                          isSelected ? 'bg-red-50/50' : 'hover:bg-slate-50/80'
+                          isSelected ? 'bg-red-50/60' : 'hover:bg-slate-50/80'
                         }`}
                       >
-                        {currentUser?.role === 'ADMIN' && (
-                          <td className="px-4 py-4 text-center">
-                            {!isSelf ? (
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => toggleSelectUser(u.id)}
-                                className="w-4 h-4 text-red-600 rounded cursor-pointer focus:ring-red-500"
-                              />
-                            ) : (
-                              <span className="text-[10px] text-slate-300 font-bold">—</span>
-                            )}
-                          </td>
-                        )}
+                        <td className="px-4 py-4 text-center">
+                          {!isSelf ? (
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleSelectUser(u.id)}
+                              className="w-4 h-4 text-red-600 rounded cursor-pointer focus:ring-red-500"
+                            />
+                          ) : (
+                            <span className="text-[10px] text-slate-300 font-bold" title="No puedes borrar tu cuenta">—</span>
+                          )}
+                        </td>
 
-                        <td className="px-4 py-4">
+                        <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-slate-900 to-slate-800 text-white font-black text-xs flex items-center justify-center shadow-sm">
                               {u.initials || 'U'}
@@ -414,7 +401,7 @@ export default function UsersPage() {
                           </div>
                         </td>
 
-                        <td className="px-4 py-4">
+                        <td className="px-5 py-4">
                           <span className="text-slate-800 font-mono text-[11px] block">{u.email}</span>
                           {u.phone && (
                             <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1 mt-0.5">
@@ -423,7 +410,7 @@ export default function UsersPage() {
                           )}
                         </td>
 
-                        <td className="px-4 py-4">
+                        <td className="px-5 py-4">
                           <span className={`text-[11px] px-2.5 py-1 rounded-full font-bold border ${
                             u.role === 'SOLICITANTE'
                               ? 'bg-pink-50 text-pink-700 border-pink-200'
@@ -440,7 +427,7 @@ export default function UsersPage() {
                           </span>
                         </td>
 
-                        <td className="px-4 py-4 text-center">
+                        <td className="px-5 py-4 text-center">
                           <Link
                             href={`/users/${u.id}`}
                             className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-2.5 py-1 rounded-lg text-[11px] inline-flex items-center gap-1"
@@ -449,20 +436,18 @@ export default function UsersPage() {
                           </Link>
                         </td>
 
-                        <td className="px-4 py-4 text-right space-x-1.5 whitespace-nowrap">
-                          {currentUser?.role === 'ADMIN' && (
-                            <button
-                              onClick={() => {
-                                setSelectedUserForPassword(u);
-                                setNewPasswordInput('');
-                                setModalMsg(null);
-                              }}
-                              className="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold px-2.5 py-1.5 rounded-lg transition-all inline-flex items-center gap-1"
-                              title="Reasignar Contraseña"
-                            >
-                              <KeyRound className="w-3.5 h-3.5" /> Clave
-                            </button>
-                          )}
+                        <td className="px-5 py-4 text-right space-x-1.5 whitespace-nowrap">
+                          <button
+                            onClick={() => {
+                              setSelectedUserForPassword(u);
+                              setNewPasswordInput('');
+                              setModalMsg(null);
+                            }}
+                            className="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold px-2.5 py-1.5 rounded-lg transition-all inline-flex items-center gap-1"
+                            title="Reasignar Contraseña"
+                          >
+                            <KeyRound className="w-3.5 h-3.5" /> Clave
+                          </button>
 
                           <Link
                             href={`/users/${u.id}`}
@@ -471,10 +456,10 @@ export default function UsersPage() {
                             Ficha
                           </Link>
 
-                          {currentUser?.role === 'ADMIN' && !isSelf && (
+                          {!isSelf && (
                             <button
                               onClick={() => setUserToDelete(u)}
-                              className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all"
+                              className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 p-1.5 rounded-lg transition-all inline-flex items-center justify-center"
                               title="Eliminar usuario"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
