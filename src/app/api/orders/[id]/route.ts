@@ -329,3 +329,29 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: 'Error al actualizar la orden' }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const user = await getCurrentUser();
+    if (!user || user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Solo los Administradores pueden eliminar solicitudes de producción' }, { status: 403 });
+    }
+
+    const { id } = params;
+
+    // Delete associated files, logs, and notifications first
+    await prisma.notification.deleteMany({ where: { orderId: id } });
+    await prisma.activityLog.deleteMany({ where: { orderId: id } });
+    await prisma.orderFile.deleteMany({ where: { orderId: id } });
+
+    // Delete the order
+    await prisma.productionOrder.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ success: true, message: 'Orden eliminada correctamente' });
+  } catch (error) {
+    console.error('Error deleting order:', error);
+    return NextResponse.json({ error: 'Error al eliminar la orden' }, { status: 500 });
+  }
+}

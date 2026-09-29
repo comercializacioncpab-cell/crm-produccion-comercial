@@ -18,7 +18,10 @@ import {
   Tv, 
   Paperclip,
   ArrowUpDown,
-  ExternalLink
+  ExternalLink,
+  Trash2,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 import { STATUS_CONFIG, PRIORITY_CONFIG } from '@/lib/order-utils';
 
@@ -32,6 +35,12 @@ function OrdersContent() {
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [scopeFilter, setScopeFilter] = useState(searchParams.get('scope') || 'all');
+
+  // Checkboxes for bulk SP deletion
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<any>(null);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -63,6 +72,60 @@ function OrdersContent() {
     fetchOrders();
   };
 
+  // Checkbox functions
+  const toggleSelectOrder = (id: string) => {
+    setSelectedOrderIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedOrderIds.length === orders.length && orders.length > 0) {
+      setSelectedOrderIds([]);
+    } else {
+      setSelectedOrderIds(orders.map((o) => o.id));
+    }
+  };
+
+  const handleBulkDeleteOrders = async () => {
+    if (selectedOrderIds.length === 0) return;
+    setBulkDeleting(true);
+    try {
+      const res = await fetch('/api/orders/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderIds: selectedOrderIds }),
+      });
+      if (res.ok) {
+        setSelectedOrderIds([]);
+        setShowBulkDeleteModal(false);
+        fetchOrders();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const handleDeleteSingleOrder = async () => {
+    if (!orderToDelete) return;
+    setBulkDeleting(true);
+    try {
+      const res = await fetch(`/api/orders/${orderToDelete.id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setOrderToDelete(null);
+        fetchOrders();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   const kanbanColumns = [
     { id: 'NUEVA', title: '📥 Nuevas Solicitudes', border: 'border-amber-400' },
     { id: 'ASIGNADA', title: '🎯 Asignadas a Post', border: 'border-blue-400' },
@@ -71,6 +134,8 @@ function OrdersContent() {
     { id: 'CON_CAMBIOS', title: '⚠️ Con Cambios', border: 'border-rose-400' },
     { id: 'APROBADA', title: '✅ Aprobadas / Listo al Aire', border: 'border-teal-400' },
   ];
+
+  const isAllSelected = orders.length > 0 && selectedOrderIds.length === orders.length;
 
   return (
     <div className="space-y-6">
@@ -86,7 +151,6 @@ function OrdersContent() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {/* View Switcher */}
           <div className="bg-slate-200/80 p-1 rounded-xl flex items-center text-xs font-semibold text-slate-700">
             <button
               onClick={() => setViewMode('table')}
@@ -115,6 +179,32 @@ function OrdersContent() {
             </Link>
           )}
         </div>
+      </div>
+
+      {/* TOP BULK ACTIONS BANNER FOR SPs */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleSelectAll}
+            className="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 border border-slate-300"
+          >
+            {isAllSelected ? <CheckSquare className="w-4 h-4 text-cyan-600" /> : <Square className="w-4 h-4 text-slate-400" />}
+            {isAllSelected ? 'Deseleccionar Todas' : 'Seleccionar Todas las SPs'}
+          </button>
+          <span className="text-xs font-semibold text-slate-500">
+            {selectedOrderIds.length} de {orders.length} órdenes seleccionadas
+          </span>
+        </div>
+
+        {selectedOrderIds.length > 0 && user?.role === 'ADMIN' && (
+          <button
+            onClick={() => setShowBulkDeleteModal(true)}
+            className="bg-red-600 hover:bg-red-700 text-white text-xs font-black px-4 py-2 rounded-xl shadow-md transition-all flex items-center gap-1.5 animate-bounce"
+          >
+            <Trash2 className="w-4 h-4 text-white" />
+            Eliminar {selectedOrderIds.length} SP(s) Seleccionada(s)
+          </button>
+        )}
       </div>
 
       {/* Filters and Search Bar */}
@@ -171,32 +261,6 @@ function OrdersContent() {
               <option value="MEDIA">🔵 Media</option>
               <option value="BAJA">⚪ Baja</option>
             </select>
-
-            {user?.role === 'POST_PRODUCTOR' && (
-              <button
-                onClick={() => setScopeFilter(scopeFilter === 'assigned_to_me' ? 'all' : 'assigned_to_me')}
-                className={`px-3 py-1.5 rounded-lg font-bold text-xs border transition-all ${
-                  scopeFilter === 'assigned_to_me'
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                    : 'bg-slate-50 text-slate-700 border-slate-200'
-                }`}
-              >
-                🎬 Solo mis asignaciones
-              </button>
-            )}
-
-            {user?.role === 'SOLICITANTE' && (
-              <button
-                onClick={() => setScopeFilter(scopeFilter === 'my_orders' ? 'all' : 'my_orders')}
-                className={`px-3 py-1.5 rounded-lg font-bold text-xs border transition-all ${
-                  scopeFilter === 'my_orders'
-                    ? 'bg-pink-600 text-white border-pink-600 shadow-sm'
-                    : 'bg-slate-50 text-slate-700 border-slate-200'
-                }`}
-              >
-                👩‍💼 Solo mis solicitudes
-              </button>
-            )}
           </div>
 
           <span className="text-slate-400 font-medium text-[11px]">
@@ -212,6 +276,15 @@ function OrdersContent() {
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]">
                 <tr>
+                  <th className="px-4 py-3 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 text-cyan-600 rounded cursor-pointer"
+                      title="Seleccionar todas"
+                    />
+                  </th>
                   <th className="px-4 py-3">Código SP</th>
                   <th className="px-4 py-3">Cliente / Agencia</th>
                   <th className="px-4 py-3">Producto</th>
@@ -226,13 +299,13 @@ function OrdersContent() {
               <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center text-slate-400">
+                    <td colSpan={10} className="py-12 text-center text-slate-400">
                       Cargando solicitudes de producción...
                     </td>
                   </tr>
                 ) : orders.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center text-slate-400">
+                    <td colSpan={10} className="py-12 text-center text-slate-400">
                       No se encontraron solicitudes con los filtros aplicados.
                     </td>
                   </tr>
@@ -240,9 +313,18 @@ function OrdersContent() {
                   orders.map((order) => {
                     const statusInfo = STATUS_CONFIG[order.status] || STATUS_CONFIG.NUEVA;
                     const priorityInfo = PRIORITY_CONFIG[order.priority] || PRIORITY_CONFIG.MEDIA;
+                    const isSelected = selectedOrderIds.includes(order.id);
 
                     return (
-                      <tr key={order.id} className="hover:bg-slate-50/80 transition-colors">
+                      <tr key={order.id} className={`transition-colors ${isSelected ? 'bg-red-50/50' : 'hover:bg-slate-50/80'}`}>
+                        <td className="px-4 py-3.5 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectOrder(order.id)}
+                            className="w-4 h-4 text-red-600 rounded cursor-pointer focus:ring-red-500"
+                          />
+                        </td>
                         <td className="px-4 py-3.5 whitespace-nowrap">
                           <Link
                             href={`/orders/${order.id}`}
@@ -281,13 +363,23 @@ function OrdersContent() {
                             {order.airDate || 'Por definir'}
                           </span>
                         </td>
-                        <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                        <td className="px-4 py-3.5 text-center whitespace-nowrap space-x-1">
                           <Link
                             href={`/orders/${order.id}`}
                             className="bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-700 font-bold px-2.5 py-1 rounded-lg transition-all inline-flex items-center gap-1 text-[11px]"
                           >
                             Gestionar <ExternalLink className="w-3 h-3" />
                           </Link>
+
+                          {user?.role === 'ADMIN' && (
+                            <button
+                              onClick={() => setOrderToDelete(order)}
+                              className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 p-1 rounded-lg transition-all inline-flex items-center justify-center"
+                              title="Eliminar SP"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -363,6 +455,82 @@ function OrdersContent() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMACIÓN DE BORRADO MASIVO DE SPs */}
+      {showBulkDeleteModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="w-14 h-14 bg-red-100 text-red-600 rounded-3xl flex items-center justify-center mx-auto">
+              <Trash2 className="w-7 h-7" />
+            </div>
+
+            <div className="text-center">
+              <h3 className="text-lg font-black text-slate-900">
+                ¿Eliminar {selectedOrderIds.length} Solicitud(es) de Producción?
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Se eliminarán permanentemente las órdenes seleccionadas con todos sus archivos adjuntos e historial.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowBulkDeleteModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkDeleteOrders}
+                disabled={bulkDeleting}
+                className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md transition-all disabled:opacity-50"
+              >
+                {bulkDeleting ? 'Eliminando...' : `Sí, Eliminar las ${selectedOrderIds.length} SPs`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMACIÓN DE BORRADO INDIVIDUAL DE SP */}
+      {orderToDelete && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <div className="text-center">
+              <h3 className="text-base font-black text-slate-900">
+                ¿Eliminar la orden {orderToDelete.orderNumber}?
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Se eliminará la orden de <strong className="text-slate-800">{orderToDelete.clientAgency} - {orderToDelete.product}</strong>.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setOrderToDelete(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteSingleOrder}
+                disabled={bulkDeleting}
+                className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md transition-all disabled:opacity-50"
+              >
+                {bulkDeleting ? 'Eliminando...' : 'Sí, Eliminar SP'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
