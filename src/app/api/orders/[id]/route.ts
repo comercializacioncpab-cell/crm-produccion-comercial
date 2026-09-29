@@ -340,9 +340,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       customSponsorship,
       voiceoverType,
       voiceoverText,
+      packageValue,
       priority,
       status,
     } = body;
+
+    const parsedPackageValue = packageValue !== undefined && packageValue !== null && packageValue !== ''
+      ? parseFloat(String(packageValue).replace(/[^0-9.]/g, ''))
+      : undefined;
 
     updatedOrder = await prisma.productionOrder.update({
       where: { id },
@@ -358,6 +363,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         ...(customSponsorship !== undefined && { customSponsorship }),
         ...(voiceoverType && { voiceoverType }),
         ...(voiceoverText !== undefined && { voiceoverText }),
+        ...(parsedPackageValue !== undefined && { packageValue: isNaN(parsedPackageValue) ? 0 : parsedPackageValue }),
         ...(priority && { priority }),
         ...(status && { status }),
       },

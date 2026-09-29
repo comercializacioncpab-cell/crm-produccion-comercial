@@ -16,7 +16,8 @@ import {
   Clock, 
   Radio, 
   FilePlus2,
-  Trash2
+  Trash2,
+  DollarSign
 } from 'lucide-react';
 import { SPONSORSHIP_OPTIONS } from '@/lib/order-utils';
 
@@ -37,6 +38,7 @@ export default function NewOrderPage() {
     voiceoverType: 'GENERICA',
     voiceoverText: '',
     priority: 'MEDIA',
+    packageValue: '',
   });
 
   const [files, setFiles] = useState<{ name: string; size: number; fileObj?: File }[]>([]);
@@ -234,6 +236,26 @@ export default function NewOrderPage() {
                   <option value="ALTA">Alta</option>
                   <option value="URGENTE">Urgente (Emisión Próxima)</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-emerald-800 mb-1 flex items-center gap-1">
+                  <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+                  Valor del Paquete ($ USD)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-2.5 text-xs font-bold text-slate-400">$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.packageValue}
+                    onChange={(e) => setFormData({ ...formData, packageValue: e.target.value })}
+                    placeholder="0.00"
+                    className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-emerald-300 bg-emerald-50/30 text-xs font-bold text-emerald-950 focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-slate-400"
+                  />
+                </div>
+                <span className="text-[10px] text-slate-400 mt-1 block">Valor comercial total contratado para este paquete.</span>
               </div>
             </div>
           </div>

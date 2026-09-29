@@ -284,6 +284,11 @@ export default function OrderDetailPage() {
                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${priorityInfo.badge}`}>
                   {priorityInfo.label}
                 </span>
+                {order.packageValue > 0 && (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    💰 ${Number(order.packageValue).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
                 {order.clientAgency} • {order.product}
@@ -340,7 +345,7 @@ export default function OrderDetailPage() {
                   {order.orderNumber}
                 </span>
               </div>
-              <div className="p-6 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+              <div className="p-6 grid grid-cols-2 sm:grid-cols-5 gap-4 text-xs">
                 <div>
                   <span className="text-slate-400 block text-[11px] font-semibold">Ejecutiva de Ventas:</span>
                   <strong className="text-slate-900 font-bold">{order.creator?.name}</strong>
@@ -356,6 +361,12 @@ export default function OrderDetailPage() {
                 <div>
                   <span className="text-slate-400 block text-[11px] font-semibold">Programa:</span>
                   <strong className="text-slate-900 font-bold">{order.program || 'N/A'}</strong>
+                </div>
+                <div>
+                  <span className="text-emerald-700 block text-[11px] font-bold">Valor Paquete:</span>
+                  <strong className="text-emerald-900 font-black text-sm">
+                    ${Number(order.packageValue || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </strong>
                 </div>
               </div>
             </div>

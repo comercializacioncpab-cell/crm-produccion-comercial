@@ -84,6 +84,7 @@ export async function POST(req: Request) {
       customSponsorship,
       voiceoverType = 'GENERICA',
       voiceoverText,
+      packageValue,
       priority = 'MEDIA',
       files = [],
     } = body;
@@ -91,6 +92,10 @@ export async function POST(req: Request) {
     if (!clientAgency || !product) {
       return NextResponse.json({ error: 'Cliente/Agencia y Producto son obligatorios' }, { status: 400 });
     }
+
+    const parsedPackageValue = packageValue !== undefined && packageValue !== null && packageValue !== ''
+      ? parseFloat(String(packageValue).replace(/[^0-9.]/g, ''))
+      : 0;
 
     // 🔢 Consecutive logic per user starting from 001 (e.g. SP-AR-001, SP-CM-001)
     const userInitials = user.initials || 'SP';
@@ -132,6 +137,7 @@ export async function POST(req: Request) {
         customSponsorship: customSponsorship || null,
         voiceoverType,
         voiceoverText: voiceoverText || null,
+        packageValue: isNaN(parsedPackageValue) ? 0 : parsedPackageValue,
         status: 'NUEVA',
         priority,
         creatorId: user.id,

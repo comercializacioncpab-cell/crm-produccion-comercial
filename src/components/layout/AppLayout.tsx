@@ -13,7 +13,8 @@ import {
   Users, 
   User, 
   Clapperboard, 
-  Radio
+  Radio,
+  DollarSign
 } from 'lucide-react';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -83,6 +84,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       href: '/profile',
       icon: User,
       roles: ['SOLICITANTE', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN'],
+    },
+    {
+      name: 'Ingresos Totales ($)',
+      href: '/financial',
+      icon: DollarSign,
+      roles: ['ADMIN'],
     },
   ];
 

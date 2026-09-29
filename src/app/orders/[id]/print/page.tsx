@@ -125,12 +125,20 @@ export default function PrintOrderPage() {
                   {order.product}
                 </td>
               </tr>
-              <tr>
+              <tr className="border-b border-slate-900">
                 <td className="bg-[#e0f2fe] p-1.5 font-bold border-r border-slate-900 text-slate-900 uppercase">
                   Programa:
                 </td>
                 <td className="p-1.5 font-bold text-slate-900 uppercase">
                   {order.program || ''}
+                </td>
+              </tr>
+              <tr>
+                <td className="bg-[#e0f2fe] p-1.5 font-bold border-r border-slate-900 text-slate-900 uppercase">
+                  Valor del Paquete:
+                </td>
+                <td className="p-1.5 font-bold text-slate-900">
+                  {order.packageValue ? `$ ${Number(order.packageValue).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD` : '$ 0.00 USD'}
                 </td>
               </tr>
             </tbody>

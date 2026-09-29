@@ -47,6 +47,7 @@ model ProductionOrder {
   customSponsorship    String?
   voiceoverType        String       @default("GENERICA") // GENERICA / ESPECIFICA
   voiceoverText        String?
+  packageValue         Float?       @default(0) // Valor monetario del paquete publicitario ($ USD)
   status               String       @default("NUEVA") // NUEVA, ASIGNADA, EN_PROCESO, RESUELTA, CON_CAMBIOS, APROBADA, AL_AIRE, CANCELADA
   priority             String       @default("MEDIA") // BAJA, MEDIA, ALTA, URGENTE
   
