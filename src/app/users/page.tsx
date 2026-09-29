@@ -17,7 +17,8 @@ import {
   Clock, 
   X,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  Trash2
 } from 'lucide-react';
 
 export default function UsersPage() {
@@ -33,6 +34,10 @@ export default function UsersPage() {
   const [savingPassword, setSavingPassword] = useState(false);
   const [modalMsg, setModalMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Delete User Confirmation State
+  const [userToDelete, setUserToDelete] = useState<any>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const fetchUsers = async () => {
     try {
       const res = await fetch('/api/users');
@@ -40,9 +45,6 @@ export default function UsersPage() {
         const data = await res.json();
         setUsers(data.users || []);
         setPendingCount(data.pendingCount || 0);
-        if (data.pendingCount > 0 && activeTab === 'approved') {
-          // optionally keep tab
-        }
       }
     } catch (e) {
       console.error(e);
@@ -125,6 +127,24 @@ export default function UsersPage() {
     }
   };
 
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/users/${userToDelete.id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setUserToDelete(null);
+        fetchUsers();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const pendingUsers = users.filter((u) => u.status === 'PENDIENTE');
   const approvedUsers = users.filter((u) => u.status !== 'PENDIENTE');
 
@@ -138,7 +158,7 @@ export default function UsersPage() {
               <Users className="w-6 h-6 text-purple-600" /> Control de Usuarios y Credenciales
             </h1>
             <p className="text-xs text-slate-500">
-              Aprobación de nuevos registros, reasignación de contraseñas e histórico de SPs por usuario.
+              Aprobación de nuevos registros, reasignación de contraseñas, histórico y eliminación de usuarios.
             </p>
           </div>
 
@@ -174,10 +194,10 @@ export default function UsersPage() {
             <div className="bg-amber-50 px-6 py-4 border-b border-amber-200 flex items-center justify-between">
               <div>
                 <h3 className="text-xs font-black uppercase text-amber-950 flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-amber-600" /> Solicitudes de Registro Pendientes de Tu Aprobación
+                  <Clock className="w-4 h-4 text-amber-600" /> Solicitudes de Registro Pendientes
                 </h3>
                 <p className="text-[11px] text-amber-800 mt-0.5">
-                  Revisa el rol solicitado por cada persona antes de habilitar su acceso al sistema.
+                  Revisa el rol solicitado antes de habilitar el acceso al sistema.
                 </p>
               </div>
               <span className="bg-amber-200 text-amber-950 text-xs font-black px-2.5 py-1 rounded-full">
@@ -217,13 +237,20 @@ export default function UsersPage() {
                           onClick={() => handleApproveUser(u.id, u.requestedRole || u.role)}
                           className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5"
                         >
-                          <Check className="w-3.5 h-3.5" /> Aprobar como {u.requestedRole || u.role}
+                          <Check className="w-3.5 h-3.5" /> Aprobar
                         </button>
                         <button
                           onClick={() => handleRejectUser(u.id)}
                           className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold px-3 py-2 rounded-xl transition-all flex items-center gap-1.5"
                         >
                           <X className="w-3.5 h-3.5" /> Rechazar
+                        </button>
+                        <button
+                          onClick={() => setUserToDelete(u)}
+                          className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all"
+                          title="Eliminar Registro"
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     )}
@@ -251,6 +278,7 @@ export default function UsersPage() {
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                   {approvedUsers.map((u) => {
                     const totalSPs = (u._count?.createdOrders || 0) + (u._count?.assignedOrders || 0);
+                    const isSelf = u.id === currentUser?.id;
 
                     return (
                       <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
@@ -264,7 +292,7 @@ export default function UsersPage() {
                                 href={`/users/${u.id}`}
                                 className="font-extrabold text-slate-900 text-xs hover:text-blue-600 block hover:underline"
                               >
-                                {u.name}
+                                {u.name} {isSelf && <span className="text-[10px] text-blue-600 font-bold">(Tú)</span>}
                               </Link>
                               <span className="text-[10px] text-slate-400 font-mono">
                                 SP-{u.initials || 'SP'}-*
@@ -308,7 +336,7 @@ export default function UsersPage() {
                           </Link>
                         </td>
 
-                        <td className="px-5 py-4 text-right space-x-2 whitespace-nowrap">
+                        <td className="px-5 py-4 text-right space-x-1.5 whitespace-nowrap">
                           {currentUser?.role === 'ADMIN' && (
                             <button
                               onClick={() => {
@@ -327,8 +355,18 @@ export default function UsersPage() {
                             href={`/users/${u.id}`}
                             className="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-all inline-flex items-center gap-1"
                           >
-                            Ver Ficha
+                            Ficha
                           </Link>
+
+                          {currentUser?.role === 'ADMIN' && !isSelf && (
+                            <button
+                              onClick={() => setUserToDelete(u)}
+                              className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all"
+                              title="Eliminar usuario"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -407,6 +445,42 @@ export default function UsersPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL DE CONFIRMACIÓN DE ELIMINACIÓN */}
+        {userToDelete && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+              <div className="w-12 h-12 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mx-auto">
+                <Trash2 className="w-6 h-6" />
+              </div>
+
+              <div className="text-center">
+                <h3 className="text-base font-black text-slate-900">¿Eliminar Usuario?</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Estás a punto de eliminar permanentemente a <strong className="text-slate-800">{userToDelete.name}</strong> ({userToDelete.email}). Esta acción no se puede deshacer.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setUserToDelete(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteUser}
+                  disabled={deleting}
+                  className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md transition-all disabled:opacity-50"
+                >
+                  {deleting ? 'Eliminando...' : 'Sí, Eliminar Usuario'}
+                </button>
+              </div>
             </div>
           </div>
         )}

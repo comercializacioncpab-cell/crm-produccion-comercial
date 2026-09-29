@@ -35,7 +35,6 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
     }
 
-    // Sanitize password from direct output (password hash remains secure)
     const { password, ...safeUser } = targetUser;
 
     return NextResponse.json({ user: safeUser });
@@ -73,7 +72,6 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         approvedById: currentUser.id,
       };
 
-      // Notify the user on WhatsApp/Email
       await sendNotification({
         userId: targetUser.id,
         type: 'APPROVED',
@@ -96,7 +94,6 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       const hashedPassword = await bcrypt.hash(newPassword, 10);
       updateData.password = hashedPassword;
 
-      // Log notification
       await sendNotification({
         userId: targetUser.id,
         type: 'APPROVED',
@@ -133,5 +130,47 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   } catch (error: any) {
     console.error('Error updating user:', error);
     return NextResponse.json({ error: 'Error al actualizar usuario' }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser || currentUser.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Solo los Administradores pueden eliminar usuarios' }, { status: 403 });
+    }
+
+    const { id } = params;
+
+    if (id === currentUser.id) {
+      return NextResponse.json({ error: 'No puedes eliminar tu propia cuenta de Administrador' }, { status: 400 });
+    }
+
+    const targetUser = await prisma.user.findUnique({ where: { id } });
+    if (!targetUser) {
+      return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
+    }
+
+    // Clean up notifications and activity logs related to this user
+    await prisma.notification.deleteMany({ where: { userId: id } });
+    await prisma.activityLog.deleteMany({ where: { userId: id } });
+    await prisma.orderFile.deleteMany({ where: { uploaderId: id } });
+    
+    // Delete orders created by this user or unlink assigned orders
+    await prisma.productionOrder.deleteMany({ where: { creatorId: id } });
+    await prisma.productionOrder.updateMany({
+      where: { postProducerId: id },
+      data: { postProducerId: null, status: 'NUEVA' },
+    });
+
+    // Delete the user
+    await prisma.user.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ success: true, message: 'Usuario eliminado correctamente' });
+  } catch (error: any) {
+    console.error('Error deleting user:', error);
+    return NextResponse.json({ error: 'Error al eliminar usuario' }, { status: 500 });
   }
 }

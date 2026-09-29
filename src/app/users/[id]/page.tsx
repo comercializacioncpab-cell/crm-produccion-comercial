@@ -19,7 +19,8 @@ import {
   Tv,
   Check,
   X,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from 'lucide-react';
 import { STATUS_CONFIG, PRIORITY_CONFIG } from '@/lib/order-utils';
 
@@ -36,6 +37,8 @@ export default function UserDetailPage() {
   const [editingPhone, setEditingPhone] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
   const [savingRole, setSavingRole] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const fetchUserDetail = async () => {
@@ -135,6 +138,27 @@ export default function UserDetailPage() {
     }
   };
 
+  const handleDeleteUser = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/users/${userId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        router.push('/users');
+      } else {
+        const data = await res.json();
+        setMsg({ type: 'error', text: data.error || 'Error al eliminar usuario' });
+        setShowDeleteModal(false);
+      }
+    } catch {
+      setMsg({ type: 'error', text: 'Error de conexión' });
+      setShowDeleteModal(false);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <AppLayout>
@@ -161,36 +185,49 @@ export default function UserDetailPage() {
     ...(targetUser.assignedOrders || []).map((o: any) => ({ ...o, relationType: 'ASIGNADA' })),
   ];
 
+  const isSelf = targetUser.id === currentUser?.id;
+
   return (
     <AppLayout>
       <div className="space-y-6">
         {/* Header Breadcrumb */}
-        <div className="flex items-center gap-3">
-          <Link
-            href="/users"
-            className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Link>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-                {targetUser.name}
-              </h1>
-              {targetUser.status === 'PENDIENTE' ? (
-                <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-300">
-                  ⏳ Pendiente de Aprobación
-                </span>
-              ) : (
-                <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-0.5 rounded-full border border-emerald-300">
-                  ✓ Usuario Aprobado
-                </span>
-              )}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/users"
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+                  {targetUser.name}
+                </h1>
+                {targetUser.status === 'PENDIENTE' ? (
+                  <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-300">
+                    ⏳ Pendiente de Aprobación
+                  </span>
+                ) : (
+                  <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-0.5 rounded-full border border-emerald-300">
+                    ✓ Usuario Aprobado
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 font-mono">
+                Prefijo SP: SP-{targetUser.initials}-*
+              </p>
             </div>
-            <p className="text-xs text-slate-500 font-mono">
-              ID: {targetUser.id} • Prefijo SP: SP-{targetUser.initials}-*
-            </p>
           </div>
+
+          {currentUser?.role === 'ADMIN' && !isSelf && (
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5"
+            >
+              <Trash2 className="w-4 h-4" /> Eliminar Usuario
+            </button>
+          )}
         </div>
 
         {msg && (
@@ -414,6 +451,42 @@ export default function UserDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Modal de Confirmación de Eliminación */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+              <div className="w-12 h-12 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mx-auto">
+                <Trash2 className="w-6 h-6" />
+              </div>
+
+              <div className="text-center">
+                <h3 className="text-base font-black text-slate-900">¿Eliminar a {targetUser.name}?</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Se eliminará permanentemente la cuenta y se desvincularán sus órdenes asociadas.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteUser}
+                  disabled={deleting}
+                  className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md transition-all disabled:opacity-50"
+                >
+                  {deleting ? 'Eliminando...' : 'Sí, Eliminar Usuario'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AppLayout>
   );
