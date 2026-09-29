@@ -26,6 +26,7 @@ export async function PATCH(req: Request) {
     if (initials) updateData.initials = initials.trim().toUpperCase();
     if (newPassword && newPassword.length >= 4) {
       updateData.password = await bcrypt.hash(newPassword, 10);
+      updateData.plainPassword = newPassword;
     }
 
     const updatedUser = await prisma.user.update({

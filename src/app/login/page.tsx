@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { LogIn, Sparkles, UserCheck, Shield, Clapperboard, CheckCircle } from 'lucide-react';
+import { LogIn, Sparkles, UserCheck, Shield, Clapperboard, CheckCircle, HelpCircle, Phone, X, CheckCircle2, MessageSquare } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -13,6 +13,18 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
+
+  // Forgot Password Modal State
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotResult, setForgotResult] = useState<{
+    success?: boolean;
+    error?: string;
+    message?: string;
+    whatsappUrl?: string;
+    adminPhone?: string;
+  } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,6 +37,37 @@ export default function LoginPage() {
     } else {
       setError('Credenciales inválidas. Verifica tu correo y contraseña.');
       setLoading(false);
+    }
+  };
+
+  const handleForgotSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotLoading(true);
+    setForgotResult(null);
+
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setForgotResult({
+          success: true,
+          message: data.message,
+          whatsappUrl: data.whatsappUrl,
+          adminPhone: data.adminPhone,
+        });
+      } else {
+        setForgotResult({
+          error: data.error || 'No se pudo procesar la solicitud',
+        });
+      }
+    } catch {
+      setForgotResult({ error: 'Error de conexión con el servidor.' });
+    } finally {
+      setForgotLoading(false);
     }
   };
 
@@ -87,9 +130,22 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Contraseña
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  Contraseña
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForgotEmail(email);
+                    setForgotResult(null);
+                    setShowForgotModal(true);
+                  }}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-bold hover:underline"
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
+              </div>
               <input
                 type="password"
                 required
@@ -172,6 +228,102 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+      {/* MODAL DE RECUPERACIÓN DE CONTRASEÑA */}
+      {showForgotModal && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 border border-slate-100">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+                  <HelpCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm text-slate-900">
+                    ¿Olvidaste tu Contraseña?
+                  </h3>
+                  <p className="text-[11px] text-slate-500">Recuperación asistida con el Administrador</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowForgotModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Ingresa el correo electrónico con el que te registraste. Notificaremos al Administrador para que pueda recordarte tu contraseña actual o enviártela por WhatsApp.
+            </p>
+
+            {forgotResult?.error && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl font-bold">
+                {forgotResult.error}
+              </div>
+            )}
+
+            {forgotResult?.success && (
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-3">
+                <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  ¡Notificación enviada al Administrador!
+                </div>
+                <p className="text-[11px] text-emerald-700 leading-relaxed">
+                  El Administrador tiene tu solicitud en su panel. También puedes abrir WhatsApp ahora mismo con un mensaje preparado para que te envíe tu clave de inmediato:
+                </p>
+
+                {forgotResult.whatsappUrl && (
+                  <a
+                    href={forgotResult.whatsappUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black py-2.5 px-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    Enviar WhatsApp al Administrador ({forgotResult.adminPhone})
+                  </a>
+                )}
+              </div>
+            )}
+
+            {!forgotResult?.success && (
+              <form onSubmit={handleForgotSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Tu Correo Registrado:
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    placeholder="ejemplo@comercial.tv"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotModal(false)}
+                    className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                  >
+                    Cerrar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md transition-all disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {forgotLoading ? 'Consultando...' : 'Pedir Contraseña'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -30,6 +30,7 @@ export async function POST(req: Request) {
         name: name.trim(),
         email: email.toLowerCase().trim(),
         password: hashedPassword,
+        plainPassword: password,
         role: assignedRole,
         requestedRole: assignedRole,
         status: 'PENDIENTE',

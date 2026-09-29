@@ -20,7 +20,12 @@ import {
   AlertTriangle, 
   Trash2,
   CheckSquare,
-  Square
+  Square,
+  Eye,
+  EyeOff,
+  Copy,
+  MessageCircle,
+  Share2
 } from 'lucide-react';
 
 export default function UsersPage() {
@@ -29,6 +34,10 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'approved' | 'pending'>('approved');
   const [pendingCount, setPendingCount] = useState(0);
+
+  // Password Visibility Toggle & Copied State
+  const [visiblePasswords, setVisiblePasswords] = useState<{ [userId: string]: boolean }>({});
+  const [copiedUserId, setCopiedUserId] = useState<string | null>(null);
 
   // Multi-select Checkboxes State
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
@@ -193,6 +202,29 @@ export default function UsersPage() {
     }
   };
 
+  const togglePasswordVisibility = (userId: string) => {
+    setVisiblePasswords((prev) => ({ ...prev, [userId]: !prev[userId] }));
+  };
+
+  const handleCopyPassword = (u: any) => {
+    const pwd = u.plainPassword || '123456';
+    navigator.clipboard.writeText(pwd);
+    setCopiedUserId(u.id);
+    setTimeout(() => setCopiedUserId(null), 2000);
+  };
+
+  const handleSendWhatsApp = (u: any) => {
+    const pwd = u.plainPassword || '123456';
+    const phone = (u.phone || '').replace(/[^0-9]/g, '');
+    const msg = `Hola ${u.name}, tus credenciales de acceso para el CRM de Producción Comercial son:\n\n📧 Correo: ${u.email}\n🔑 Contraseña: ${pwd}\n\nIngresa aquí: ${window.location.origin}/login`;
+    if (phone) {
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+    } else {
+      navigator.clipboard.writeText(msg);
+      alert('Mensaje con clave copiado al portapapeles (el usuario no tiene WhatsApp registrado)');
+    }
+  };
+
   const deletableCount = approvedUsers.filter((u) => u.id !== currentUser?.id).length;
   const isAllSelected = deletableCount > 0 && selectedUserIds.length === deletableCount;
 
@@ -352,8 +384,9 @@ export default function UsersPage() {
                     <th className="px-5 py-3.5">Usuario / Prefijo</th>
                     <th className="px-5 py-3.5">Correo y WhatsApp</th>
                     <th className="px-5 py-3.5">Rol en Producción</th>
+                    <th className="px-5 py-3.5">Contraseña Actual</th>
                     <th className="px-5 py-3.5 text-center">Histórico SPs</th>
-                    <th className="px-5 py-3.5 text-right">Credenciales / Acciones</th>
+                    <th className="px-5 py-3.5 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -361,6 +394,9 @@ export default function UsersPage() {
                     const totalSPs = (u._count?.createdOrders || 0) + (u._count?.assignedOrders || 0);
                     const isSelf = u.id === currentUser?.id;
                     const isSelected = selectedUserIds.includes(u.id);
+                    const isPwdVisible = !!visiblePasswords[u.id];
+                    const displayedPwd = u.plainPassword || '123456';
+                    const isCopied = copiedUserId === u.id;
 
                     return (
                       <tr
@@ -427,6 +463,39 @@ export default function UsersPage() {
                           </span>
                         </td>
 
+                        {/* Contraseña Visible para Admin con Botones de Copiar y Enviar WhatsApp */}
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-xs px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg text-slate-800 font-bold tracking-wider">
+                              {isPwdVisible ? displayedPwd : '••••••••'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => togglePasswordVisibility(u.id)}
+                              className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                              title={isPwdVisible ? 'Ocultar contraseña' : 'Ver contraseña'}
+                            >
+                              {isPwdVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyPassword(u)}
+                              className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                              title="Copiar contraseña al portapapeles"
+                            >
+                              {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSendWhatsApp(u)}
+                              className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                              title="Enviar credenciales completas por WhatsApp al usuario"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+
                         <td className="px-5 py-4 text-center">
                           <Link
                             href={`/users/${u.id}`}
@@ -444,9 +513,9 @@ export default function UsersPage() {
                               setModalMsg(null);
                             }}
                             className="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold px-2.5 py-1.5 rounded-lg transition-all inline-flex items-center gap-1"
-                            title="Reasignar Contraseña"
+                            title="Cambiar Contraseña"
                           >
-                            <KeyRound className="w-3.5 h-3.5" /> Clave
+                            <KeyRound className="w-3.5 h-3.5" /> Cambiar
                           </button>
 
                           <Link
@@ -533,8 +602,38 @@ export default function UsersPage() {
               </div>
 
               <p className="text-xs text-slate-600">
-                Asigna una nueva clave para el usuario <strong className="text-slate-900">{selectedUserForPassword.name}</strong> ({selectedUserForPassword.email}).
+                Gestiona la clave para el usuario <strong className="text-slate-900">{selectedUserForPassword.name}</strong> ({selectedUserForPassword.email}).
               </p>
+
+              {/* Contraseña Actual Registrada */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Contraseña Actual Registrada:
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handleCopyPassword(selectedUserForPassword)}
+                      className="text-[11px] bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold px-2 py-1 rounded-lg transition-all flex items-center gap-1"
+                    >
+                      {copiedUserId === selectedUserForPassword.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                      {copiedUserId === selectedUserForPassword.id ? '¡Copiado!' : 'Copiar'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSendWhatsApp(selectedUserForPassword)}
+                      className="text-[11px] bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded-lg transition-all flex items-center gap-1"
+                    >
+                      <MessageCircle className="w-3 h-3 text-emerald-600" />
+                      Enviar por WhatsApp
+                    </button>
+                  </div>
+                </div>
+                <div className="font-mono text-sm font-black text-slate-900 bg-white px-3 py-2 rounded-xl border border-slate-200">
+                  {selectedUserForPassword.plainPassword || '123456'}
+                </div>
+              </div>
 
               {modalMsg && (
                 <div
@@ -552,7 +651,7 @@ export default function UsersPage() {
               <form onSubmit={handleSavePassword} className="space-y-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Nueva Contraseña:
+                    O Asignar Nueva Contraseña:
                   </label>
                   <input
                     type="text"

@@ -20,7 +20,11 @@ import {
   Check,
   X,
   AlertCircle,
-  Trash2
+  Trash2,
+  Eye,
+  EyeOff,
+  Copy,
+  MessageCircle
 } from 'lucide-react';
 import { STATUS_CONFIG, PRIORITY_CONFIG } from '@/lib/order-utils';
 
@@ -39,6 +43,8 @@ export default function UserDetailPage() {
   const [savingRole, setSavingRole] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const fetchUserDetail = async () => {
@@ -135,6 +141,25 @@ export default function UserDetailPage() {
       setMsg({ type: 'error', text: 'Error al aprobar usuario' });
     } finally {
       setSavingRole(false);
+    }
+  };
+
+  const handleCopyPassword = () => {
+    const pwd = targetUser?.plainPassword || '123456';
+    navigator.clipboard.writeText(pwd);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSendWhatsApp = () => {
+    const pwd = targetUser?.plainPassword || '123456';
+    const phone = (targetUser?.phone || '').replace(/[^0-9]/g, '');
+    const msg = `Hola ${targetUser?.name}, tus credenciales de acceso para el CRM de Producción Comercial son:\n\n📧 Correo: ${targetUser?.email}\n🔑 Contraseña: ${pwd}\n\nIngresa aquí: ${window.location.origin}/login`;
+    if (phone) {
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+    } else {
+      navigator.clipboard.writeText(msg);
+      alert('Mensaje con clave copiado al portapapeles (el usuario no tiene WhatsApp registrado)');
     }
   };
 
@@ -323,18 +348,60 @@ export default function UserDetailPage() {
               )}
             </div>
 
-            {/* Admin Password Reset Widget */}
-            {currentUser?.role === 'ADMIN' && (
-              <div className="bg-white rounded-3xl border border-blue-200 p-6 shadow-sm space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
-                    <KeyRound className="w-4 h-4" />
+              {/* Admin Password View & WhatsApp Widget */}
+              {currentUser?.role === 'ADMIN' && (
+                <div className="bg-slate-50 border border-slate-200 rounded-3xl p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                      <KeyRound className="w-3.5 h-3.5 text-blue-600" /> Contraseña Registrada
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1"
+                    >
+                      {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      {showPassword ? 'Ocultar' : 'Ver'}
+                    </button>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-xs text-slate-900">Reasignar Contraseña</h3>
-                    <p className="text-[11px] text-slate-500">Asignar nueva clave si el usuario la olvidó</p>
+
+                  <div className="bg-white p-3 rounded-2xl border border-slate-200 flex items-center justify-between">
+                    <span className="font-mono text-sm font-black text-slate-900 tracking-wider">
+                      {showPassword ? (targetUser.plainPassword || '123456') : '••••••••'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCopyPassword}
+                      className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition-all"
+                      title="Copiar contraseña"
+                    >
+                      {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                    </button>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSendWhatsApp}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    Enviar Credenciales por WhatsApp
+                  </button>
                 </div>
+              )}
+
+              {/* Admin Password Reset Widget */}
+              {currentUser?.role === 'ADMIN' && (
+                <div className="bg-white rounded-3xl border border-blue-200 p-6 shadow-sm space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+                      <KeyRound className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-xs text-slate-900">Reasignar Contraseña</h3>
+                      <p className="text-[11px] text-slate-500">Asignar nueva clave si el usuario la olvidó</p>
+                    </div>
+                  </div>
 
                 <form onSubmit={handleResetPassword} className="space-y-3">
                   <div>

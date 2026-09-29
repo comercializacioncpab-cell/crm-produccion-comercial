@@ -35,9 +35,14 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
     }
 
-    const { password, ...safeUser } = targetUser;
+    const { password, plainPassword, ...safeUser } = targetUser;
 
-    return NextResponse.json({ user: safeUser });
+    return NextResponse.json({
+      user: {
+        ...safeUser,
+        plainPassword: user.role === 'ADMIN' ? (plainPassword || null) : undefined,
+      },
+    });
   } catch (error) {
     console.error('Error fetching user detail:', error);
     return NextResponse.json({ error: 'Error al obtener detalle del usuario' }, { status: 500 });
@@ -95,6 +100,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       }
       const hashedPassword = await bcrypt.hash(newPassword, 10);
       updateData.password = hashedPassword;
+      updateData.plainPassword = newPassword;
 
       await sendNotification({
         userId: targetUser.id,

@@ -13,6 +13,7 @@ model User {
   name          String
   email         String            @unique
   password      String
+  plainPassword String?           // Contraseña visible para el Administrador
   role          String            @default("SOLICITANTE") // SOLICITANTE, COORDINADOR, POST_PRODUCTOR, ADMIN
   requestedRole String?           // Rol solicitado durante el registro
   status        String            @default("APROBADO")    // PENDIENTE, APROBADO, RECHAZADO
@@ -97,7 +98,7 @@ model Notification {
   user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   orderId     String?
   order       ProductionOrder? @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  type        String           // NEW_SP, ASSIGNED, RESOLVED, CHANGES_REQUESTED, APPROVED, USER_APPROVAL_PENDING
+  type        String           // NEW_SP, ASSIGNED, RESOLVED, CHANGES_REQUESTED, APPROVED, USER_APPROVAL_PENDING, FORGOT_PASSWORD
   title       String
   message     String
   read        Boolean          @default(false)

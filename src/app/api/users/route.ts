@@ -21,6 +21,8 @@ export async function GET(req: Request) {
       where.status = status;
     }
 
+    const isAdmin = user.role === 'ADMIN';
+
     const users = await prisma.user.findMany({
       where,
       select: {
@@ -28,6 +30,7 @@ export async function GET(req: Request) {
         name: true,
         email: true,
         role: true,
+        plainPassword: isAdmin,
         requestedRole: true,
         status: true,
         initials: true,
