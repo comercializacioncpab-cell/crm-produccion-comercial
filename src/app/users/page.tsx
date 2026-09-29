@@ -15,10 +15,12 @@ import {
   KeyRound, 
   Layers, 
   Clock, 
-  X,
-  CheckCircle2,
-  AlertTriangle,
-  Trash2
+  X, 
+  CheckCircle2, 
+  AlertTriangle, 
+  Trash2,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 
 export default function UsersPage() {
@@ -28,13 +30,18 @@ export default function UsersPage() {
   const [activeTab, setActiveTab] = useState<'approved' | 'pending'>('approved');
   const [pendingCount, setPendingCount] = useState(0);
 
+  // Multi-select Checkboxes State
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
   // Password Reset Modal State
   const [selectedUserForPassword, setSelectedUserForPassword] = useState<any>(null);
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
   const [modalMsg, setModalMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Delete User Confirmation State
+  // Single Delete Modal State
   const [userToDelete, setUserToDelete] = useState<any>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -56,6 +63,47 @@ export default function UsersPage() {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  const approvedUsers = users.filter((u) => u.status !== 'PENDIENTE');
+  const pendingUsers = users.filter((u) => u.status === 'PENDIENTE');
+
+  // Checkbox handlers
+  const toggleSelectUser = (id: string) => {
+    if (id === currentUser?.id) return; // Cannot select self
+    setSelectedUserIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllApproved = () => {
+    const deletableUsers = approvedUsers.filter((u) => u.id !== currentUser?.id);
+    if (selectedUserIds.length === deletableUsers.length) {
+      setSelectedUserIds([]);
+    } else {
+      setSelectedUserIds(deletableUsers.map((u) => u.id));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedUserIds.length === 0) return;
+    setBulkDeleting(true);
+    try {
+      const res = await fetch('/api/users/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userIds: selectedUserIds }),
+      });
+      if (res.ok) {
+        setSelectedUserIds([]);
+        setShowBulkDeleteModal(false);
+        fetchUsers();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
 
   const handleApproveUser = async (userId: string, targetRole: string) => {
     try {
@@ -127,7 +175,7 @@ export default function UsersPage() {
     }
   };
 
-  const handleDeleteUser = async () => {
+  const handleDeleteSingle = async () => {
     if (!userToDelete) return;
     setDeleting(true);
     try {
@@ -145,8 +193,8 @@ export default function UsersPage() {
     }
   };
 
-  const pendingUsers = users.filter((u) => u.status === 'PENDIENTE');
-  const approvedUsers = users.filter((u) => u.status !== 'PENDIENTE');
+  const isAllSelected = approvedUsers.filter((u) => u.id !== currentUser?.id).length > 0 && 
+    selectedUserIds.length === approvedUsers.filter((u) => u.id !== currentUser?.id).length;
 
   return (
     <AppLayout>
@@ -158,14 +206,14 @@ export default function UsersPage() {
               <Users className="w-6 h-6 text-purple-600" /> Control de Usuarios y Credenciales
             </h1>
             <p className="text-xs text-slate-500">
-              Aprobación de nuevos registros, reasignación de contraseñas, histórico y eliminación de usuarios.
+              Selecciona usuarios con las casillas para eliminarlos en lote, reasignar contraseñas o aprobar registros.
             </p>
           </div>
 
           {/* Tab Switcher */}
           <div className="bg-slate-200/80 p-1 rounded-xl flex items-center text-xs font-semibold text-slate-700">
             <button
-              onClick={() => setActiveTab('approved')}
+              onClick={() => { setActiveTab('approved'); setSelectedUserIds([]); }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
                 activeTab === 'approved' ? 'bg-white text-slate-900 shadow-sm' : 'hover:text-slate-900'
               }`}
@@ -173,7 +221,7 @@ export default function UsersPage() {
               <Users className="w-3.5 h-3.5" /> Usuarios Activos ({approvedUsers.length})
             </button>
             <button
-              onClick={() => setActiveTab('pending')}
+              onClick={() => { setActiveTab('pending'); setSelectedUserIds([]); }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all relative ${
                 activeTab === 'pending' ? 'bg-white text-slate-900 shadow-sm' : 'hover:text-slate-900'
               }`}
@@ -187,6 +235,39 @@ export default function UsersPage() {
             </button>
           </div>
         </div>
+
+        {/* FLOATING BULK ACTIONS BAR (When Checkboxes are selected) */}
+        {selectedUserIds.length > 0 && currentUser?.role === 'ADMIN' && (
+          <div className="bg-gradient-to-r from-red-600 to-rose-700 text-white p-4 rounded-2xl shadow-lg flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center gap-3">
+              <CheckSquare className="w-5 h-5 text-white" />
+              <div>
+                <p className="text-xs font-black">
+                  {selectedUserIds.length} usuario(s) seleccionado(s)
+                </p>
+                <p className="text-[11px] text-white/80">
+                  Puedes eliminarlos todos juntos de la base de datos.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSelectedUserIds([])}
+                className="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition-all"
+              >
+                Deseleccionar
+              </button>
+              <button
+                onClick={() => setShowBulkDeleteModal(true)}
+                className="bg-white hover:bg-red-50 text-red-700 text-xs font-black px-4 py-2 rounded-xl shadow transition-all flex items-center gap-1.5"
+              >
+                <Trash2 className="w-4 h-4 text-red-600" />
+                Eliminar Seleccionados ({selectedUserIds.length})
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* TAB 1: PENDING USERS AWAITING ADMIN APPROVAL */}
         {activeTab === 'pending' && (
@@ -261,28 +342,60 @@ export default function UsersPage() {
           </div>
         )}
 
-        {/* TAB 2: ACTIVE USERS DIRECTORY */}
+        {/* TAB 2: ACTIVE USERS DIRECTORY (WITH MULTI-SELECT CHECKBOXES) */}
         {activeTab === 'approved' && (
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]">
                   <tr>
-                    <th className="px-5 py-3.5">Usuario / Prefijo</th>
-                    <th className="px-5 py-3.5">Correo y WhatsApp</th>
-                    <th className="px-5 py-3.5">Rol en Producción</th>
-                    <th className="px-5 py-3.5 text-center">Histórico SPs</th>
-                    <th className="px-5 py-3.5 text-right">Credenciales / Acciones</th>
+                    {currentUser?.role === 'ADMIN' && (
+                      <th className="px-4 py-3.5 w-10 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isAllSelected}
+                          onChange={toggleSelectAllApproved}
+                          className="w-4 h-4 text-purple-600 rounded cursor-pointer"
+                          title="Seleccionar todos para borrar"
+                        />
+                      </th>
+                    )}
+                    <th className="px-4 py-3.5">Usuario / Prefijo</th>
+                    <th className="px-4 py-3.5">Correo y WhatsApp</th>
+                    <th className="px-4 py-3.5">Rol en Producción</th>
+                    <th className="px-4 py-3.5 text-center">Histórico SPs</th>
+                    <th className="px-4 py-3.5 text-right">Credenciales / Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                   {approvedUsers.map((u) => {
                     const totalSPs = (u._count?.createdOrders || 0) + (u._count?.assignedOrders || 0);
                     const isSelf = u.id === currentUser?.id;
+                    const isSelected = selectedUserIds.includes(u.id);
 
                     return (
-                      <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="px-5 py-4">
+                      <tr
+                        key={u.id}
+                        className={`transition-colors ${
+                          isSelected ? 'bg-red-50/50' : 'hover:bg-slate-50/80'
+                        }`}
+                      >
+                        {currentUser?.role === 'ADMIN' && (
+                          <td className="px-4 py-4 text-center">
+                            {!isSelf ? (
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleSelectUser(u.id)}
+                                className="w-4 h-4 text-red-600 rounded cursor-pointer focus:ring-red-500"
+                              />
+                            ) : (
+                              <span className="text-[10px] text-slate-300 font-bold">—</span>
+                            )}
+                          </td>
+                        )}
+
+                        <td className="px-4 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-slate-900 to-slate-800 text-white font-black text-xs flex items-center justify-center shadow-sm">
                               {u.initials || 'U'}
@@ -301,7 +414,7 @@ export default function UsersPage() {
                           </div>
                         </td>
 
-                        <td className="px-5 py-4">
+                        <td className="px-4 py-4">
                           <span className="text-slate-800 font-mono text-[11px] block">{u.email}</span>
                           {u.phone && (
                             <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1 mt-0.5">
@@ -310,7 +423,7 @@ export default function UsersPage() {
                           )}
                         </td>
 
-                        <td className="px-5 py-4">
+                        <td className="px-4 py-4">
                           <span className={`text-[11px] px-2.5 py-1 rounded-full font-bold border ${
                             u.role === 'SOLICITANTE'
                               ? 'bg-pink-50 text-pink-700 border-pink-200'
@@ -327,7 +440,7 @@ export default function UsersPage() {
                           </span>
                         </td>
 
-                        <td className="px-5 py-4 text-center">
+                        <td className="px-4 py-4 text-center">
                           <Link
                             href={`/users/${u.id}`}
                             className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-2.5 py-1 rounded-lg text-[11px] inline-flex items-center gap-1"
@@ -336,7 +449,7 @@ export default function UsersPage() {
                           </Link>
                         </td>
 
-                        <td className="px-5 py-4 text-right space-x-1.5 whitespace-nowrap">
+                        <td className="px-4 py-4 text-right space-x-1.5 whitespace-nowrap">
                           {currentUser?.role === 'ADMIN' && (
                             <button
                               onClick={() => {
@@ -373,6 +486,44 @@ export default function UsersPage() {
                   })}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL DE CONFIRMACIÓN DE BORRADO MASIVO */}
+        {showBulkDeleteModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+              <div className="w-14 h-14 bg-red-100 text-red-600 rounded-3xl flex items-center justify-center mx-auto">
+                <Trash2 className="w-7 h-7" />
+              </div>
+
+              <div className="text-center">
+                <h3 className="text-lg font-black text-slate-900">
+                  ¿Eliminar {selectedUserIds.length} Usuario(s)?
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Se eliminarán permanentemente las cuentas seleccionadas y se desvincularán sus órdenes asociadas. Esta acción no se puede deshacer.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBulkDeleteModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkDelete}
+                  disabled={bulkDeleting}
+                  className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md transition-all disabled:opacity-50"
+                >
+                  {bulkDeleting ? 'Eliminando...' : `Sí, Eliminar los ${selectedUserIds.length} Usuarios`}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -449,7 +600,7 @@ export default function UsersPage() {
           </div>
         )}
 
-        {/* MODAL DE CONFIRMACIÓN DE ELIMINACIÓN */}
+        {/* MODAL DE CONFIRMACIÓN DE ELIMINACIÓN INDIVIDUAL */}
         {userToDelete && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
@@ -474,7 +625,7 @@ export default function UsersPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={handleDeleteUser}
+                  onClick={handleDeleteSingle}
                   disabled={deleting}
                   className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md transition-all disabled:opacity-50"
                 >
