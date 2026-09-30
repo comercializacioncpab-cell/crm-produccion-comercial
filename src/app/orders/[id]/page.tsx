@@ -21,9 +21,24 @@ import {
   Radio,
   ExternalLink,
   RotateCcw,
-  Check
+  Check,
+  Play,
+  PlayCircle,
+  Calendar,
+  Layers,
+  ChevronRight,
+  User,
+  ShieldCheck
 } from 'lucide-react';
-import { STATUS_CONFIG, PRIORITY_CONFIG, SPONSORSHIP_OPTIONS } from '@/lib/order-utils';
+import { 
+  STATUS_CONFIG, 
+  PRIORITY_CONFIG, 
+  SPONSORSHIP_OPTIONS,
+  formatDateTime,
+  formatDate,
+  WORKFLOW_STAGES,
+  getWorkflowStageIndex
+} from '@/lib/order-utils';
 
 export default function OrderDetailPage() {
   const { user } = useAuth();
@@ -102,11 +117,32 @@ export default function OrderDetailPage() {
         }),
       });
       if (res.ok) {
-        setMsg({ type: 'success', text: '¡Orden asignada exitosamente! Se notificó al post-productor por WhatsApp/Email.' });
+        setMsg({ type: 'success', text: '¡Orden asignada exitosamente! Se registró la fecha y hora exacta y se notificó por WhatsApp/Email.' });
         fetchOrder();
       }
     } catch {
       setMsg({ type: 'error', text: 'Error al asignar la orden.' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle Start Work / Confirm Reception (Post-Producer)
+  const handleStartWork = async () => {
+    setActionLoading(true);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'START_WORK' }),
+      });
+      if (res.ok) {
+        setMsg({ type: 'success', text: '¡Recepción confirmada! Se registró la hora de inicio y se notificó a la ejecutiva.' });
+        fetchOrder();
+      }
+    } catch {
+      setMsg({ type: 'error', text: 'Error al confirmar recepción de la orden.' });
     } finally {
       setActionLoading(false);
     }
@@ -152,7 +188,7 @@ export default function OrderDetailPage() {
       });
 
       if (res.ok) {
-        setMsg({ type: 'success', text: '¡Trabajo entregado! Se notificó a la ejecutiva solicitante para su aprobación.' });
+        setMsg({ type: 'success', text: '¡Trabajo entregado con hora registrada! Se notificó a la ejecutiva solicitante para su aprobación.' });
         setDeliveryFile(null);
         setDeliveryNotes('');
         setDeliveryExternalUrl('');
@@ -183,7 +219,7 @@ export default function OrderDetailPage() {
         }),
       });
       if (res.ok) {
-        setMsg({ type: 'success', text: 'Cambios solicitados y notificados al post-productor.' });
+        setMsg({ type: 'success', text: 'Cambios solicitados con fecha y hora registrada. Notificado al post-productor.' });
         setShowChangesModal(false);
         setChangeNotes('');
         fetchOrder();
@@ -206,7 +242,7 @@ export default function OrderDetailPage() {
         body: JSON.stringify({ action: 'APPROVE' }),
       });
       if (res.ok) {
-        setMsg({ type: 'success', text: '¡Excelente! La orden ha sido APROBADA y está lista para el aire.' });
+        setMsg({ type: 'success', text: '¡Excelente! La orden ha sido APROBADA con fecha y hora registrada. Lista para emisión al aire.' });
         fetchOrder();
       }
     } catch {
@@ -219,7 +255,10 @@ export default function OrderDetailPage() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="py-20 text-center text-slate-400 text-xs">Cargando detalles de la SP...</div>
+        <div className="py-24 text-center">
+          <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-xs font-bold text-slate-500">Cargando detalles de la SP y trazabilidad...</p>
+        </div>
       </AppLayout>
     );
   }
@@ -249,6 +288,27 @@ export default function OrderDetailPage() {
 
   const inputFiles = (order.files || []).filter((f: any) => f.fileType.startsWith('INPUT'));
   const outputFiles = (order.files || []).filter((f: any) => f.fileType.startsWith('OUTPUT'));
+
+  // Activity logs timestamps extraction for step visualization
+  const logs = order.activityLogs || [];
+  const logCreated = logs.find((l: any) => l.action === 'CREADA') || { createdAt: order.createdAt };
+  const logAssigned = logs.find((l: any) => l.action === 'ASIGNADA');
+  const logStarted = logs.find((l: any) => l.action === 'EN_PRODUCCION' || l.action === 'EN_PROCESO');
+  const logDelivered = logs.find((l: any) => l.action === 'ENTREGADA' || l.action === 'RESUELTA') || (order.deliveredAt ? { createdAt: order.deliveredAt } : null);
+  const logApproved = logs.find((l: any) => l.action === 'APROBADA') || (order.approvedAt ? { createdAt: order.approvedAt } : null);
+
+  const stageIndex = getWorkflowStageIndex(order.status);
+  const currentProgressPercent = order.status === 'APROBADA' || order.status === 'AL_AIRE' 
+    ? 100 
+    : order.status === 'RESUELTA' || order.status === 'ENTREGADO' 
+    ? 80 
+    : order.status === 'EN_PROCESO' 
+    ? 60 
+    : order.status === 'CON_CAMBIOS'
+    ? 50
+    : order.status === 'ASIGNADA' 
+    ? 40 
+    : 20;
 
   // WhatsApp direct text generator
   const waShareText = encodeURIComponent(
@@ -291,7 +351,7 @@ export default function OrderDetailPage() {
                 )}
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                {order.clientAgency} • {order.product}
+                {order.clientAgency} • {order.product} • Creada el {formatDateTime(order.createdAt)}
               </p>
             </div>
           </div>
@@ -331,7 +391,7 @@ export default function OrderDetailPage() {
           </div>
         )}
 
-        {/* WORKFLOW ACTION PANELS BASED ON ROLES & STATUS */}
+        {/* WORKFLOW ACTION PANELS & CONTENT */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Info Column (2 cols) */}
           <div className="lg:col-span-2 space-y-6">
@@ -389,128 +449,107 @@ export default function OrderDetailPage() {
                   </div>
                   <div className="bg-red-50/50 p-3 rounded-xl border border-red-200">
                     <span className="text-red-600 text-[11px] block font-bold">Fecha al aire:</span>
-                    <strong className="text-red-700 font-black text-sm">{order.airDate || 'Por definir'}</strong>
+                    <strong className="text-red-700 font-bold text-sm">{order.airDate || 'Por definir'}</strong>
                   </div>
                 </div>
 
-                {order.materialNotes && (
-                  <div className="pt-2">
-                    <span className="text-slate-400 text-[11px] block font-semibold mb-1">Indicaciones de material:</span>
-                    <p className="text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs leading-relaxed">
-                      {order.materialNotes}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* SECCIÓN 3: TIPO DE AUSPICIO */}
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="bg-ev-rowHeader px-6 py-2.5 text-white flex items-center justify-between">
-                <span className="text-xs font-black uppercase">
-                  TIPO DE AUSPICIO
-                </span>
-              </div>
-              <div className="p-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  {SPONSORSHIP_OPTIONS.map((opt) => {
-                    const isSelected = sponsorshipParsed.includes(opt.id);
-                    return (
-                      <div
-                        key={opt.id}
-                        className={`flex items-center gap-2 p-2.5 rounded-xl border font-bold ${
-                          isSelected
-                            ? 'bg-blue-50 border-blue-400 text-blue-900'
-                            : 'bg-slate-50/50 border-slate-100 text-slate-400'
-                        }`}
-                      >
-                        <span className={`w-4 h-4 rounded flex items-center justify-center text-[10px] ${isSelected ? 'bg-blue-600 text-white' : 'border border-slate-300'}`}>
-                          {isSelected ? 'X' : ''}
-                        </span>
-                        <span>{opt.label}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-                {order.customSponsorship && (
-                  <p className="mt-3 text-xs text-slate-700 font-semibold bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                    Otro auspicio: {order.customSponsorship}
+                <div>
+                  <span className="text-slate-400 text-[11px] block font-semibold mb-1">Notas / Especificaciones:</span>
+                  <p className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-slate-700 whitespace-pre-wrap">
+                    {order.materialNotes || 'Sin notas adicionales especificadas.'}
                   </p>
-                )}
+                </div>
               </div>
             </div>
 
-            {/* SECCIÓN 4: LOCUCIÓN */}
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="bg-ev-rowHeader px-6 py-2.5 text-white flex items-center justify-between">
-                <span className="text-xs font-black uppercase">
-                  LOCUCIÓN ({order.voiceoverType})
-                </span>
+            {/* SECCIÓN 3: TIPO DE AUSPICIO & LOCUCIÓN */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-5 space-y-3">
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                  <Tv className="w-4 h-4 text-indigo-600" /> Tipos de Auspicio
+                </h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {sponsorshipParsed.length === 0 ? (
+                    <span className="text-xs text-slate-400">Ninguno especificado</span>
+                  ) : (
+                    sponsorshipParsed.map((id: string) => {
+                      const opt = SPONSORSHIP_OPTIONS.find((s) => s.id === id);
+                      return (
+                        <span key={id} className="bg-indigo-50 text-indigo-800 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-indigo-200">
+                          {opt?.label || id}
+                        </span>
+                      );
+                    })
+                  )}
+                  {order.customSponsorship && (
+                    <span className="bg-purple-50 text-purple-800 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-purple-200">
+                      Otro: {order.customSponsorship}
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="p-6 space-y-2">
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs font-mono text-slate-800 leading-relaxed whitespace-pre-wrap">
+
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-5 space-y-3">
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                  <Radio className="w-4 h-4 text-cyan-600" /> Locución ({order.voiceoverType})
+                </h3>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs font-mono whitespace-pre-wrap text-slate-700 max-h-32 overflow-y-auto">
                   {order.voiceoverText || 'Sin texto de locución redactado.'}
                 </div>
               </div>
             </div>
 
-            {/* SECCIÓN 5: ARCHIVOS ADJUNTOS (Insumos vs Entregables) */}
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-6 space-y-4">
-              <h3 className="text-xs font-black uppercase text-slate-900 tracking-wider">
-                ARCHIVOS Y ENTREGABLES ASOCIADOS
+            {/* ARCHIVOS Y MATERIALES ADJUNTOS */}
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
+              <h3 className="font-bold text-xs text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <FileText className="w-4 h-4 text-blue-600" /> Insumos y Materiales Adjuntos
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Input Briefs / Assets */}
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
-                  <span className="text-xs font-bold text-slate-700 block">
-                    📥 Insumos / Briefs de Ejecutiva ({inputFiles.length})
+                {/* Inputs / Briefs */}
+                <div className="space-y-2">
+                  <span className="text-[11px] font-bold text-slate-500 block">
+                    📥 Insumos Iniciales ({inputFiles.length}):
                   </span>
                   {inputFiles.length === 0 ? (
-                    <p className="text-[11px] text-slate-400">Sin archivos adjuntos iniciales.</p>
+                    <p className="text-xs text-slate-400 bg-slate-50 p-3 rounded-xl">No hay insumos adjuntos.</p>
                   ) : (
                     inputFiles.map((f: any) => (
-                      <div key={f.id} className="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
-                        <span className="truncate max-w-[180px] font-medium text-slate-800">
-                          {f.fileName}
-                        </span>
-                        <a
-                          href={f.filePath || f.externalUrl || '#'}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 font-bold text-[11px] flex items-center gap-1"
-                        >
-                          <Download className="w-3 h-3" /> Bajar
-                        </a>
+                      <div key={f.id} className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
+                        <span className="font-medium text-slate-800 truncate max-w-[180px]">📄 {f.fileName}</span>
+                        {f.filePath && (
+                          <a href={f.filePath} download target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 text-[11px]">
+                            <Download className="w-3.5 h-3.5" /> Descargar
+                          </a>
+                        )}
                       </div>
                     ))
                   )}
                 </div>
 
-                {/* Output Deliverables */}
-                <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-200 space-y-2">
-                  <span className="text-xs font-bold text-emerald-900 block">
-                    ✨ Material Resuelto / Masters ({outputFiles.length})
+                {/* Outputs / Deliverables */}
+                <div className="space-y-2">
+                  <span className="text-[11px] font-bold text-emerald-700 block">
+                    🎬 Entregables de Post-Producción ({outputFiles.length}):
                   </span>
                   {outputFiles.length === 0 ? (
-                    <p className="text-[11px] text-emerald-700/60">Aún no se ha subido material final renderizado.</p>
+                    <p className="text-xs text-slate-400 bg-slate-50 p-3 rounded-xl">Aún no se ha subido el material final resuelto.</p>
                   ) : (
                     outputFiles.map((f: any) => (
-                      <div key={f.id} className="bg-white p-2.5 rounded-xl border border-emerald-200 flex items-center justify-between text-xs">
-                        <div>
-                          <span className="truncate max-w-[180px] font-bold text-emerald-950 block">
-                            🎬 {f.fileName}
-                          </span>
-                          {f.notes && <span className="text-[10px] text-slate-500">{f.notes}</span>}
+                      <div key={f.id} className="bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-200 flex items-center justify-between text-xs">
+                        <span className="font-bold text-emerald-900 truncate max-w-[180px]">✨ {f.fileName}</span>
+                        <div className="flex items-center gap-2">
+                          {f.externalUrl && (
+                            <a href={f.externalUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-bold flex items-center gap-1 text-[11px]">
+                              <ExternalLink className="w-3 h-3" /> Nube
+                            </a>
+                          )}
+                          {f.filePath && (
+                            <a href={f.filePath} download target="_blank" rel="noopener noreferrer" className="text-emerald-700 hover:underline font-bold flex items-center gap-1 text-[11px]">
+                              <Download className="w-3.5 h-3.5" /> Archivo
+                            </a>
+                          )}
                         </div>
-                        <a
-                          href={f.filePath || f.externalUrl || '#'}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded-md text-[11px] flex items-center gap-1"
-                        >
-                          <Download className="w-3 h-3" /> Descargar
-                        </a>
                       </div>
                     ))
                   )}
@@ -519,9 +558,9 @@ export default function OrderDetailPage() {
             </div>
           </div>
 
-          {/* Right Column: Workflow Interactive Panels */}
+          {/* Right Action & Activity Column (1 col) */}
           <div className="space-y-6">
-            {/* PANEL 1: ASIGNACIÓN A POST-PRODUCTOR (Coordinadora / Admin) */}
+            {/* PANEL 1: ASIGNACIÓN A POST-PRODUCTOR (Coordinador / Admin) */}
             {(user?.role === 'COORDINADOR' || user?.role === 'ADMIN') && (
               <div className="bg-white rounded-3xl border border-purple-200 p-5 shadow-sm space-y-4">
                 <div className="flex items-center gap-2">
@@ -529,8 +568,8 @@ export default function OrderDetailPage() {
                     📋
                   </div>
                   <div>
-                    <h3 className="font-bold text-xs text-slate-900">Coordinación de Producción</h3>
-                    <p className="text-[11px] text-slate-500">Asignar responsable de edición</p>
+                    <h3 className="font-bold text-xs text-slate-900">Coordinación y Asignación</h3>
+                    <p className="text-[11px] text-slate-500">Asignar editor responsable</p>
                   </div>
                 </div>
 
@@ -581,7 +620,7 @@ export default function OrderDetailPage() {
               </div>
             )}
 
-            {/* PANEL 2: RESOLUCIÓN Y ENTREGA FINAL (Post-Productor / Admin) */}
+            {/* PANEL 2: POST-PRODUCTOR ACCIONES (Recepción y Entrega) */}
             {(user?.role === 'POST_PRODUCTOR' || user?.role === 'ADMIN') && (
               <div className="bg-white rounded-3xl border border-blue-200 p-5 shadow-sm space-y-4">
                 <div className="flex items-center gap-2">
@@ -589,58 +628,88 @@ export default function OrderDetailPage() {
                     🎬
                   </div>
                   <div>
-                    <h3 className="font-bold text-xs text-slate-900">Entrega de Post-Producción</h3>
-                    <p className="text-[11px] text-slate-500">Subir render / master resuelto</p>
+                    <h3 className="font-bold text-xs text-slate-900">Acciones del Post-Productor</h3>
+                    <p className="text-[11px] text-slate-500">
+                      {order.postProducer?.name ? `Asignado a: ${order.postProducer.name}` : 'Sin asignar'}
+                    </p>
                   </div>
                 </div>
 
-                <form onSubmit={handleResolveDelivery} className="space-y-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Subir Video / Master Final:
-                    </label>
-                    <input
-                      type="file"
-                      onChange={(e) => setDeliveryFile(e.target.files?.[0] || null)}
-                      className="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                    />
-                  </div>
+                {/* Sub-Action A: Si la orden está ASIGNADA, botón para Confirmar Recepción e Iniciar */}
+                {order.status === 'ASIGNADA' && (
+                  <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-start gap-2">
+                      <Clock className="w-4 h-4 text-blue-600 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-bold text-blue-950">Orden Asignada Pendiente</p>
+                        <p className="text-[11px] text-blue-700 mt-0.5">
+                          Haz clic para registrar la hora en que recibes el trámite y comienzas la edición.
+                        </p>
+                      </div>
+                    </div>
 
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      O Enlace Externo (Drive / Frame.io / Vimeo):
-                    </label>
-                    <input
-                      type="url"
-                      value={deliveryExternalUrl}
-                      onChange={(e) => setDeliveryExternalUrl(e.target.value)}
-                      placeholder="https://drive.google.com/..."
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <button
+                      onClick={handleStartWork}
+                      disabled={actionLoading}
+                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-black py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      <Play className="w-4 h-4" />
+                      {actionLoading ? 'Registrando recepción...' : 'Confirmar Recepción e Iniciar Edición'}
+                    </button>
                   </div>
+                )}
 
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Notas de Entrega / Especificaciones Técnicas:
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={deliveryNotes}
-                      onChange={(e) => setDeliveryNotes(e.target.value)}
-                      placeholder="Ej. Master en ProRes y MP4, audio -24 LUFS..."
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    ></textarea>
-                  </div>
+                {/* Sub-Action B: Formulario de Entrega Final de Post */}
+                {(order.status === 'EN_PROCESO' || order.status === 'CON_CAMBIOS' || order.status === 'ASIGNADA' || user?.role === 'ADMIN') && (
+                  <form onSubmit={handleResolveDelivery} className="space-y-3 pt-1">
+                    <span className="text-[11px] font-bold text-slate-700 block">
+                      Subir Video / Master Resuelto:
+                    </span>
 
-                  <button
-                    type="submit"
-                    disabled={actionLoading}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    {actionLoading ? 'Procesando entrega...' : 'Marcar como Resuelta y Entregar'}
-                  </button>
-                </form>
+                    <div>
+                      <input
+                        type="file"
+                        onChange={(e) => setDeliveryFile(e.target.files?.[0] || null)}
+                        className="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">
+                        O Enlace Externo (Drive / Frame.io / Vimeo):
+                      </label>
+                      <input
+                        type="url"
+                        value={deliveryExternalUrl}
+                        onChange={(e) => setDeliveryExternalUrl(e.target.value)}
+                        placeholder="https://drive.google.com/..."
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">
+                        Notas de Entrega:
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={deliveryNotes}
+                        onChange={(e) => setDeliveryNotes(e.target.value)}
+                        placeholder="Ej. Master en ProRes y MP4, audio -24 LUFS..."
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      ></textarea>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={actionLoading}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      {actionLoading ? 'Procesando entrega...' : 'Marcar como Resuelta y Entregar'}
+                    </button>
+                  </form>
+                )}
               </div>
             )}
 
@@ -679,30 +748,206 @@ export default function OrderDetailPage() {
                 {order.approved && (
                   <div className="p-3 bg-teal-50 border border-teal-200 rounded-xl text-teal-900 text-xs">
                     <p className="font-bold">✓ Aprobado por: {order.approvedBy || 'Ejecutiva'}</p>
-                    <span className="text-[10px] text-teal-700">Listo para emisión comercial.</span>
+                    <span className="text-[10px] text-teal-700 block mt-0.5">
+                      Hora de Aprobación: {formatDateTime(order.approvedAt || order.updatedAt)}
+                    </span>
                   </div>
                 )}
               </div>
             )}
 
-            {/* PANEL 4: TIMELINE DE ACTIVIDAD */}
-            <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-3">
-              <h3 className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-slate-400" /> Historial de Trazabilidad
-              </h3>
+            {/* 🌟 BARRA DE PROCESO / STEPPER VISUAL (Directamente arriba de Trazabilidad) */}
+            <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                    <Layers className="w-4 h-4 text-cyan-600" /> Progreso del Trámite
+                  </h3>
+                  <p className="text-[11px] text-slate-400">Avance de la Solicitud por Etapas</p>
+                </div>
+                <span className="text-xs font-black font-mono text-cyan-700 bg-cyan-50 px-2.5 py-1 rounded-full border border-cyan-200">
+                  {currentProgressPercent}%
+                </span>
+              </div>
 
-              <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
-                {(order.activityLogs || []).map((log: any) => (
-                  <div key={log.id} className="text-xs border-l-2 border-blue-500 pl-3 py-0.5 space-y-0.5">
+              {/* Dynamic Fill Bar */}
+              <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-200">
+                <div 
+                  className={`h-full rounded-full transition-all duration-700 ${
+                    order.status === 'APROBADA' || order.status === 'AL_AIRE'
+                      ? 'bg-gradient-to-r from-teal-500 to-emerald-500'
+                      : order.status === 'CON_CAMBIOS'
+                      ? 'bg-gradient-to-r from-amber-500 to-rose-500'
+                      : 'bg-gradient-to-r from-cyan-500 to-blue-600'
+                  }`}
+                  style={{ width: `${currentProgressPercent}%` }}
+                ></div>
+              </div>
+
+              {/* 5 Steps Vertical Timeline */}
+              <div className="space-y-3 pt-1">
+                {/* Paso 1: Recepción / Creada */}
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-black shrink-0 shadow-sm">
+                    ✓
+                  </div>
+                  <div className="flex-1 text-xs">
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-800">{log.action}</span>
-                      <span className="text-[10px] text-slate-400">
-                        {new Date(log.createdAt).toLocaleDateString()}
+                      <span className="font-bold text-slate-900">1. Solicitud Recibida</span>
+                      <span className="text-[10px] font-semibold text-emerald-700">Completado</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500">Por {order.creator?.name}</p>
+                    <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
+                      🕒 {formatDateTime(logCreated?.createdAt || order.createdAt)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Paso 2: Asignación */}
+                <div className="flex items-start gap-3">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 shadow-sm ${
+                    order.postProducerId
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-slate-200 text-slate-500'
+                  }`}>
+                    {order.postProducerId ? '✓' : '2'}
+                  </div>
+                  <div className="flex-1 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900">2. Asignada a Post</span>
+                      <span className={`text-[10px] font-semibold ${order.postProducerId ? 'text-emerald-700' : 'text-slate-400'}`}>
+                        {order.postProducerId ? 'Completado' : 'Pendiente'}
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-600">{log.details}</p>
+                    <p className="text-[11px] text-slate-500">
+                      {order.postProducer?.name ? `Editor: ${order.postProducer.name}` : 'Esperando asignación'}
+                    </p>
+                    {logAssigned && (
+                      <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
+                        🕒 {formatDateTime(logAssigned.createdAt)}
+                      </span>
+                    )}
                   </div>
-                ))}
+                </div>
+
+                {/* Paso 3: En Edición / Proceso */}
+                <div className="flex items-start gap-3">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 shadow-sm ${
+                    stageIndex >= 2
+                      ? 'bg-emerald-500 text-white'
+                      : order.status === 'ASIGNADA'
+                      ? 'bg-cyan-500 text-white animate-pulse'
+                      : 'bg-slate-200 text-slate-500'
+                  }`}>
+                    {stageIndex >= 2 ? '✓' : '3'}
+                  </div>
+                  <div className="flex-1 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900">3. En Producción</span>
+                      <span className={`text-[10px] font-semibold ${stageIndex >= 2 ? 'text-emerald-700' : 'text-slate-400'}`}>
+                        {stageIndex >= 2 ? 'En Curso / Listo' : 'Pendiente'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      {order.status === 'CON_CAMBIOS' ? '⚠️ Ajustes en edición' : 'Edición y musicalización'}
+                    </p>
+                    {logStarted && (
+                      <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
+                        🕒 {formatDateTime(logStarted.createdAt)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Paso 4: Material Entregado */}
+                <div className="flex items-start gap-3">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 shadow-sm ${
+                    stageIndex >= 3
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-slate-200 text-slate-500'
+                  }`}>
+                    {stageIndex >= 3 ? '✓' : '4'}
+                  </div>
+                  <div className="flex-1 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900">4. Material Entregado</span>
+                      <span className={`text-[10px] font-semibold ${stageIndex >= 3 ? 'text-emerald-700' : 'text-slate-400'}`}>
+                        {stageIndex >= 3 ? 'Completado' : 'Pendiente'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500">Master subido para revisión</p>
+                    {logDelivered && (
+                      <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
+                        🕒 {formatDateTime(logDelivered.createdAt)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Paso 5: Aprobada al Aire */}
+                <div className="flex items-start gap-3">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 shadow-sm ${
+                    order.approved || order.status === 'APROBADA' || order.status === 'AL_AIRE'
+                      ? 'bg-teal-600 text-white'
+                      : 'bg-slate-200 text-slate-500'
+                  }`}>
+                    {order.approved ? '✓' : '5'}
+                  </div>
+                  <div className="flex-1 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900">5. Aprobada al Aire</span>
+                      <span className={`text-[10px] font-semibold ${order.approved ? 'text-teal-700' : 'text-slate-400'}`}>
+                        {order.approved ? 'Aprobada' : 'Pendiente'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      {order.approved ? `Por: ${order.approvedBy || 'Ejecutiva'}` : 'Autorización comercial'}
+                    </p>
+                    {logApproved && (
+                      <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
+                        🕒 {formatDateTime(logApproved.createdAt)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* PANEL 4: HISTORIAL DE TRAZABILIDAD (Con Fecha y Hora Exacta) */}
+            <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-slate-600" /> Historial de Trazabilidad
+                </h3>
+                <span className="text-[10px] text-slate-400 font-medium">
+                  {order.activityLogs?.length || 0} registros
+                </span>
+              </div>
+
+              <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                {(!order.activityLogs || order.activityLogs.length === 0) ? (
+                  <p className="text-xs text-slate-400 py-3 text-center">Sin actividad registrada aún.</p>
+                ) : (
+                  order.activityLogs.map((log: any) => (
+                    <div key={log.id} className="text-xs border-l-2 border-cyan-500 pl-3 py-1 space-y-1 bg-slate-50/50 rounded-r-xl pr-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wide">
+                          {log.action}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-mono font-medium flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-cyan-600" />
+                          {formatDateTime(log.createdAt)}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600">{log.details}</p>
+                      {log.user && (
+                        <span className="text-[10px] text-slate-400 block font-medium">
+                          👤 {log.user.name} ({log.user.role})
+                        </span>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>

@@ -74,3 +74,58 @@ export function formatInitials(name: string): string {
   }
   return name.substring(0, 2).toUpperCase();
 }
+
+export function formatDateTime(dateStr?: string | Date | null): string {
+  if (!dateStr) return 'N/A';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return d.toLocaleString('es-EC', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  });
+}
+
+export function formatDate(dateStr?: string | Date | null): string {
+  if (!dateStr) return 'N/A';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return d.toLocaleDateString('es-EC', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
+export const WORKFLOW_STAGES = [
+  { id: 'NUEVA', step: 1, label: 'Solicitud Recibida', desc: 'Creada por Ventas', percent: 20 },
+  { id: 'ASIGNADA', step: 2, label: 'Asignada a Post', desc: 'Coordinación asignó editor', percent: 40 },
+  { id: 'EN_PROCESO', step: 3, label: 'En Producción', desc: 'Post-Productor en edición', percent: 60 },
+  { id: 'RESUELTA', step: 4, label: 'Material Entregado', desc: 'Master listo para revisión', percent: 80 },
+  { id: 'APROBADA', step: 5, label: 'Aprobada al Aire', desc: 'Autorizada para emisión', percent: 100 },
+];
+
+export function getWorkflowStageIndex(status: string): number {
+  switch (status) {
+    case 'NUEVA':
+      return 0;
+    case 'ASIGNADA':
+      return 1;
+    case 'EN_PROCESO':
+    case 'CON_CAMBIOS':
+      return 2;
+    case 'RESUELTA':
+    case 'ENTREGADO':
+      return 3;
+    case 'APROBADA':
+    case 'AL_AIRE':
+      return 4;
+    default:
+      return 0;
+  }
+}
+

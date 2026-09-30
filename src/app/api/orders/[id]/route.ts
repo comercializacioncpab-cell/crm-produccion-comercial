@@ -141,7 +141,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           orderId: id,
           userId: user.id,
           action: 'EN_PRODUCCION',
-          details: `${user.name} inició los trabajos de post-producción.`,
+          details: `Orden recibida e iniciados los trabajos de post-producción por ${user.name}.`,
         },
       });
 
