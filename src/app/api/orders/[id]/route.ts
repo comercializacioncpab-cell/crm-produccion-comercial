@@ -240,12 +240,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       const currentCount = order.changesCount || 0;
       const nextCount = currentCount + 1;
 
-      // Check if this is the 3rd or subsequent change and cost wasn't accepted yet
-      if (nextCount >= 3 && !acceptExtraCost) {
+      // Check if this is the 4th or subsequent change and cost wasn't accepted yet
+      if (nextCount >= 4 && !acceptExtraCost) {
         return NextResponse.json({
-          error: 'Esta es la 3era (o superior) solicitud de cambio. A partir de este cambio cuenta con un costo adicional. Debes aceptar el costo adicional para continuar.',
+          error: 'Esta es la 4ª (o superior) solicitud de cambio. A partir de este cambio cuenta con un costo adicional de $200 USD por cada cambio. Debes aceptar el costo adicional para continuar.',
           requiresCostApproval: true,
           nextCount,
+          costPerChange: 200,
         }, { status: 400 });
       }
 
@@ -256,11 +257,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           hasChanges: true,
           changeNotes,
           changesCount: nextCount,
-          extraCostAccepted: nextCount >= 3 ? true : order.extraCostAccepted,
+          extraCostAccepted: nextCount >= 4 ? true : order.extraCostAccepted,
         },
       });
 
-      const costNotice = nextCount >= 3 ? ' [⚠️ Aceptó Costo Adicional por 3er+ cambio]' : '';
+      const costNotice = nextCount >= 4 ? ' [⚠️ Aceptó Costo Adicional de $200 USD por 4°+ cambio]' : '';
 
       await prisma.activityLog.create({
         data: {
@@ -277,7 +278,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           orderId: id,
           type: 'CHANGES_REQUESTED',
           title: `⚠️ Solicitud de Cambio #${nextCount} en ${order.orderNumber}`,
-          message: `${user.name} ha solicitado el cambio #${nextCount} en ${order.product}: "${changeNotes}".${nextCount >= 3 ? ' (Cuenta con costo adicional aceptado por el cliente).' : ''}`,
+          message: `${user.name} ha solicitado el cambio #${nextCount} en ${order.product}: "${changeNotes}".${nextCount >= 4 ? ' (Cuenta con costo adicional de $200 USD aceptado por el cliente).' : ''}`,
           userPhone: order.postProducer?.phone,
           userEmail: order.postProducer?.email,
           orderNumber: order.orderNumber,

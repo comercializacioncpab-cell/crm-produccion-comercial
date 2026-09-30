@@ -306,7 +306,7 @@ export default function PrintOrderPage() {
                       SI <span className="w-6 h-4 border border-slate-900 inline-block text-center text-xs leading-4 font-black">{order.hasChanges || (order.changesCount && order.changesCount > 0) ? 'X' : ''}</span>
                       {order.changesCount > 0 && (
                         <span className="text-[10px] text-slate-700 font-semibold">
-                          ({order.changesCount} {order.changesCount === 1 ? 'cambio' : 'cambios'}{order.extraCostAccepted ? ' - Con Costo Adicional' : ''})
+                          ({order.changesCount} {order.changesCount === 1 ? 'cambio' : 'cambios'}{order.changesCount >= 4 || order.extraCostAccepted ? ' - Con Costo Adicional de $200 USD c/u' : ''})
                         </span>
                       )}
                     </span>

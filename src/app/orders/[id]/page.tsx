@@ -212,8 +212,8 @@ export default function OrderDetailPage() {
     const currentChanges = order.changesCount || 0;
     const nextChangeNum = currentChanges + 1;
 
-    if (nextChangeNum >= 3 && !acceptCostChecked) {
-      setMsg({ type: 'error', text: 'Debes marcar la casilla aceptando el costo adicional para proceder a partir del 3er cambio solicitado.' });
+    if (nextChangeNum >= 4 && !acceptCostChecked) {
+      setMsg({ type: 'error', text: 'Debes marcar la casilla aceptando el costo adicional de $200 USD para proceder a partir del 4to cambio solicitado.' });
       return;
     }
 
@@ -226,7 +226,7 @@ export default function OrderDetailPage() {
         body: JSON.stringify({
           action: 'REQUEST_CHANGES',
           changeNotes,
-          acceptExtraCost: acceptCostChecked || nextChangeNum < 3,
+          acceptExtraCost: acceptCostChecked || nextChangeNum < 4,
         }),
       });
 
@@ -237,7 +237,7 @@ export default function OrderDetailPage() {
 
       setMsg({ 
         type: 'success', 
-        text: `¡Solicitud de Cambio #${nextChangeNum} registrada exitosamente! ${nextChangeNum >= 3 ? '(Con Costo Adicional aceptado)' : ''}` 
+        text: `¡Solicitud de Cambio #${nextChangeNum} registrada exitosamente! ${nextChangeNum >= 4 ? '(Con Costo Adicional de $200 USD aceptado)' : ''}` 
       });
       setShowChangesModal(false);
       setChangeNotes('');
@@ -373,12 +373,12 @@ export default function OrderDetailPage() {
                 )}
                 {order.changesCount > 0 && (
                   <span className={`px-2.5 py-0.5 rounded-full text-xs font-black border flex items-center gap-1 ${
-                    order.changesCount >= 3 
+                    order.changesCount >= 4 
                       ? 'bg-amber-100 text-amber-900 border-amber-400 animate-pulse' 
                       : 'bg-rose-50 text-rose-800 border-rose-200'
                   }`}>
-                    {order.changesCount >= 3 ? '⚠️' : '🔄'} {order.changesCount} {order.changesCount === 1 ? 'Cambio' : 'Cambios'}
-                    {order.changesCount >= 3 && ' (Costo Adicional)'}
+                    {order.changesCount >= 4 ? '⚠️' : '🔄'} {order.changesCount} {order.changesCount === 1 ? 'Cambio' : 'Cambios'}
+                    {order.changesCount >= 4 && ' (+$200 USD c/u)'}
                   </span>
                 )}
               </div>
@@ -922,7 +922,7 @@ export default function OrderDetailPage() {
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 shadow-sm ${
                     order.approved && (!order.changesCount || order.changesCount === 0)
                       ? 'bg-slate-200 text-slate-400'
-                      : order.changesCount >= 3
+                      : order.changesCount >= 4
                       ? 'bg-amber-500 text-white'
                       : order.changesCount > 0
                       ? 'bg-rose-500 text-white'
@@ -939,11 +939,11 @@ export default function OrderDetailPage() {
                         </span>
                       ) : order.changesCount > 0 ? (
                         <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                          order.changesCount >= 3 
+                          order.changesCount >= 4 
                             ? 'bg-amber-100 text-amber-900 border border-amber-300' 
                             : 'bg-rose-100 text-rose-800'
                         }`}>
-                          {order.changesCount} {order.changesCount === 1 ? 'cambio' : 'cambios'} {order.changesCount >= 3 && '⚠️ Costo Adic.'}
+                          {order.changesCount} {order.changesCount === 1 ? 'cambio' : 'cambios'} {order.changesCount >= 4 && '⚠️ +$200 c/u'}
                         </span>
                       ) : (
                         <span className="text-[10px] text-slate-400 font-medium">No requerido aún</span>
@@ -953,8 +953,8 @@ export default function OrderDetailPage() {
                     {order.changesCount > 0 && (
                       <div className="space-y-0.5 mt-0.5">
                         <p className="text-[11px] text-slate-600">
-                          {order.changesCount >= 3 
-                            ? `⚠️ Se superó el límite base (2 cambios). Cambio #${order.changesCount} con costo adicional aceptado.` 
+                          {order.changesCount >= 4 
+                            ? `⚠️ Se superó el límite base (3 cambios). Cambio #${order.changesCount} con costo adicional de $200 USD aceptado.` 
                             : `Cambio #${order.changesCount} procesado por post-producción.`}
                         </p>
                         {logLastChange && (
@@ -1038,7 +1038,7 @@ export default function OrderDetailPage() {
           </div>
         </div>
 
-        {/* Modal de Solicitud de Cambios con Advertencia de Costo a partir del 3er Cambio */}
+        {/* Modal de Solicitud de Cambios con Advertencia de Costo a partir del 4to Cambio */}
         {showChangesModal && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
@@ -1051,18 +1051,18 @@ export default function OrderDetailPage() {
                 </span>
               </div>
 
-              {/* ⚠️ ADVERTENCIA DE COSTO ADICIONAL A PARTIR DEL 3ER CAMBIO */}
-              {nextChangeCount >= 3 && (
+              {/* ⚠️ ADVERTENCIA DE COSTO ADICIONAL ($200 USD) A PARTIR DEL 4TO CAMBIO */}
+              {nextChangeCount >= 4 && (
                 <div className="bg-amber-50 border-2 border-amber-400 rounded-2xl p-4 space-y-3 animate-pulse">
                   <div className="flex items-center gap-2 text-amber-950 font-black text-xs">
                     <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
-                    <span>¡ADVERTENCIA: COSTO ADICIONAL POR CAMBIO #{nextChangeCount}!</span>
+                    <span>¡ADVERTENCIA: COSTO ADICIONAL DE $200 USD POR CAMBIO #{nextChangeCount}!</span>
                   </div>
                   
                   <p className="text-[11px] text-amber-900 leading-relaxed font-medium">
-                    El paquete de producción base incluye un máximo de <strong>2 cambios gratuitos</strong>. 
+                    El paquete de producción base incluye un máximo de <strong>3 cambios gratuitos</strong>. 
                     A partir de esta <strong>{nextChangeCount}ª solicitud de cambios</strong>, se generará un 
-                    <strong> costo adicional de edición y render</strong> para el cliente.
+                    <strong> costo adicional de $200 USD por cada cambio</strong> de edición y render para el cliente.
                   </p>
 
                   <label className="flex items-start gap-2.5 pt-1 cursor-pointer bg-white/80 p-2.5 rounded-xl border border-amber-300">
@@ -1073,7 +1073,7 @@ export default function OrderDetailPage() {
                       className="w-4 h-4 mt-0.5 text-amber-600 rounded focus:ring-amber-500 cursor-pointer"
                     />
                     <span className="text-[11px] font-bold text-amber-950 leading-tight">
-                      Confirmo que se ha notificado al cliente y <u>Acepto el Costo Adicional</u> para proceder con el cambio #{nextChangeCount}.
+                      Confirmo que se ha notificado al cliente y <u>Acepto el Costo Adicional de $200 USD</u> para proceder con el cambio #{nextChangeCount}.
                     </span>
                   </label>
                 </div>
@@ -1101,11 +1101,11 @@ export default function OrderDetailPage() {
                 </button>
                 <button
                   onClick={handleRequestChanges}
-                  disabled={actionLoading || (nextChangeCount >= 3 && !acceptCostChecked)}
+                  disabled={actionLoading || (nextChangeCount >= 4 && !acceptCostChecked)}
                   className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  {actionLoading ? 'Enviando...' : nextChangeCount >= 3 ? 'Aceptar Costo y Solicitar Cambio' : 'Solicitar Cambio'}
+                  {actionLoading ? 'Enviando...' : nextChangeCount >= 4 ? 'Aceptar Costo ($200) y Solicitar Cambio' : 'Solicitar Cambio'}
                 </button>
               </div>
             </div>

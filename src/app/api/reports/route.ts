@@ -141,7 +141,7 @@ export async function GET(req: Request) {
         totalWithChanges += 1;
         totalChangesSum += (ord.changesCount || 1);
       }
-      if (ord.extraCostAccepted || (ord.changesCount && ord.changesCount >= 3)) {
+      if (ord.extraCostAccepted || (ord.changesCount && ord.changesCount >= 4)) {
         totalExtraCostOrders += 1;
       }
       if (ord.status === 'NUEVA' || ord.status === 'ASIGNADA' || ord.status === 'EN_PROCESO' || ord.status === 'CON_CAMBIOS') {
