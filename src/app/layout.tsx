@@ -5,6 +5,11 @@ import { AuthProvider } from '@/context/AuthContext';
 export const metadata: Metadata = {
   title: 'CRM Producción Comercial | Gestión de Solicitudes (SP)',
   description: 'Sistema integral de recepción, asignación, seguimiento y entrega de solicitudes de producción publicitaria y comercial.',
+  icons: {
+    icon: '/favicon.png',
+    shortcut: '/favicon.png',
+    apple: '/favicon.png',
+  },
 };
 
 export default function RootLayout({
