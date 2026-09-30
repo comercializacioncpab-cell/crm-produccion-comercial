@@ -303,10 +303,15 @@ export default function PrintOrderPage() {
                 <td className="p-2">
                   <div className="flex items-center gap-8 text-xs font-bold">
                     <span className="flex items-center gap-1.5">
-                      SI <span className="w-6 h-4 border border-slate-900 inline-block text-center text-xs leading-4 font-black">{order.hasChanges ? 'X' : ''}</span>
+                      SI <span className="w-6 h-4 border border-slate-900 inline-block text-center text-xs leading-4 font-black">{order.hasChanges || (order.changesCount && order.changesCount > 0) ? 'X' : ''}</span>
+                      {order.changesCount > 0 && (
+                        <span className="text-[10px] text-slate-700 font-semibold">
+                          ({order.changesCount} {order.changesCount === 1 ? 'cambio' : 'cambios'}{order.extraCostAccepted ? ' - Con Costo Adicional' : ''})
+                        </span>
+                      )}
                     </span>
                     <span className="flex items-center gap-1.5">
-                      NO <span className="w-6 h-4 border border-slate-900 inline-block text-center text-xs leading-4 font-black">{!order.hasChanges ? 'X' : ''}</span>
+                      NO <span className="w-6 h-4 border border-slate-900 inline-block text-center text-xs leading-4 font-black">{!order.hasChanges && (!order.changesCount || order.changesCount === 0) ? 'X' : ''}</span>
                     </span>
                   </div>
                 </td>

@@ -65,6 +65,8 @@ model ProductionOrder {
   
   hasChanges           Boolean?
   changeNotes          String?
+  changesCount         Int          @default(0)
+  extraCostAccepted    Boolean      @default(false)
   
   deliveryNotes        String?
   deliveredAt          DateTime?

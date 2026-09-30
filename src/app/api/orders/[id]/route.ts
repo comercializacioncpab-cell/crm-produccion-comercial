@@ -231,10 +231,22 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     // 4. ACTION: REQUEST CHANGES (Solicitante / Coordinador)
     if (action === 'REQUEST_CHANGES') {
-      const { changeNotes } = body;
+      const { changeNotes, acceptExtraCost } = body;
 
       if (!changeNotes) {
         return NextResponse.json({ error: 'Debes especificar las correcciones solicitadas' }, { status: 400 });
+      }
+
+      const currentCount = order.changesCount || 0;
+      const nextCount = currentCount + 1;
+
+      // Check if this is the 3rd or subsequent change and cost wasn't accepted yet
+      if (nextCount >= 3 && !acceptExtraCost) {
+        return NextResponse.json({
+          error: 'Esta es la 3era (o superior) solicitud de cambio. A partir de este cambio cuenta con un costo adicional. Debes aceptar el costo adicional para continuar.',
+          requiresCostApproval: true,
+          nextCount,
+        }, { status: 400 });
       }
 
       updatedOrder = await prisma.productionOrder.update({
@@ -243,15 +255,19 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           status: 'CON_CAMBIOS',
           hasChanges: true,
           changeNotes,
+          changesCount: nextCount,
+          extraCostAccepted: nextCount >= 3 ? true : order.extraCostAccepted,
         },
       });
+
+      const costNotice = nextCount >= 3 ? ' [⚠️ Aceptó Costo Adicional por 3er+ cambio]' : '';
 
       await prisma.activityLog.create({
         data: {
           orderId: id,
           userId: user.id,
           action: 'CAMBIOS',
-          details: `Solicitud de cambios por ${user.name}: "${changeNotes}"`,
+          details: `Solicitud de Cambio #${nextCount} por ${user.name}: "${changeNotes}"${costNotice}`,
         },
       });
 
@@ -260,15 +276,15 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           userId: order.postProducerId,
           orderId: id,
           type: 'CHANGES_REQUESTED',
-          title: `⚠️ Cambios Solicitados en ${order.orderNumber}`,
-          message: `${user.name} ha solicitado ajustes en ${order.product}: "${changeNotes}". Por favor revisa y vuelve a entregar.`,
+          title: `⚠️ Solicitud de Cambio #${nextCount} en ${order.orderNumber}`,
+          message: `${user.name} ha solicitado el cambio #${nextCount} en ${order.product}: "${changeNotes}".${nextCount >= 3 ? ' (Cuenta con costo adicional aceptado por el cliente).' : ''}`,
           userPhone: order.postProducer?.phone,
           userEmail: order.postProducer?.email,
           orderNumber: order.orderNumber,
         });
       }
 
-      return NextResponse.json({ success: true, order: updatedOrder });
+      return NextResponse.json({ success: true, order: updatedOrder, changesCount: nextCount });
     }
 
     // 5. ACTION: APPROVE ORDER (Solicitante / Coordinador)

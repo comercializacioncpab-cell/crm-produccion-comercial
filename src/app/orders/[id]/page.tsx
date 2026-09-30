@@ -28,7 +28,8 @@ import {
   Layers,
   ChevronRight,
   User,
-  ShieldCheck
+  ShieldCheck,
+  AlertCircle
 } from 'lucide-react';
 import { 
   STATUS_CONFIG, 
@@ -36,7 +37,6 @@ import {
   SPONSORSHIP_OPTIONS,
   formatDateTime,
   formatDate,
-  WORKFLOW_STAGES,
   getWorkflowStageIndex
 } from '@/lib/order-utils';
 
@@ -58,6 +58,7 @@ export default function OrderDetailPage() {
   const [deliveryExternalUrl, setDeliveryExternalUrl] = useState('');
   const [changeNotes, setChangeNotes] = useState('');
   const [showChangesModal, setShowChangesModal] = useState(false);
+  const [acceptCostChecked, setAcceptCostChecked] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -207,6 +208,15 @@ export default function OrderDetailPage() {
       setMsg({ type: 'error', text: 'Por favor detalla los cambios o ajustes requeridos.' });
       return;
     }
+
+    const currentChanges = order.changesCount || 0;
+    const nextChangeNum = currentChanges + 1;
+
+    if (nextChangeNum >= 3 && !acceptCostChecked) {
+      setMsg({ type: 'error', text: 'Debes marcar la casilla aceptando el costo adicional para proceder a partir del 3er cambio solicitado.' });
+      return;
+    }
+
     setActionLoading(true);
     setMsg(null);
     try {
@@ -216,16 +226,25 @@ export default function OrderDetailPage() {
         body: JSON.stringify({
           action: 'REQUEST_CHANGES',
           changeNotes,
+          acceptExtraCost: acceptCostChecked || nextChangeNum < 3,
         }),
       });
-      if (res.ok) {
-        setMsg({ type: 'success', text: 'Cambios solicitados con fecha y hora registrada. Notificado al post-productor.' });
-        setShowChangesModal(false);
-        setChangeNotes('');
-        fetchOrder();
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al registrar cambios');
       }
-    } catch {
-      setMsg({ type: 'error', text: 'Error al registrar cambios.' });
+
+      setMsg({ 
+        type: 'success', 
+        text: `¡Solicitud de Cambio #${nextChangeNum} registrada exitosamente! ${nextChangeNum >= 3 ? '(Con Costo Adicional aceptado)' : ''}` 
+      });
+      setShowChangesModal(false);
+      setChangeNotes('');
+      setAcceptCostChecked(false);
+      fetchOrder();
+    } catch (err: any) {
+      setMsg({ type: 'error', text: err.message || 'Error al registrar cambios.' });
     } finally {
       setActionLoading(false);
     }
@@ -295,6 +314,7 @@ export default function OrderDetailPage() {
   const logAssigned = logs.find((l: any) => l.action === 'ASIGNADA');
   const logStarted = logs.find((l: any) => l.action === 'EN_PRODUCCION' || l.action === 'EN_PROCESO');
   const logDelivered = logs.find((l: any) => l.action === 'ENTREGADA' || l.action === 'RESUELTA') || (order.deliveredAt ? { createdAt: order.deliveredAt } : null);
+  const logLastChange = logs.find((l: any) => l.action === 'CAMBIOS');
   const logApproved = logs.find((l: any) => l.action === 'APROBADA') || (order.approvedAt ? { createdAt: order.approvedAt } : null);
 
   const stageIndex = getWorkflowStageIndex(order.status);
@@ -302,13 +322,15 @@ export default function OrderDetailPage() {
     ? 100 
     : order.status === 'RESUELTA' || order.status === 'ENTREGADO' 
     ? 80 
-    : order.status === 'EN_PROCESO' 
-    ? 60 
     : order.status === 'CON_CAMBIOS'
-    ? 50
+    ? 65
+    : order.status === 'EN_PROCESO' 
+    ? 50 
     : order.status === 'ASIGNADA' 
-    ? 40 
-    : 20;
+    ? 30 
+    : 15;
+
+  const nextChangeCount = (order.changesCount || 0) + 1;
 
   // WhatsApp direct text generator
   const waShareText = encodeURIComponent(
@@ -347,6 +369,16 @@ export default function OrderDetailPage() {
                 {order.packageValue > 0 && (
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
                     💰 ${Number(order.packageValue).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                  </span>
+                )}
+                {order.changesCount > 0 && (
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-black border flex items-center gap-1 ${
+                    order.changesCount >= 3 
+                      ? 'bg-amber-100 text-amber-900 border-amber-400 animate-pulse' 
+                      : 'bg-rose-50 text-rose-800 border-rose-200'
+                  }`}>
+                    {order.changesCount >= 3 ? '⚠️' : '🔄'} {order.changesCount} {order.changesCount === 1 ? 'Cambio' : 'Cambios'}
+                    {order.changesCount >= 3 && ' (Costo Adicional)'}
                   </span>
                 )}
               </div>
@@ -737,11 +769,14 @@ export default function OrderDetailPage() {
                   </button>
 
                   <button
-                    onClick={() => setShowChangesModal(true)}
+                    onClick={() => {
+                      setAcceptCostChecked(false);
+                      setShowChangesModal(true);
+                    }}
                     className="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold py-2.5 rounded-xl transition-all flex items-center justify-center gap-2"
                   >
                     <RotateCcw className="w-4 h-4" />
-                    Solicitar Ajustes / Cambios
+                    Solicitar Ajustes / Cambios {order.changesCount > 0 && `(Actual: ${order.changesCount})`}
                   </button>
                 </div>
 
@@ -756,7 +791,7 @@ export default function OrderDetailPage() {
               </div>
             )}
 
-            {/* 🌟 BARRA DE PROCESO / STEPPER VISUAL (Directamente arriba de Trazabilidad) */}
+            {/* 🌟 BARRA DE PROCESO / STEPPER VISUAL CON PASO DE CAMBIOS */}
             <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -784,7 +819,7 @@ export default function OrderDetailPage() {
                 ></div>
               </div>
 
-              {/* 5 Steps Vertical Timeline */}
+              {/* 6 Steps Vertical Timeline (Including Solicitud de Cambios) */}
               <div className="space-y-3 pt-1">
                 {/* Paso 1: Recepción / Creada */}
                 <div className="flex items-start gap-3">
@@ -848,9 +883,7 @@ export default function OrderDetailPage() {
                         {stageIndex >= 2 ? 'En Curso / Listo' : 'Pendiente'}
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-500">
-                      {order.status === 'CON_CAMBIOS' ? '⚠️ Ajustes en edición' : 'Edición y musicalización'}
-                    </p>
+                    <p className="text-[11px] text-slate-500">Edición y musicalización</p>
                     {logStarted && (
                       <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
                         🕒 {formatDateTime(logStarted.createdAt)}
@@ -884,18 +917,68 @@ export default function OrderDetailPage() {
                   </div>
                 </div>
 
-                {/* Paso 5: Aprobada al Aire */}
+                {/* Paso 5: Solicitud de Cambios (Condicional) */}
+                <div className="flex items-start gap-3">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 shadow-sm ${
+                    order.approved && (!order.changesCount || order.changesCount === 0)
+                      ? 'bg-slate-200 text-slate-400'
+                      : order.changesCount >= 3
+                      ? 'bg-amber-500 text-white'
+                      : order.changesCount > 0
+                      ? 'bg-rose-500 text-white'
+                      : 'bg-slate-100 text-slate-400'
+                  }`}>
+                    {order.approved && (!order.changesCount || order.changesCount === 0) ? '—' : order.changesCount > 0 ? '🔄' : '5'}
+                  </div>
+                  <div className="flex-1 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900">5. Solicitud de Cambios</span>
+                      {order.approved && (!order.changesCount || order.changesCount === 0) ? (
+                        <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                          Omitido (Aprobada sin cambios ✓)
+                        </span>
+                      ) : order.changesCount > 0 ? (
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                          order.changesCount >= 3 
+                            ? 'bg-amber-100 text-amber-900 border border-amber-300' 
+                            : 'bg-rose-100 text-rose-800'
+                        }`}>
+                          {order.changesCount} {order.changesCount === 1 ? 'cambio' : 'cambios'} {order.changesCount >= 3 && '⚠️ Costo Adic.'}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-slate-400 font-medium">No requerido aún</span>
+                      )}
+                    </div>
+
+                    {order.changesCount > 0 && (
+                      <div className="space-y-0.5 mt-0.5">
+                        <p className="text-[11px] text-slate-600">
+                          {order.changesCount >= 3 
+                            ? `⚠️ Se superó el límite base (2 cambios). Cambio #${order.changesCount} con costo adicional aceptado.` 
+                            : `Cambio #${order.changesCount} procesado por post-producción.`}
+                        </p>
+                        {logLastChange && (
+                          <span className="text-[10px] text-slate-400 font-mono block">
+                            🕒 Último cambio: {formatDateTime(logLastChange.createdAt)}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Paso 6: Aprobada al Aire */}
                 <div className="flex items-start gap-3">
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 shadow-sm ${
                     order.approved || order.status === 'APROBADA' || order.status === 'AL_AIRE'
                       ? 'bg-teal-600 text-white'
                       : 'bg-slate-200 text-slate-500'
                   }`}>
-                    {order.approved ? '✓' : '5'}
+                    {order.approved ? '✓' : '6'}
                   </div>
                   <div className="flex-1 text-xs">
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-900">5. Aprobada al Aire</span>
+                      <span className="font-bold text-slate-900">6. Aprobada al Aire</span>
                       <span className={`text-[10px] font-semibold ${order.approved ? 'text-teal-700' : 'text-slate-400'}`}>
                         {order.approved ? 'Aprobada' : 'Pendiente'}
                       </span>
@@ -931,7 +1014,9 @@ export default function OrderDetailPage() {
                   order.activityLogs.map((log: any) => (
                     <div key={log.id} className="text-xs border-l-2 border-cyan-500 pl-3 py-1 space-y-1 bg-slate-50/50 rounded-r-xl pr-2">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wide">
+                        <span className={`font-bold text-[11px] uppercase tracking-wide ${
+                          log.action === 'CAMBIOS' ? 'text-rose-700' : log.action === 'APROBADA' ? 'text-teal-700' : 'text-slate-800'
+                        }`}>
                           {log.action}
                         </span>
                         <span className="text-[10px] text-slate-500 font-mono font-medium flex items-center gap-1">
@@ -953,24 +1038,59 @@ export default function OrderDetailPage() {
           </div>
         </div>
 
-        {/* Modal de Solicitud de Cambios */}
+        {/* Modal de Solicitud de Cambios con Advertencia de Costo a partir del 3er Cambio */}
         {showChangesModal && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
-              <h3 className="font-black text-sm text-slate-900 flex items-center gap-2">
-                <RotateCcw className="w-4 h-4 text-rose-600" /> Solicitar Correcciones / Cambios
-              </h3>
-              <p className="text-xs text-slate-500">
-                Describe con precisión qué ajustes requiere el video o render para que el post-productor lo corrija.
-              </p>
+              <div className="flex items-center justify-between">
+                <h3 className="font-black text-sm text-slate-900 flex items-center gap-2">
+                  <RotateCcw className="w-4 h-4 text-rose-600" /> Solicitar Correcciones / Cambios
+                </h3>
+                <span className="text-xs font-mono font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md">
+                  Cambio #{nextChangeCount}
+                </span>
+              </div>
 
-              <textarea
-                rows={4}
-                value={changeNotes}
-                onChange={(e) => setChangeNotes(e.target.value)}
-                placeholder="Ej. Ajustar la duración del logo final a 3 segundos y corregir el color del banner..."
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500 font-medium"
-              ></textarea>
+              {/* ⚠️ ADVERTENCIA DE COSTO ADICIONAL A PARTIR DEL 3ER CAMBIO */}
+              {nextChangeCount >= 3 && (
+                <div className="bg-amber-50 border-2 border-amber-400 rounded-2xl p-4 space-y-3 animate-pulse">
+                  <div className="flex items-center gap-2 text-amber-950 font-black text-xs">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+                    <span>¡ADVERTENCIA: COSTO ADICIONAL POR CAMBIO #{nextChangeCount}!</span>
+                  </div>
+                  
+                  <p className="text-[11px] text-amber-900 leading-relaxed font-medium">
+                    El paquete de producción base incluye un máximo de <strong>2 cambios gratuitos</strong>. 
+                    A partir de esta <strong>{nextChangeCount}ª solicitud de cambios</strong>, se generará un 
+                    <strong> costo adicional de edición y render</strong> para el cliente.
+                  </p>
+
+                  <label className="flex items-start gap-2.5 pt-1 cursor-pointer bg-white/80 p-2.5 rounded-xl border border-amber-300">
+                    <input
+                      type="checkbox"
+                      checked={acceptCostChecked}
+                      onChange={(e) => setAcceptCostChecked(e.target.checked)}
+                      className="w-4 h-4 mt-0.5 text-amber-600 rounded focus:ring-amber-500 cursor-pointer"
+                    />
+                    <span className="text-[11px] font-bold text-amber-950 leading-tight">
+                      Confirmo que se ha notificado al cliente y <u>Acepto el Costo Adicional</u> para proceder con el cambio #{nextChangeCount}.
+                    </span>
+                  </label>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Descripción Detallada de los Ajustes Requeridos:
+                </label>
+                <textarea
+                  rows={4}
+                  value={changeNotes}
+                  onChange={(e) => setChangeNotes(e.target.value)}
+                  placeholder="Ej. Ajustar la duración del logo final a 3 segundos, corregir el color del cintillo y cambiar el audio de fondo..."
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500 font-medium"
+                ></textarea>
+              </div>
 
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button
@@ -981,10 +1101,11 @@ export default function OrderDetailPage() {
                 </button>
                 <button
                   onClick={handleRequestChanges}
-                  disabled={actionLoading}
-                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all disabled:opacity-50"
+                  disabled={actionLoading || (nextChangeCount >= 3 && !acceptCostChecked)}
+                  className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                 >
-                  {actionLoading ? 'Enviando...' : 'Enviar Cambios'}
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  {actionLoading ? 'Enviando...' : nextChangeCount >= 3 ? 'Aceptar Costo y Solicitar Cambio' : 'Solicitar Cambio'}
                 </button>
               </div>
             </div>
