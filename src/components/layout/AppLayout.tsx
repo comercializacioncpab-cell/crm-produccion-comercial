@@ -14,7 +14,8 @@ import {
   User, 
   Clapperboard, 
   Radio,
-  DollarSign
+  DollarSign,
+  BarChart3
 } from 'lucide-react';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -90,6 +91,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       href: '/financial',
       icon: DollarSign,
       roles: ['ADMIN'],
+    },
+    {
+      name: 'Reporte Mensual / Productividad',
+      href: '/reports',
+      icon: BarChart3,
+      roles: ['COORDINADOR', 'ADMIN'],
     },
   ];
 

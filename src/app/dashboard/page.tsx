@@ -16,7 +16,8 @@ import {
   Users, 
   Calendar,
   Sparkles,
-  Inbox
+  Inbox,
+  BarChart3
 } from 'lucide-react';
 import { STATUS_CONFIG, PRIORITY_CONFIG } from '@/lib/order-utils';
 
@@ -61,13 +62,22 @@ export default function DashboardPage() {
               </h1>
               <p className="text-slate-300 text-xs sm:text-sm mt-1 max-w-xl leading-relaxed">
                 {user?.role === 'SOLICITANTE' && 'Gestiona tus solicitudes de producción publicitaria, sube briefs y revisa el material entregado.'}
-                {user?.role === 'COORDINADOR' && 'Bandeja de recepción general: revisa solicitudes entrantes y asígnalas a los post-productores.'}
+                {user?.role === 'COORDINADOR' && 'Bandeja de recepción general: revisa solicitudes entrantes, asígnalas a post-productores y consulta métricas de productividad.'}
                 {user?.role === 'POST_PRODUCTOR' && 'Aquí tienes tus órdenes asignadas para edición. Sube los masters terminados y avisa a las ejecutivas.'}
                 {user?.role === 'ADMIN' && 'Panel de control maestro de producción comercial, auditoría y métricas de desempeño.'}
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {(user?.role === 'COORDINADOR' || user?.role === 'ADMIN') && (
+                <Link
+                  href="/reports"
+                  className="bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold px-4 py-3 rounded-2xl text-xs sm:text-sm shadow-sm backdrop-blur-sm transition-all flex items-center gap-2"
+                >
+                  <BarChart3 className="w-4 h-4 text-cyan-300" /> Reporte Mensual
+                </Link>
+              )}
+
               {(user?.role === 'SOLICITANTE' || user?.role === 'COORDINADOR' || user?.role === 'ADMIN') && (
                 <Link
                   href="/orders/new"
