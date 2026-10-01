@@ -35,6 +35,8 @@ export default function MonthlyReportPage() {
   // Filters
   const [selectedMonth, setSelectedMonth] = useState('ALL');
   const [selectedPost, setSelectedPost] = useState('ALL');
+  const [selectedExecutive, setSelectedExecutive] = useState('ALL');
+  const [selectedClient, setSelectedClient] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
 
   const fetchReport = async () => {
@@ -44,6 +46,8 @@ export default function MonthlyReportPage() {
       const params = new URLSearchParams();
       if (selectedMonth !== 'ALL') params.append('month', selectedMonth);
       if (selectedPost !== 'ALL') params.append('postProducerId', selectedPost);
+      if (selectedExecutive !== 'ALL') params.append('executiveId', selectedExecutive);
+      if (selectedClient !== 'ALL') params.append('clientAgency', selectedClient);
 
       const res = await fetch(`/api/reports?${params.toString()}`);
       if (res.status === 403) {
@@ -69,7 +73,7 @@ export default function MonthlyReportPage() {
       setError('Acceso restringido: Este reporte está disponible para Coordinadoras y Administradores.');
       setLoading(false);
     }
-  }, [user, selectedMonth, selectedPost]);
+  }, [user, selectedMonth, selectedPost, selectedExecutive, selectedClient]);
 
   if (loading && !data) {
     return (
@@ -102,18 +106,31 @@ export default function MonthlyReportPage() {
 
   // Filter orders for table
   const filteredOrders = (data.orders || []).filter((ord: any) => {
+    const term = searchTerm.toLowerCase();
     const matchesSearch = 
-      ord.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ord.clientAgency.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ord.product.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ord.postProducerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ord.creatorName.toLowerCase().includes(searchTerm.toLowerCase());
+      ord.orderNumber.toLowerCase().includes(term) ||
+      ord.clientAgency.toLowerCase().includes(term) ||
+      ord.product.toLowerCase().includes(term) ||
+      (ord.program && ord.program.toLowerCase().includes(term)) ||
+      ord.postProducerName.toLowerCase().includes(term) ||
+      (ord.executiveName && ord.executiveName.toLowerCase().includes(term)) ||
+      (ord.creatorName && ord.creatorName.toLowerCase().includes(term));
     return matchesSearch;
   });
 
   const monthTitle = selectedMonth === 'ALL' 
     ? 'Reporte General Acumulado' 
     : (data.availableMonths?.find((m: any) => m.key === selectedMonth)?.label || selectedMonth);
+
+  const isFiltered = selectedMonth !== 'ALL' || selectedPost !== 'ALL' || selectedExecutive !== 'ALL' || selectedClient !== 'ALL';
+
+  const resetFilters = () => {
+    setSelectedMonth('ALL');
+    setSelectedPost('ALL');
+    setSelectedExecutive('ALL');
+    setSelectedClient('ALL');
+    setSearchTerm('');
+  };
 
   return (
     <AppLayout>
@@ -128,10 +145,10 @@ export default function MonthlyReportPage() {
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight flex items-center gap-2.5">
               <Clock className="w-8 h-8 text-cyan-400 bg-cyan-500/20 rounded-2xl p-1 border border-cyan-500/40" />
-              Reporte Mensual y Productividad de Post-Producción
+              Reporte Mensual y Rendimiento de Producción
             </h1>
             <p className="text-xs text-slate-300 max-w-xl">
-              Tiempos estimados de resolución, flujo de órdenes recibidas vs entregadas y análisis de cambios por editor.
+              Filtra por Cliente, Ejecutiva, Periodo y Post-Productor para obtener reportes y métricas operativas específicas.
             </p>
           </div>
 
@@ -145,46 +162,109 @@ export default function MonthlyReportPage() {
           </div>
         </div>
 
-        {/* Filter Toolbar */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
-              <Calendar className="w-4 h-4 text-indigo-600" />
-              <span>Periodo:</span>
-            </div>
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="ALL">🗓️ Todos los Meses (Acumulado)</option>
-              {data.availableMonths?.map((m: any) => (
-                <option key={m.key} value={m.key}>
-                  {m.label} ({m.count} SPs)
-                </option>
-              ))}
-            </select>
-
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600 ml-0 sm:ml-2">
-              <Clapperboard className="w-4 h-4 text-cyan-600" />
-              <span>Post-Productor:</span>
-            </div>
-            <select
-              value={selectedPost}
-              onChange={(e) => setSelectedPost(e.target.value)}
-              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            >
-              <option value="ALL">🎬 Todos los Post-Productores</option>
-              {data.postProducersSummary?.map((p: any) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+        {/* Filter Toolbar with Period, Executive, Client, and Post-Producer */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <span className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+              <Filter className="w-4 h-4 text-indigo-600" /> Filtros de Reporte Específico:
+            </span>
+            {isFiltered && (
+              <button
+                onClick={resetFilters}
+                className="text-[11px] font-bold text-rose-600 hover:text-rose-800 flex items-center gap-1 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 transition-colors"
+              >
+                <RotateCcw className="w-3 h-3" /> Limpiar Filtros
+              </button>
+            )}
           </div>
 
-          <div className="text-xs text-slate-400 font-medium self-end sm:self-center">
-            {data.totalReceived} órdenes analizadas en <strong>{monthTitle}</strong>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Filter 1: Periodo */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-indigo-600" /> Periodo:
+              </label>
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="ALL">🗓️ Todos los Meses (Acumulado)</option>
+                {data.availableMonths?.map((m: any) => (
+                  <option key={m.key} value={m.key}>
+                    {m.label} ({m.count} SPs)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Filter 2: Ejecutiva de Ventas */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+                <Users className="w-3.5 h-3.5 text-purple-600" /> Ejecutiva Solicitante:
+              </label>
+              <select
+                value={selectedExecutive}
+                onChange={(e) => setSelectedExecutive(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="ALL">👩‍💼 Todas las Ejecutivas</option>
+                {data.availableExecutives?.map((ex: any) => (
+                  <option key={ex.id} value={ex.id}>
+                    👩‍💼 {ex.name} ({ex.count} SPs)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Filter 3: Cliente / Agencia */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+                <Layers className="w-3.5 h-3.5 text-emerald-600" /> Cliente / Agencia:
+              </label>
+              <select
+                value={selectedClient}
+                onChange={(e) => setSelectedClient(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="ALL">🏢 Todos los Clientes</option>
+                {data.availableClients?.map((c: any) => (
+                  <option key={c.name} value={c.name}>
+                    🏢 {c.name} ({c.count} SPs)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Filter 4: Post-Productor */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+                <Clapperboard className="w-3.5 h-3.5 text-cyan-600" /> Post-Productor:
+              </label>
+              <select
+                value={selectedPost}
+                onChange={(e) => setSelectedPost(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              >
+                <option value="ALL">🎬 Todos los Editores</option>
+                {data.postProducersSummary?.map((p: any) => (
+                  <option key={p.id} value={p.id}>
+                    🎬 {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="text-xs text-slate-500 font-semibold pt-2 border-t border-slate-100 flex items-center justify-between">
+            <span>
+              Mostrando <strong className="text-slate-900">{data.totalReceived}</strong> órdenes en el reporte actual
+            </span>
+            <span className="text-[11px] text-slate-400">
+              {selectedExecutive !== 'ALL' && `Ejecutiva: ${data.availableExecutives?.find((e: any) => e.id === selectedExecutive)?.name} • `}
+              {selectedClient !== 'ALL' && `Cliente: ${selectedClient} • `}
+              {monthTitle}
+            </span>
           </div>
         </div>
 
@@ -349,6 +429,7 @@ export default function MonthlyReportPage() {
                 <tr>
                   <th className="p-3">Código SP</th>
                   <th className="p-3">Cliente / Agencia</th>
+                  <th className="p-3">Ejecutiva Solicitante</th>
                   <th className="p-3">Producto</th>
                   <th className="p-3">Post-Productor</th>
                   <th className="p-3">Ingreso (Hora)</th>
@@ -362,7 +443,7 @@ export default function MonthlyReportPage() {
               <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
                 {filteredOrders.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="p-8 text-center text-slate-400 text-xs">
+                    <td colSpan={11} className="p-8 text-center text-slate-400 text-xs">
                       No se encontraron órdenes con los filtros seleccionados.
                     </td>
                   </tr>
@@ -371,48 +452,56 @@ export default function MonthlyReportPage() {
                     const statusInfo = STATUS_CONFIG[ord.status] || STATUS_CONFIG.NUEVA;
                     return (
                       <tr key={ord.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="p-3 font-mono font-bold text-slate-900">
+                        <td className="p-3 font-mono font-bold text-slate-900 whitespace-nowrap">
                           {ord.orderNumber}
                         </td>
                         <td className="p-3 font-bold text-slate-900">
                           {ord.clientAgency}
                         </td>
+                        <td className="p-3 text-slate-800 whitespace-nowrap">
+                          <span className="font-bold block">👩‍💼 {ord.executiveName}</span>
+                          {ord.isEnteredByCoordinator && (
+                            <span className="text-[10px] text-blue-600 font-semibold block">
+                              (Ingresada por: {ord.creatorName})
+                            </span>
+                          )}
+                        </td>
                         <td className="p-3 text-slate-600">
                           {ord.product}
                         </td>
-                        <td className="p-3 font-semibold text-slate-700">
+                        <td className="p-3 font-semibold text-slate-700 whitespace-nowrap">
                           🎬 {ord.postProducerName}
                         </td>
-                        <td className="p-3 text-[11px] text-slate-500 font-mono">
+                        <td className="p-3 text-[11px] text-slate-500 font-mono whitespace-nowrap">
                           {formatDateTime(ord.createdAt)}
                         </td>
-                        <td className="p-3 text-[11px] text-slate-500 font-mono">
+                        <td className="p-3 text-[11px] text-slate-500 font-mono whitespace-nowrap">
                           {ord.deliveredAt ? formatDateTime(ord.deliveredAt) : '—'}
                         </td>
-                        <td className="p-3 text-center">
+                        <td className="p-3 text-center whitespace-nowrap">
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
                             ord.resolutionTimeHours !== null ? 'bg-cyan-50 text-cyan-800 border border-cyan-200' : 'text-slate-400'
                           }`}>
                             {ord.resolutionTimeFormatted}
                           </span>
                         </td>
-                        <td className="p-3 text-center">
+                        <td className="p-3 text-center whitespace-nowrap">
                           {ord.changesCount > 0 ? (
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                              ord.changesCount >= 3 ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-rose-50 text-rose-800'
+                              ord.changesCount >= 4 ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-rose-50 text-rose-800'
                             }`}>
-                              {ord.changesCount} {ord.changesCount >= 3 && '⚠️'}
+                              {ord.changesCount} {ord.changesCount >= 4 && '⚠️'}
                             </span>
                           ) : (
                             <span className="text-slate-400 text-[11px] font-medium">0</span>
                           )}
                         </td>
-                        <td className="p-3">
+                        <td className="p-3 whitespace-nowrap">
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${statusInfo.bg} ${statusInfo.color} ${statusInfo.border}`}>
                             {statusInfo.label}
                           </span>
                         </td>
-                        <td className="p-3 text-center">
+                        <td className="p-3 text-center whitespace-nowrap">
                           <Link
                             href={`/orders/${ord.id}`}
                             className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-bold text-[11px]"

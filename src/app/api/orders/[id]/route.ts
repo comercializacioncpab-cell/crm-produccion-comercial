@@ -20,6 +20,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         creator: {
           select: { id: true, name: true, initials: true, email: true, phone: true, role: true },
         },
+        executive: {
+          select: { id: true, name: true, initials: true, email: true, phone: true, role: true },
+        },
         postProducer: {
           select: { id: true, name: true, initials: true, email: true, phone: true, role: true },
         },
@@ -64,6 +67,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       where: { id },
       include: {
         creator: true,
+        executive: true,
         postProducer: true,
       },
     });

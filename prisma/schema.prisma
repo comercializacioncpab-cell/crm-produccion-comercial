@@ -26,6 +26,7 @@ model User {
   updatedAt     DateTime          @updatedAt
 
   createdOrders   ProductionOrder[] @relation("CreatedOrders")
+  executiveOrders ProductionOrder[] @relation("ExecutiveOrders")
   assignedOrders  ProductionOrder[] @relation("AssignedOrders")
   orderFiles      OrderFile[]
   notifications   Notification[]
@@ -53,6 +54,9 @@ model ProductionOrder {
   
   creatorId            String
   creator              User         @relation("CreatedOrders", fields: [creatorId], references: [id])
+  
+  executiveId          String?
+  executive            User?        @relation("ExecutiveOrders", fields: [executiveId], references: [id])
   
   coordinatorId        String?
   

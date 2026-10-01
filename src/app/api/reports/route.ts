@@ -28,6 +28,8 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const monthParam = searchParams.get('month'); // e.g. '2026-09' or 'ALL'
     const postProducerParam = searchParams.get('postProducerId'); // specific ID or 'ALL'
+    const executiveParam = searchParams.get('executiveId'); // specific ID or 'ALL'
+    const clientParam = searchParams.get('clientAgency'); // specific client name or 'ALL'
 
     const postProducersList = await prisma.user.findMany({
       where: { role: 'POST_PRODUCTOR' },
@@ -38,6 +40,9 @@ export async function GET(req: Request) {
     const orders = await prisma.productionOrder.findMany({
       include: {
         creator: {
+          select: { id: true, name: true, email: true, initials: true },
+        },
+        executive: {
           select: { id: true, name: true, email: true, initials: true },
         },
         postProducer: {
@@ -55,6 +60,9 @@ export async function GET(req: Request) {
 
     // Collect all available months
     const availableMonthsMap: Record<string, { key: string; label: string; count: number }> = {};
+    const availableExecutivesMap: Record<string, { id: string; name: string; initials: string; count: number }> = {};
+    const availableClientsMap: Record<string, { name: string; count: number }> = {};
+
     for (const ord of orders) {
       const d = new Date(ord.createdAt);
       const mKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -63,10 +71,31 @@ export async function GET(req: Request) {
         availableMonthsMap[mKey] = { key: mKey, label: mLabel, count: 0 };
       }
       availableMonthsMap[mKey].count += 1;
-    }
-    const availableMonths = Object.values(availableMonthsMap).sort((a, b) => b.key.localeCompare(a.key));
 
-    // Filter orders by month and post-producer if specified
+      // Executives
+      const exec = ord.executive || ord.creator;
+      if (exec) {
+        if (!availableExecutivesMap[exec.id]) {
+          availableExecutivesMap[exec.id] = { id: exec.id, name: exec.name, initials: exec.initials, count: 0 };
+        }
+        availableExecutivesMap[exec.id].count += 1;
+      }
+
+      // Clients
+      const client = (ord.clientAgency || '').trim();
+      if (client) {
+        if (!availableClientsMap[client]) {
+          availableClientsMap[client] = { name: client, count: 0 };
+        }
+        availableClientsMap[client].count += 1;
+      }
+    }
+
+    const availableMonths = Object.values(availableMonthsMap).sort((a, b) => b.key.localeCompare(a.key));
+    const availableExecutives = Object.values(availableExecutivesMap).sort((a, b) => a.name.localeCompare(b.name));
+    const availableClients = Object.values(availableClientsMap).sort((a, b) => a.name.localeCompare(b.name));
+
+    // Filter orders by month, post-producer, executive, and client if specified
     const filteredOrders = orders.filter((ord) => {
       let matchesMonth = true;
       if (monthParam && monthParam !== 'ALL') {
@@ -80,7 +109,18 @@ export async function GET(req: Request) {
         matchesPost = ord.postProducerId === postProducerParam;
       }
 
-      return matchesMonth && matchesPost;
+      let matchesExecutive = true;
+      if (executiveParam && executiveParam !== 'ALL') {
+        const effectiveExecId = ord.executiveId || ord.creatorId;
+        matchesExecutive = effectiveExecId === executiveParam;
+      }
+
+      let matchesClient = true;
+      if (clientParam && clientParam !== 'ALL') {
+        matchesClient = ord.clientAgency.toLowerCase().trim() === clientParam.toLowerCase().trim();
+      }
+
+      return matchesMonth && matchesPost && matchesExecutive && matchesClient;
     });
 
     // Compute metrics
@@ -198,6 +238,9 @@ export async function GET(req: Request) {
         packageValue: ord.packageValue,
         status: ord.status,
         creatorName: ord.creator?.name || 'Ventas',
+        executiveName: ord.executive?.name || ord.creator?.name || 'Ventas',
+        executiveInitials: ord.executive?.initials || ord.creator?.initials || 'SP',
+        isEnteredByCoordinator: Boolean(ord.executiveId && ord.creatorId !== ord.executiveId),
         postProducerName: ord.postProducer?.name || 'Sin Asignar',
         postProducerId: ord.postProducerId,
         createdAt: ord.createdAt,
@@ -241,7 +284,11 @@ export async function GET(req: Request) {
     return NextResponse.json({
       success: true,
       selectedMonth: monthParam || 'ALL',
+      selectedExecutive: executiveParam || 'ALL',
+      selectedClient: clientParam || 'ALL',
       availableMonths,
+      availableExecutives,
+      availableClients,
       totalReceived,
       totalDelivered,
       totalApproved,

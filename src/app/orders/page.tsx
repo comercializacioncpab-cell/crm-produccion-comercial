@@ -351,11 +351,11 @@ function OrdersContent() {
                           </span>
                         </td>
                         <td className="px-4 py-3.5 text-[11px] whitespace-nowrap">
-                          <span className="text-slate-800 font-semibold block">
-                            {order.creator?.name}
+                          <span className="text-slate-900 font-bold block">
+                            👩‍💼 {order.executive?.name || order.creator?.name}
                           </span>
-                          <span className="text-slate-400">
-                            Post: {order.postProducer?.name || '—'}
+                          <span className="text-slate-400 block text-[10px]">
+                            🎬 Post: {order.postProducer?.name || '—'}
                           </span>
                         </td>
                         <td className="px-4 py-3.5 text-right whitespace-nowrap">

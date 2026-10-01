@@ -106,7 +106,12 @@ export default function PrintOrderPage() {
                   Ejecutiva de Ventas:
                 </td>
                 <td className="p-1.5 font-bold text-slate-900 uppercase">
-                  {order.creator?.name || 'ADRIANA ROJAS'}
+                  {order.executive?.name || order.creator?.name || 'ADRIANA ROJAS'}
+                  {order.executiveId && order.creatorId !== order.executiveId && (
+                    <span className="text-[10px] text-slate-600 block lowercase font-normal">
+                      (ingresado por: {order.creator?.name})
+                    </span>
+                  )}
                 </td>
               </tr>
               <tr className="border-b border-slate-900">

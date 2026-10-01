@@ -17,7 +17,8 @@ import {
   Radio, 
   FilePlus2,
   Trash2,
-  DollarSign
+  DollarSign,
+  Users
 } from 'lucide-react';
 import { SPONSORSHIP_OPTIONS } from '@/lib/order-utils';
 
@@ -41,9 +42,32 @@ export default function NewOrderPage() {
     packageValue: '',
   });
 
+  const [executives, setExecutives] = useState<any[]>([]);
+  const [selectedExecutiveId, setSelectedExecutiveId] = useState('');
   const [files, setFiles] = useState<{ name: string; size: number; fileObj?: File }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const isCoordinatorOrAdmin = user?.role === 'COORDINADOR' || user?.role === 'ADMIN';
+
+  // Load executives if coordinator/admin
+  React.useEffect(() => {
+    async function loadExecutives() {
+      try {
+        const res = await fetch('/api/users');
+        if (res.ok) {
+          const data = await res.json();
+          const allUsers = data.users || [];
+          // Prioritize SOLICITANTE users, but allow selecting any sales executive
+          const salesUsers = allUsers.filter((u: any) => u.status === 'APROBADO' && (u.role === 'SOLICITANTE' || u.role === 'ADMIN' || u.role === 'COORDINADOR'));
+          setExecutives(salesUsers);
+        }
+      } catch (err) {
+        console.error('Error loading executives:', err);
+      }
+    }
+    loadExecutives();
+  }, []);
 
   const handleSponsorshipToggle = (id: string) => {
     setFormData((prev) => {
@@ -74,6 +98,10 @@ export default function NewOrderPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isCoordinatorOrAdmin && !selectedExecutiveId) {
+      setError('Por favor indica de qué Ejecutiva de Ventas es el cliente solicitante.');
+      return;
+    }
     if (!formData.clientAgency || !formData.product) {
       setError('Por favor completa el Cliente/Agencia y el Producto.');
       return;
@@ -89,6 +117,7 @@ export default function NewOrderPage() {
     try {
       const payload = {
         ...formData,
+        executiveId: isCoordinatorOrAdmin ? selectedExecutiveId : (user?.id || null),
         files: files.map((f) => ({
           fileName: f.name,
           fileSize: f.size,
@@ -132,7 +161,10 @@ export default function NewOrderPage() {
     }
   };
 
-  const userInitials = user?.initials || 'SP';
+  const selectedExec = executives.find((e) => e.id === selectedExecutiveId);
+  const activeInitials = (isCoordinatorOrAdmin && selectedExec)
+    ? (selectedExec.initials || 'SP')
+    : (user?.initials || 'SP');
 
   return (
     <AppLayout>
@@ -156,7 +188,7 @@ export default function NewOrderPage() {
           <div className="bg-white/10 px-4 py-2 rounded-2xl border border-white/20 text-right">
             <span className="text-[10px] text-slate-300 block font-semibold">Formato de Nomenclatura:</span>
             <span className="font-mono font-black text-amber-400 text-sm">
-              SP-{userInitials}-001...
+              SP-{activeInitials}-001...
             </span>
           </div>
         </div>
@@ -176,11 +208,44 @@ export default function NewOrderPage() {
                 1. INFORMACIÓN GENERAL
               </h2>
               <span className="text-[11px] font-bold text-yellow-900">
-                Ejecutiva de Ventas: {user?.name}
+                {isCoordinatorOrAdmin && selectedExec 
+                  ? `Ejecutiva: ${selectedExec.name} (Ingresado por: ${user?.name})`
+                  : `Ejecutiva de Ventas: ${user?.name}`}
               </span>
             </div>
 
             <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Coordinator Field: Select which Executive owns the client */}
+              {isCoordinatorOrAdmin && (
+                <div className="sm:col-span-2 bg-gradient-to-r from-blue-50 to-indigo-50/60 border border-blue-200 p-4 rounded-2xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-black text-blue-950 flex items-center gap-1.5">
+                      <Users className="w-4 h-4 text-blue-600" />
+                      ¿De qué Ejecutiva de Ventas es este Cliente? *
+                    </label>
+                    <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2.5 py-0.5 rounded-full border border-blue-200">
+                      Coordinación / Asignación
+                    </span>
+                  </div>
+                  <select
+                    required
+                    value={selectedExecutiveId}
+                    onChange={(e) => setSelectedExecutiveId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-blue-300 bg-white text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">-- Seleccionar Ejecutiva de Ventas --</option>
+                    {executives.map((exec) => (
+                      <option key={exec.id} value={exec.id}>
+                        👩‍💼 {exec.name} {exec.initials ? `(Iniciales: ${exec.initials})` : ''} {exec.role === 'SOLICITANTE' ? '• Ejecutiva de Ventas' : `• ${exec.role}`}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-blue-700 font-medium">
+                    📌 Al seleccionar la ejecutiva, la SP se nombrará con sus iniciales (ej. <strong className="font-mono text-blue-900">SP-{activeInitials}-001</strong>) y quedará registrado que es su cliente en los reportes y trazabilidad.
+                  </p>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Cliente / Agencia *

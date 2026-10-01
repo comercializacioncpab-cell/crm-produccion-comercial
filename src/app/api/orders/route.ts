@@ -19,7 +19,10 @@ export async function GET(req: Request) {
     const where: any = {};
 
     if (scope === 'my_orders' || user.role === 'SOLICITANTE') {
-      where.creatorId = user.id;
+      where.OR = [
+        { creatorId: user.id },
+        { executiveId: user.id },
+      ];
     } else if (scope === 'assigned_to_me' || user.role === 'POST_PRODUCTOR') {
       where.postProducerId = user.id;
     }
@@ -38,6 +41,8 @@ export async function GET(req: Request) {
         { clientAgency: { contains: search, mode: 'insensitive' } },
         { product: { contains: search, mode: 'insensitive' } },
         { program: { contains: search, mode: 'insensitive' } },
+        { executive: { name: { contains: search, mode: 'insensitive' } } },
+        { creator: { name: { contains: search, mode: 'insensitive' } } },
       ];
     }
 
@@ -45,6 +50,9 @@ export async function GET(req: Request) {
       where,
       include: {
         creator: {
+          select: { id: true, name: true, initials: true, email: true, phone: true },
+        },
+        executive: {
           select: { id: true, name: true, initials: true, email: true, phone: true },
         },
         postProducer: {
@@ -87,6 +95,7 @@ export async function POST(req: Request) {
       packageValue,
       priority = 'MEDIA',
       files = [],
+      executiveId, // ID of the sales executive for the client
     } = body;
 
     if (!clientAgency || !product) {
@@ -97,18 +106,38 @@ export async function POST(req: Request) {
       ? parseFloat(String(packageValue).replace(/[^0-9.]/g, ''))
       : 0;
 
-    // 🔢 Consecutive logic per user starting from 001 (e.g. SP-AR-001, SP-CM-001)
-    const userInitials = user.initials || 'SP';
-    const lastOrderForUser = await prisma.productionOrder.findFirst({
-      where: { creatorId: user.id },
+    // 👩‍💼 Resolve executive and initials
+    let targetExecutive = null;
+    if (executiveId) {
+      targetExecutive = await prisma.user.findUnique({
+        where: { id: executiveId },
+      });
+    }
+
+    // Default to creator if they are SOLICITANTE or if no target executive
+    if (!targetExecutive && user.role === 'SOLICITANTE') {
+      targetExecutive = user;
+    }
+
+    const effectiveExecutiveId = targetExecutive ? targetExecutive.id : null;
+    const userInitials = (targetExecutive?.initials || user.initials || 'SP').toUpperCase();
+
+    // 🔢 Consecutive logic per executive prefix (e.g. SP-AR-001, SP-CM-001)
+    const lastOrderForExecutive = await prisma.productionOrder.findFirst({
+      where: {
+        OR: [
+          effectiveExecutiveId ? { executiveId: effectiveExecutiveId } : { creatorId: user.id },
+          { orderNumber: { startsWith: `SP-${userInitials}-` } },
+        ],
+      },
       orderBy: { consecutive: 'desc' },
     });
 
-    let nextConsecutive = (lastOrderForUser?.consecutive || 0) + 1;
+    let nextConsecutive = (lastOrderForExecutive?.consecutive || 0) + 1;
     let paddedNumber = String(nextConsecutive).padStart(3, '0');
     let orderNumber = `SP-${userInitials}-${paddedNumber}`;
 
-    // Ensure uniqueness
+    // Ensure uniqueness across database
     const existingWithSameCode = await prisma.productionOrder.findUnique({
       where: { orderNumber },
     });
@@ -141,6 +170,8 @@ export async function POST(req: Request) {
         status: 'NUEVA',
         priority,
         creatorId: user.id,
+        executiveId: effectiveExecutiveId,
+        coordinatorId: (user.role === 'COORDINADOR' || user.role === 'ADMIN') ? user.id : null,
       },
     });
 
@@ -164,12 +195,16 @@ export async function POST(req: Request) {
     }
 
     // Log activity
+    const activityLogDetails = targetExecutive && targetExecutive.id !== user.id
+      ? `Solicitud de producción ${orderNumber} ingresada por Coordinación (${user.name}) para la Ejecutiva ${targetExecutive.name}`
+      : `Solicitud de producción ${orderNumber} creada por ${user.name} (${user.email})`;
+
     await prisma.activityLog.create({
       data: {
         orderId: newOrder.id,
         userId: user.id,
         action: 'CREADA',
-        details: `Solicitud de producción ${orderNumber} creada por ${user.name} (${user.email})`,
+        details: activityLogDetails,
       },
     });
 
@@ -178,15 +213,31 @@ export async function POST(req: Request) {
       where: { role: { in: ['COORDINADOR', 'ADMIN'] } },
     });
 
+    const executiveDisplayName = targetExecutive ? targetExecutive.name : user.name;
+
     for (const coord of coordinators) {
       await sendNotification({
         userId: coord.id,
         orderId: newOrder.id,
         type: 'NEW_SP',
         title: `📥 ¡Nueva SP Recibida! ${orderNumber}`,
-        message: `${user.name} ha emitido la orden ${orderNumber} para ${clientAgency} (${product}). Fecha al aire: ${airDate || 'Por definir'}. Entra al CRM para asignarla a un post-productor.`,
+        message: `${executiveDisplayName} ha emitido la orden ${orderNumber} para ${clientAgency} (${product}). Fecha al aire: ${airDate || 'Por definir'}. Entra al CRM para asignarla a un post-productor.`,
         userPhone: coord.phone,
         userEmail: coord.email,
+        orderNumber,
+      });
+    }
+
+    // Also notify executive if entered by coordinator
+    if (targetExecutive && targetExecutive.id !== user.id) {
+      await sendNotification({
+        userId: targetExecutive.id,
+        orderId: newOrder.id,
+        type: 'NEW_SP',
+        title: `📥 SP ${orderNumber} ingresada por Coordinación`,
+        message: `Coordinación (${user.name}) ha registrado la orden ${orderNumber} para tu cliente ${clientAgency} (${product}).`,
+        userPhone: targetExecutive.phone,
+        userEmail: targetExecutive.email,
         orderNumber,
       });
     }

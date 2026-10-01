@@ -333,6 +333,7 @@ export default function OrderDetailPage() {
   const nextChangeCount = (order.changesCount || 0) + 1;
 
   // WhatsApp direct text generator
+  const effectiveExecutiveName = order.executive?.name || order.creator?.name || 'Ejecutiva';
   const waShareText = encodeURIComponent(
     `📋 *Solicitud de Producción Comercial*\n` +
     `*Código:* ${order.orderNumber}\n` +
@@ -340,7 +341,7 @@ export default function OrderDetailPage() {
     `*Producto:* ${order.product}\n` +
     `*Fecha al aire:* ${order.airDate || 'Por definir'}\n` +
     `*Estado:* ${statusInfo.label}\n` +
-    `*Ejecutiva:* ${order.creator?.name}`
+    `*Ejecutiva:* ${effectiveExecutiveName}`
   );
 
   return (
@@ -439,8 +440,13 @@ export default function OrderDetailPage() {
               </div>
               <div className="p-6 grid grid-cols-2 sm:grid-cols-5 gap-4 text-xs">
                 <div>
-                  <span className="text-slate-400 block text-[11px] font-semibold">Ejecutiva de Ventas:</span>
-                  <strong className="text-slate-900 font-bold">{order.creator?.name}</strong>
+                  <span className="text-slate-400 block text-[11px] font-semibold">Ejecutiva de Cuentas:</span>
+                  <strong className="text-slate-900 font-bold">{order.executive?.name || order.creator?.name}</strong>
+                  {order.executiveId && order.creatorId !== order.executiveId && (
+                    <span className="text-[10px] text-blue-600 font-medium block mt-0.5">
+                      (Ingresada por: {order.creator?.name})
+                    </span>
+                  )}
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[11px] font-semibold">Cliente / Agencia:</span>
@@ -831,7 +837,11 @@ export default function OrderDetailPage() {
                       <span className="font-bold text-slate-900">1. Solicitud Recibida</span>
                       <span className="text-[10px] font-semibold text-emerald-700">Completado</span>
                     </div>
-                    <p className="text-[11px] text-slate-500">Por {order.creator?.name}</p>
+                    <p className="text-[11px] text-slate-500">
+                      {order.executiveId && order.creatorId !== order.executiveId
+                        ? `Ingresada por ${order.creator?.name} (para ejecutiva ${order.executive?.name})`
+                        : `Por ${order.creator?.name}`}
+                    </p>
                     <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
                       🕒 {formatDateTime(logCreated?.createdAt || order.createdAt)}
                     </span>
