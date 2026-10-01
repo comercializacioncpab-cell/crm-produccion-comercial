@@ -88,7 +88,14 @@ export default function PrintOrderPage() {
         </div>
 
         {/* Code SP Badge */}
-        <div className="flex justify-end mb-2">
+        <div className="flex items-center justify-between mb-2">
+          {order.isDemo ? (
+            <div className="bg-purple-700 text-white font-mono font-black text-xs px-3 py-1 border border-slate-900 uppercase">
+              🧪 DEMO / PILOTO COMERCIAL ($0 USD) {order.demoStatus === 'VENDIDO' ? '• [VENDIDO]' : ''}
+            </div>
+          ) : (
+            <div></div>
+          )}
           <div className="bg-[#f37021] text-white font-mono font-bold text-xs px-6 py-1 border border-slate-900">
             {order.orderNumber}
           </div>
@@ -140,10 +147,18 @@ export default function PrintOrderPage() {
               </tr>
               <tr>
                 <td className="bg-[#e0f2fe] p-1.5 font-bold border-r border-slate-900 text-slate-900 uppercase">
-                  Valor del Paquete:
+                  Tipo / Valor del Paquete:
                 </td>
                 <td className="p-1.5 font-bold text-slate-900">
-                  {order.packageValue ? `$ ${Number(order.packageValue).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD` : '$ 0.00 USD'}
+                  {order.isDemo ? (
+                    <span className="text-purple-800 font-black">
+                      🧪 DEMO / MUESTRA ($0.00 USD - SIN COSTO)
+                    </span>
+                  ) : order.packageValue ? (
+                    `$ ${Number(order.packageValue).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`
+                  ) : (
+                    '$ 0.00 USD'
+                  )}
                 </td>
               </tr>
             </tbody>

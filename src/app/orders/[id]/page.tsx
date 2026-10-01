@@ -367,11 +367,30 @@ export default function OrderDetailPage() {
                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${priorityInfo.badge}`}>
                   {priorityInfo.label}
                 </span>
-                {order.packageValue > 0 && (
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
-                    💰 ${Number(order.packageValue).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+
+                {/* DEMO Badges */}
+                {order.isDemo ? (
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-black border flex items-center gap-1 ${
+                    order.demoStatus === 'VENDIDO'
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                      : 'bg-purple-100 text-purple-800 border-purple-300'
+                  }`}>
+                    🧪 DEMO / Piloto ($0 USD) {order.demoStatus === 'VENDIDO' ? '• [VENDIDO 💰]' : '• [En Evaluación]'}
+                  </span>
+                ) : (
+                  order.packageValue > 0 && (
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+                      💰 ${Number(order.packageValue).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                    </span>
+                  )
+                )}
+
+                {order.sourceDemo && (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-indigo-100 text-indigo-800 border border-indigo-300 flex items-center gap-1">
+                    ✨ Convertida de Demo ({order.sourceDemo.orderNumber})
                   </span>
                 )}
+
                 {order.changesCount > 0 && (
                   <span className={`px-2.5 py-0.5 rounded-full text-xs font-black border flex items-center gap-1 ${
                     order.changesCount >= 4 
@@ -390,6 +409,16 @@ export default function OrderDetailPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Convert Demo to Official Commercial SP Action */}
+            {order.isDemo && order.demoStatus !== 'VENDIDO' && (user?.role === 'COORDINADOR' || user?.role === 'ADMIN' || user?.role === 'SOLICITANTE') && (
+              <Link
+                href={`/orders/new?fromDemoId=${order.id}`}
+                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-md animate-pulse"
+              >
+                💰 Convertir a Venta Oficial
+              </Link>
+            )}
+
             {/* Direct WhatsApp Share */}
             <a
               href={`https://wa.me/?text=${waShareText}`}
@@ -410,6 +439,80 @@ export default function OrderDetailPage() {
             </Link>
           </div>
         </div>
+
+        {/* DEMO CONVERSION BANNERS */}
+        {order.isDemo && (
+          <div className={`p-4 rounded-2xl border flex items-center justify-between flex-wrap gap-3 ${
+            order.demoStatus === 'VENDIDO'
+              ? 'bg-emerald-50/90 border-emerald-200 text-emerald-950'
+              : 'bg-purple-50/90 border-purple-200 text-purple-950'
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black shrink-0 ${
+                order.demoStatus === 'VENDIDO' ? 'bg-emerald-200 text-emerald-900' : 'bg-purple-200 text-purple-900'
+              }`}>
+                {order.demoStatus === 'VENDIDO' ? '💰' : '🧪'}
+              </div>
+              <div>
+                <h4 className="font-extrabold text-xs">
+                  {order.demoStatus === 'VENDIDO' 
+                    ? '¡DEMO EXITOSAMENTE COMERCIALIZADO / VENDIDO!' 
+                    : 'SOLICITUD DE DEMO / PILOTO COMERCIAL ($0 USD)'}
+                </h4>
+                <p className="text-[11px] opacity-80">
+                  {order.demoStatus === 'VENDIDO'
+                    ? `Este demo fue aprobado por el cliente y convertido a venta oficial el ${formatDateTime(order.demoConvertedAt || order.updatedAt)}.`
+                    : 'Muestra comercial sin costo para presentación y venta al cliente. Al concretar la venta, puedes convertirlo en una SP Oficial con valor.'}
+                </p>
+                {order.convertedOrders && order.convertedOrders.length > 0 && (
+                  <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] font-bold">Órdenes oficiales generadas:</span>
+                    {order.convertedOrders.map((co: any) => (
+                      <Link
+                        key={co.id}
+                        href={`/orders/${co.id}`}
+                        className="bg-emerald-600 text-white font-mono text-[10px] font-bold px-2 py-0.5 rounded-lg hover:bg-emerald-700 inline-flex items-center gap-1"
+                      >
+                        {co.orderNumber} (${Number(co.packageValue || 0).toLocaleString('es-EC')} USD) <ExternalLink className="w-2.5 h-2.5" />
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {order.demoStatus !== 'VENDIDO' && (user?.role === 'COORDINADOR' || user?.role === 'ADMIN' || user?.role === 'SOLICITANTE') && (
+              <Link
+                href={`/orders/new?fromDemoId=${order.id}`}
+                className="bg-purple-700 hover:bg-purple-800 text-white text-xs font-black px-4 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5"
+              >
+                💰 Crear SP Oficial de Venta
+              </Link>
+            )}
+          </div>
+        )}
+
+        {order.sourceDemo && (
+          <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-950 flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-200 text-indigo-900 flex items-center justify-center text-lg font-black shrink-0">
+                ✨
+              </div>
+              <div>
+                <h4 className="font-extrabold text-xs">SP ORIGINADA A PARTIR DE UN DEMO PREVIO</h4>
+                <p className="text-[11px] text-indigo-700">
+                  Esta orden comercial con valor se generó a partir de la muestra previa <strong>{order.sourceDemo.orderNumber}</strong> ({order.sourceDemo.product}).
+                </p>
+              </div>
+            </div>
+            <Link
+              href={`/orders/${order.sourceDemo.id}`}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1"
+            >
+              Ver Demo Original ({order.sourceDemo.orderNumber}) <ExternalLink className="w-3 h-3" />
+            </Link>
+          </div>
+        )}
 
         {msg && (
           <div

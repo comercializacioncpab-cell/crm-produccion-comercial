@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import DatePicker from '@/components/ui/DatePicker';
 import { 
   FileText, 
@@ -18,13 +18,25 @@ import {
   FilePlus2,
   Trash2,
   DollarSign,
-  Users
+  Users,
+  FlaskConical,
+  BadgePercent,
+  Link as LinkIcon
 } from 'lucide-react';
 import { SPONSORSHIP_OPTIONS } from '@/lib/order-utils';
 
-export default function NewOrderPage() {
+function NewOrderForm() {
   const { user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromDemoId = searchParams.get('fromDemoId');
+
+  // Modalidad: COMMERCIAL o DEMO
+  const [orderType, setOrderType] = useState<'COMMERCIAL' | 'DEMO'>('COMMERCIAL');
+  const [isFromDemo, setIsFromDemo] = useState(false);
+  const [sourceDemoId, setSourceDemoId] = useState(fromDemoId || '');
+  const [sourceDemoInfo, setSourceDemoInfo] = useState<any>(null);
+  const [availableDemos, setAvailableDemos] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     clientAgency: '',
@@ -50,24 +62,93 @@ export default function NewOrderPage() {
 
   const isCoordinatorOrAdmin = user?.role === 'COORDINADOR' || user?.role === 'ADMIN';
 
-  // Load executives if coordinator/admin
-  React.useEffect(() => {
-    async function loadExecutives() {
+  // Load executives and available demos
+  useEffect(() => {
+    async function loadInitialData() {
       try {
-        const res = await fetch('/api/users');
-        if (res.ok) {
-          const data = await res.json();
+        const [usersRes, ordersRes] = await Promise.all([
+          fetch('/api/users'),
+          fetch('/api/orders?status=ALL'),
+        ]);
+
+        if (usersRes.ok) {
+          const data = await usersRes.json();
           const allUsers = data.users || [];
-          // Prioritize SOLICITANTE users, but allow selecting any sales executive
           const salesUsers = allUsers.filter((u: any) => u.status === 'APROBADO' && (u.role === 'SOLICITANTE' || u.role === 'ADMIN' || u.role === 'COORDINADOR'));
           setExecutives(salesUsers);
         }
+
+        if (ordersRes.ok) {
+          const data = await ordersRes.json();
+          const allOrders = data.orders || [];
+          const demos = allOrders.filter((o: any) => o.isDemo && o.demoStatus !== 'VENDIDO');
+          setAvailableDemos(demos);
+        }
       } catch (err) {
-        console.error('Error loading executives:', err);
+        console.error('Error loading initial data:', err);
       }
     }
-    loadExecutives();
+    loadInitialData();
   }, []);
+
+  // Pre-fill if converting from a demo via URL query param
+  useEffect(() => {
+    if (!fromDemoId) return;
+
+    const loadDemoData = async () => {
+      try {
+        const res = await fetch(`/api/orders/${fromDemoId}`);
+        if (res.ok) {
+          const data = await res.json();
+          const demo = data.order;
+          setSourceDemoInfo(demo);
+          setOrderType('COMMERCIAL');
+          setIsFromDemo(true);
+          setSourceDemoId(demo.id);
+          if (demo.executiveId) setSelectedExecutiveId(demo.executiveId);
+          setFormData((prev) => ({
+            ...prev,
+            clientAgency: demo.clientAgency || '',
+            product: demo.product || '',
+            program: demo.program || '',
+            materialNotes: demo.materialNotes ? `[Origen DEMO ${demo.orderNumber}]: ${demo.materialNotes}` : '',
+            hasBrief: Boolean(demo.hasBrief),
+            sponsorshipTypes: (() => {
+              try {
+                return JSON.parse(demo.sponsorshipTypes || '[]');
+              } catch {
+                return [];
+              }
+            })(),
+            customSponsorship: demo.customSponsorship || '',
+            voiceoverType: demo.voiceoverType || 'GENERICA',
+            voiceoverText: demo.voiceoverText || '',
+            priority: demo.priority || 'MEDIA',
+            packageValue: '',
+          }));
+        }
+      } catch (err) {
+        console.error('Error loading demo to convert:', err);
+      }
+    };
+    loadDemoData();
+  }, [fromDemoId]);
+
+  const handleSelectDemoToConvert = (demoId: string) => {
+    setSourceDemoId(demoId);
+    const demo = availableDemos.find((d) => d.id === demoId);
+    if (demo) {
+      setSourceDemoInfo(demo);
+      if (demo.executiveId) setSelectedExecutiveId(demo.executiveId);
+      setFormData((prev) => ({
+        ...prev,
+        clientAgency: demo.clientAgency || prev.clientAgency,
+        product: demo.product || prev.product,
+        program: demo.program || prev.program,
+        materialNotes: demo.materialNotes ? `[Origen DEMO ${demo.orderNumber}]: ${demo.materialNotes}` : prev.materialNotes,
+      }));
+    }
+  };
 
   const handleSponsorshipToggle = (id: string) => {
     setFormData((prev) => {
@@ -118,6 +199,9 @@ export default function NewOrderPage() {
       const payload = {
         ...formData,
         executiveId: isCoordinatorOrAdmin ? selectedExecutiveId : (user?.id || null),
+        isDemo: orderType === 'DEMO',
+        packageValue: orderType === 'DEMO' ? 0 : formData.packageValue,
+        sourceDemoId: (orderType === 'COMMERCIAL' && isFromDemo && sourceDemoId) ? sourceDemoId : null,
         files: files.map((f) => ({
           fileName: f.name,
           fileSize: f.size,
@@ -170,17 +254,25 @@ export default function NewOrderPage() {
     <AppLayout>
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Banner Header replicating the Excel Title */}
-        <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-3xl p-6 text-white shadow-lg border border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className={`rounded-3xl p-6 text-white shadow-lg border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all ${
+          orderType === 'DEMO'
+            ? 'bg-gradient-to-r from-purple-950 via-indigo-900 to-slate-900 border-purple-800/50'
+            : 'bg-gradient-to-r from-slate-900 to-slate-800 border-slate-700'
+        }`}>
           <div className="flex items-center gap-3">
-            <div className="bg-cyan-500 text-slate-950 font-black text-xl px-3 py-1.5 rounded-xl shadow">
-              EV
+            <div className={`font-black text-xl px-3 py-1.5 rounded-xl shadow ${
+              orderType === 'DEMO' ? 'bg-purple-400 text-slate-950' : 'bg-cyan-500 text-slate-950'
+            }`}>
+              {orderType === 'DEMO' ? '🧪' : 'EV'}
             </div>
             <div>
-              <span className="text-xs uppercase tracking-widest text-cyan-300 font-bold">
-                Producción Comercial
+              <span className={`text-xs uppercase tracking-widest font-bold ${
+                orderType === 'DEMO' ? 'text-purple-300' : 'text-cyan-300'
+              }`}>
+                {orderType === 'DEMO' ? 'Muestra Comercial / Piloto ($0 USD)' : 'Producción Comercial'}
               </span>
               <h1 className="text-xl sm:text-2xl font-black">
-                Nueva Solicitud de Producción (SP)
+                {orderType === 'DEMO' ? 'Nueva Solicitud de DEMO ($0 USD)' : 'Nueva Solicitud de Producción (SP)'}
               </h1>
             </div>
           </div>
@@ -193,6 +285,108 @@ export default function NewOrderPage() {
           </div>
         </div>
 
+        {/* 🌟 SELECTOR DE MODALIDAD: SP COMERCIAL vs DEMO ($0) */}
+        <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setOrderType('COMMERCIAL');
+            }}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-black transition-all ${
+              orderType === 'COMMERCIAL'
+                ? 'bg-gradient-to-r from-slate-900 to-indigo-950 text-white shadow-md'
+                : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <DollarSign className="w-4 h-4 text-emerald-400" />
+            <span>💰 Solicitud Comercial Estándar (Venta)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setOrderType('DEMO');
+              setIsFromDemo(false);
+              setSourceDemoId('');
+            }}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-black transition-all ${
+              orderType === 'DEMO'
+                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md'
+                : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <FlaskConical className="w-4 h-4 text-purple-300" />
+            <span>🧪 Solicitud de DEMO / Piloto (Costo $0 USD)</span>
+          </button>
+        </div>
+
+        {/* BANNER SI ESTÁ CONVIRTIENDO UN DEMO EN VENTA */}
+        {orderType === 'COMMERCIAL' && sourceDemoInfo && (
+          <div className="bg-emerald-50 border-2 border-emerald-400 p-4 rounded-2xl flex items-start gap-3 animate-pulse">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-black text-base shrink-0 shadow">
+              💰
+            </div>
+            <div className="text-xs">
+              <h4 className="font-black text-emerald-950 text-sm">
+                ¡Comercializando DEMO {sourceDemoInfo.orderNumber}!
+              </h4>
+              <p className="text-emerald-800 font-medium mt-0.5">
+                Esta nueva SP se registrará como la <strong>Venta Comercial oficial</strong> originada del demo <strong>{sourceDemoInfo.orderNumber}</strong> ({sourceDemoInfo.clientAgency} - {sourceDemoInfo.product}). 
+                Ingresa el valor del paquete comercial acordado con el cliente.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* SELECTOR DE VINCULACIÓN A DEMO PREVIO (EN MODO COMERCIAL) */}
+        {orderType === 'COMMERCIAL' && !fromDemoId && availableDemos.length > 0 && (
+          <div className="bg-indigo-50/70 border border-indigo-200 p-4 rounded-2xl space-y-2 text-xs">
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 font-bold text-indigo-950 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isFromDemo}
+                  onChange={(e) => {
+                    setIsFromDemo(e.target.checked);
+                    if (!e.target.checked) {
+                      setSourceDemoId('');
+                      setSourceDemoInfo(null);
+                    }
+                  }}
+                  className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer"
+                />
+                <span>🎯 ¿Esta orden de venta proviene de un DEMO previo que se logró comercializar?</span>
+              </label>
+              <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full">
+                Métrica de Conversión
+              </span>
+            </div>
+
+            {isFromDemo && (
+              <div className="pt-2 space-y-1">
+                <label className="block text-[11px] font-bold text-indigo-900">
+                  Selecciona el DEMO original a convertir en Venta:
+                </label>
+                <select
+                  value={sourceDemoId}
+                  onChange={(e) => handleSelectDemoToConvert(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-indigo-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">-- Seleccionar DEMO disponible --</option>
+                  {availableDemos.map((demo) => (
+                    <option key={demo.id} value={demo.id}>
+                      🧪 {demo.orderNumber} • {demo.clientAgency} ({demo.product})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-indigo-700">
+                  Al asociarlo, el DEMO original quedará registrado como <strong>VENDIDO</strong> y se sumará a los reportes de efectividad comercial.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
         {error && (
           <div className="p-4 bg-red-50 border border-red-200 text-red-700 text-xs rounded-2xl font-semibold flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-red-500" />
@@ -203,11 +397,18 @@ export default function NewOrderPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* SECCIÓN 1: INFORMACIÓN GENERAL */}
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="bg-[#fef08a] px-6 py-3 border-b border-yellow-300 flex items-center justify-between">
-              <h2 className="text-xs font-black uppercase tracking-wider text-yellow-950">
-                1. INFORMACIÓN GENERAL
+            <div className={`px-6 py-3 border-b flex items-center justify-between ${
+              orderType === 'DEMO' ? 'bg-purple-100 border-purple-200' : 'bg-[#fef08a] border-yellow-300'
+            }`}>
+              <h2 className={`text-xs font-black uppercase tracking-wider ${
+                orderType === 'DEMO' ? 'text-purple-950 flex items-center gap-1.5' : 'text-yellow-950'
+              }`}>
+                {orderType === 'DEMO' && <FlaskConical className="w-3.5 h-3.5 text-purple-700" />}
+                1. INFORMACIÓN GENERAL {orderType === 'DEMO' && '(SOLICITUD DE DEMO)'}
               </h2>
-              <span className="text-[11px] font-bold text-yellow-900">
+              <span className={`text-[11px] font-bold ${
+                orderType === 'DEMO' ? 'text-purple-900' : 'text-yellow-900'
+              }`}>
                 {isCoordinatorOrAdmin && selectedExec 
                   ? `Ejecutiva: ${selectedExec.name} (Ingresado por: ${user?.name})`
                   : `Ejecutiva de Ventas: ${user?.name}`}
@@ -304,9 +505,11 @@ export default function NewOrderPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-emerald-800 mb-1 flex items-center gap-1">
-                  <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
-                  Valor del Paquete ($ USD)
+                <label className={`block text-xs font-bold mb-1 flex items-center gap-1 ${
+                  orderType === 'DEMO' ? 'text-purple-800' : 'text-emerald-800'
+                }`}>
+                  <DollarSign className={`w-3.5 h-3.5 ${orderType === 'DEMO' ? 'text-purple-600' : 'text-emerald-600'}`} />
+                  Valor del Paquete ($ USD) {orderType === 'DEMO' ? '(Costo $0 USD)' : '*'}
                 </label>
                 <div className="relative">
                   <span className="absolute left-3.5 top-2.5 text-xs font-bold text-slate-400">$</span>
@@ -314,24 +517,37 @@ export default function NewOrderPage() {
                     type="number"
                     step="0.01"
                     min="0"
-                    value={formData.packageValue}
+                    disabled={orderType === 'DEMO'}
+                    value={orderType === 'DEMO' ? '0' : formData.packageValue}
                     onChange={(e) => setFormData({ ...formData, packageValue: e.target.value })}
                     placeholder="0.00"
-                    className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-emerald-300 bg-emerald-50/30 text-xs font-bold text-emerald-950 focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-slate-400"
+                    className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl border text-xs font-bold focus:outline-none focus:ring-2 ${
+                      orderType === 'DEMO'
+                        ? 'bg-purple-50 border-purple-300 text-purple-950 cursor-not-allowed'
+                        : 'bg-emerald-50/30 border-emerald-300 text-emerald-950 focus:ring-emerald-500 placeholder-slate-400'
+                    }`}
                   />
                 </div>
-                <span className="text-[10px] text-slate-400 mt-1 block">Valor comercial total contratado para este paquete.</span>
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  {orderType === 'DEMO' 
+                    ? '✨ DEMO / Muestra comercial sin costo ($0.00 USD).' 
+                    : 'Valor comercial total contratado para este paquete.'}
+                </span>
               </div>
             </div>
           </div>
 
           {/* SECCIÓN 2: MATERIAL Y FECHAS CRÍTICAS CON CALENDARIO INTERACTIVO */}
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="bg-[#fef08a] px-6 py-3 border-b border-yellow-300 flex items-center justify-between">
-              <h2 className="text-xs font-black uppercase tracking-wider text-yellow-950 flex items-center gap-2">
-                <CalendarIcon className="w-4 h-4 text-yellow-900" /> 2. MATERIAL Y FECHAS
+            <div className={`px-6 py-3 border-b flex items-center justify-between ${
+              orderType === 'DEMO' ? 'bg-purple-100 border-purple-200' : 'bg-[#fef08a] border-yellow-300'
+            }`}>
+              <h2 className={`text-xs font-black uppercase tracking-wider flex items-center gap-2 ${
+                orderType === 'DEMO' ? 'text-purple-950' : 'text-yellow-950'
+              }`}>
+                <CalendarIcon className="w-4 h-4" /> 2. MATERIAL Y FECHAS
               </h2>
-              <span className="text-[10px] text-yellow-900 font-bold">Haz clic en el recuadro para abrir el calendario</span>
+              <span className="text-[10px] text-slate-600 font-bold">Haz clic en el recuadro para abrir el calendario</span>
             </div>
 
             <div className="p-6 space-y-4">
@@ -347,13 +563,13 @@ export default function NewOrderPage() {
 
                 {/* DATEPICKER 2: FECHA AL AIRE (OBLIGATORIA) */}
                 <DatePicker
-                  label="Fecha al Aire (Emisión Comercial)"
+                  label={orderType === 'DEMO' ? "Fecha Estimada de Muestra / Entrega del DEMO" : "Fecha al Aire (Emisión Comercial)"}
                   value={formData.airDate}
                   onChange={(d) => setFormData({ ...formData, airDate: d })}
                   required
-                  isUrgent
-                  placeholder="Elegir fecha de salida al aire..."
-                  helperText="Día programado para salir al aire en pantalla."
+                  isUrgent={orderType !== 'DEMO'}
+                  placeholder="Elegir fecha..."
+                  helperText={orderType === 'DEMO' ? "Día límite para presentar el DEMO al cliente." : "Día programado para salir al aire en pantalla."}
                 />
               </div>
 
@@ -570,14 +786,30 @@ export default function NewOrderPage() {
             <button
               type="submit"
               disabled={loading}
-              className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white font-black px-6 py-3 rounded-xl text-xs shadow-lg transition-all flex items-center gap-2 disabled:opacity-50"
+              className={`text-white font-black px-6 py-3 rounded-xl text-xs shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 ${
+                orderType === 'DEMO'
+                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700'
+                  : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700'
+              }`}
             >
               <Save className="w-4 h-4" />
-              {loading ? 'Creando SP y Notificando a Coordinación...' : 'Crear y Notificar a Coordinadora'}
+              {loading 
+                ? 'Procesando...' 
+                : orderType === 'DEMO' 
+                ? 'Crear Solicitud de DEMO ($0 USD)' 
+                : 'Crear Solicitud de Producción (SP)'}
             </button>
           </div>
         </form>
       </div>
     </AppLayout>
+  );
+}
+
+export default function NewOrderPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-xs text-slate-400">Cargando formulario de SP...</div>}>
+      <NewOrderForm />
+    </Suspense>
   );
 }

@@ -26,6 +26,12 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         postProducer: {
           select: { id: true, name: true, initials: true, email: true, phone: true, role: true },
         },
+        sourceDemo: {
+          select: { id: true, orderNumber: true, clientAgency: true, product: true, isDemo: true, demoStatus: true, createdAt: true },
+        },
+        convertedOrders: {
+          select: { id: true, orderNumber: true, clientAgency: true, product: true, packageValue: true, status: true, createdAt: true },
+        },
         files: {
           include: {
             uploader: { select: { id: true, name: true, role: true } },

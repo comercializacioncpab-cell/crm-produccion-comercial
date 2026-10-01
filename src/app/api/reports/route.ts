@@ -30,6 +30,7 @@ export async function GET(req: Request) {
     const postProducerParam = searchParams.get('postProducerId'); // specific ID or 'ALL'
     const executiveParam = searchParams.get('executiveId'); // specific ID or 'ALL'
     const clientParam = searchParams.get('clientAgency'); // specific client name or 'ALL'
+    const orderTypeParam = searchParams.get('orderType') || 'ALL'; // 'ALL', 'COMMERCIAL', 'DEMO', 'DEMO_SOLD', 'DEMO_CONVERTED_SALES'
 
     const postProducersList = await prisma.user.findMany({
       where: { role: 'POST_PRODUCTOR' },
@@ -47,6 +48,12 @@ export async function GET(req: Request) {
         },
         postProducer: {
           select: { id: true, name: true, email: true, phone: true, initials: true },
+        },
+        sourceDemo: {
+          select: { id: true, orderNumber: true, clientAgency: true, product: true, isDemo: true, demoStatus: true, createdAt: true },
+        },
+        convertedOrders: {
+          select: { id: true, orderNumber: true, clientAgency: true, product: true, packageValue: true, status: true, createdAt: true },
         },
         activityLogs: {
           select: { id: true, action: true, createdAt: true, details: true },
@@ -95,7 +102,7 @@ export async function GET(req: Request) {
     const availableExecutives = Object.values(availableExecutivesMap).sort((a, b) => a.name.localeCompare(b.name));
     const availableClients = Object.values(availableClientsMap).sort((a, b) => a.name.localeCompare(b.name));
 
-    // Filter orders by month, post-producer, executive, and client if specified
+    // Filter orders by month, post-producer, executive, client, and orderType if specified
     const filteredOrders = orders.filter((ord) => {
       let matchesMonth = true;
       if (monthParam && monthParam !== 'ALL') {
@@ -120,7 +127,18 @@ export async function GET(req: Request) {
         matchesClient = ord.clientAgency.toLowerCase().trim() === clientParam.toLowerCase().trim();
       }
 
-      return matchesMonth && matchesPost && matchesExecutive && matchesClient;
+      let matchesType = true;
+      if (orderTypeParam === 'COMMERCIAL') {
+        matchesType = !ord.isDemo;
+      } else if (orderTypeParam === 'DEMO') {
+        matchesType = Boolean(ord.isDemo);
+      } else if (orderTypeParam === 'DEMO_SOLD') {
+        matchesType = Boolean(ord.isDemo) && (ord.demoStatus === 'VENDIDO' || (ord.convertedOrders && ord.convertedOrders.length > 0));
+      } else if (orderTypeParam === 'DEMO_CONVERTED_SALES') {
+        matchesType = !ord.isDemo && Boolean(ord.sourceDemoId);
+      }
+
+      return matchesMonth && matchesPost && matchesExecutive && matchesClient && matchesType;
     });
 
     // Compute metrics
@@ -131,6 +149,13 @@ export async function GET(req: Request) {
     let totalChangesSum = 0;
     let totalExtraCostOrders = 0;
     let totalPending = 0;
+
+    // DEMO Specific KPI Counters (Computed on current filter scope)
+    let totalDemos = 0;
+    let totalDemosSold = 0;
+    let revenueFromDemos = 0;
+    let totalCommercialOrders = 0;
+    let totalCommercialRevenue = 0;
 
     let totalResolutionHoursSum = 0;
     let deliveredWithTimeCount = 0;
@@ -188,6 +213,21 @@ export async function GET(req: Request) {
         totalPending += 1;
       }
 
+      // DEMO calculations
+      if (ord.isDemo) {
+        totalDemos += 1;
+        const isSold = ord.demoStatus === 'VENDIDO' || (ord.convertedOrders && ord.convertedOrders.length > 0);
+        if (isSold) {
+          totalDemosSold += 1;
+        }
+      } else {
+        totalCommercialOrders += 1;
+        totalCommercialRevenue += (ord.packageValue || 0);
+        if (ord.sourceDemoId) {
+          revenueFromDemos += (ord.packageValue || 0);
+        }
+      }
+
       // Calculate resolution time in hours
       let resolutionTimeHours: number | null = null;
       let resolutionTimeFormatted = 'En proceso';
@@ -235,12 +275,18 @@ export async function GET(req: Request) {
         product: ord.product,
         program: ord.program,
         airDate: ord.airDate,
-        packageValue: ord.packageValue,
+        packageValue: ord.packageValue || 0,
         status: ord.status,
         creatorName: ord.creator?.name || 'Ventas',
         executiveName: ord.executive?.name || ord.creator?.name || 'Ventas',
         executiveInitials: ord.executive?.initials || ord.creator?.initials || 'SP',
         isEnteredByCoordinator: Boolean(ord.executiveId && ord.creatorId !== ord.executiveId),
+        isDemo: Boolean(ord.isDemo),
+        demoStatus: ord.demoStatus,
+        sourceDemoId: ord.sourceDemoId,
+        sourceDemo: ord.sourceDemo,
+        convertedOrders: ord.convertedOrders,
+        demoConvertedAt: ord.demoConvertedAt,
         postProducerName: ord.postProducer?.name || 'Sin Asignar',
         postProducerId: ord.postProducerId,
         createdAt: ord.createdAt,
@@ -255,6 +301,7 @@ export async function GET(req: Request) {
 
     const avgResolutionHours = deliveredWithTimeCount > 0 ? (totalResolutionHoursSum / deliveredWithTimeCount) : 0;
     const avgResolutionTimeFormatted = formatHoursToReadable(avgResolutionHours);
+    const demoConversionRate = totalDemos > 0 ? Math.round((totalDemosSold / totalDemos) * 100) : 0;
 
     // Compute final post-producer summary list
     const postProducersSummary = Object.values(postProducerStatsMap)
@@ -286,6 +333,7 @@ export async function GET(req: Request) {
       selectedMonth: monthParam || 'ALL',
       selectedExecutive: executiveParam || 'ALL',
       selectedClient: clientParam || 'ALL',
+      selectedOrderType: orderTypeParam,
       availableMonths,
       availableExecutives,
       availableClients,
@@ -296,6 +344,12 @@ export async function GET(req: Request) {
       totalChangesSum,
       totalExtraCostOrders,
       totalPending,
+      totalDemos,
+      totalDemosSold,
+      demoConversionRate,
+      revenueFromDemos,
+      totalCommercialOrders,
+      totalCommercialRevenue,
       avgResolutionHours: Number(avgResolutionHours.toFixed(1)),
       avgResolutionTimeFormatted,
       completionRate: totalReceived > 0 ? Math.round((totalDelivered / totalReceived) * 100) : 0,

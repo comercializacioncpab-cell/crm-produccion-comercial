@@ -37,6 +37,7 @@ export default function MonthlyReportPage() {
   const [selectedPost, setSelectedPost] = useState('ALL');
   const [selectedExecutive, setSelectedExecutive] = useState('ALL');
   const [selectedClient, setSelectedClient] = useState('ALL');
+  const [selectedOrderType, setSelectedOrderType] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
 
   const fetchReport = async () => {
@@ -48,6 +49,7 @@ export default function MonthlyReportPage() {
       if (selectedPost !== 'ALL') params.append('postProducerId', selectedPost);
       if (selectedExecutive !== 'ALL') params.append('executiveId', selectedExecutive);
       if (selectedClient !== 'ALL') params.append('clientAgency', selectedClient);
+      if (selectedOrderType !== 'ALL') params.append('orderType', selectedOrderType);
 
       const res = await fetch(`/api/reports?${params.toString()}`);
       if (res.status === 403) {
@@ -73,7 +75,7 @@ export default function MonthlyReportPage() {
       setError('Acceso restringido: Este reporte está disponible para Coordinadoras y Administradores.');
       setLoading(false);
     }
-  }, [user, selectedMonth, selectedPost, selectedExecutive, selectedClient]);
+  }, [user, selectedMonth, selectedPost, selectedExecutive, selectedClient, selectedOrderType]);
 
   if (loading && !data) {
     return (
@@ -122,13 +124,14 @@ export default function MonthlyReportPage() {
     ? 'Reporte General Acumulado' 
     : (data.availableMonths?.find((m: any) => m.key === selectedMonth)?.label || selectedMonth);
 
-  const isFiltered = selectedMonth !== 'ALL' || selectedPost !== 'ALL' || selectedExecutive !== 'ALL' || selectedClient !== 'ALL';
+  const isFiltered = selectedMonth !== 'ALL' || selectedPost !== 'ALL' || selectedExecutive !== 'ALL' || selectedClient !== 'ALL' || selectedOrderType !== 'ALL';
 
   const resetFilters = () => {
     setSelectedMonth('ALL');
     setSelectedPost('ALL');
     setSelectedExecutive('ALL');
     setSelectedClient('ALL');
+    setSelectedOrderType('ALL');
     setSearchTerm('');
   };
 
@@ -148,7 +151,7 @@ export default function MonthlyReportPage() {
               Reporte Mensual y Rendimiento de Producción
             </h1>
             <p className="text-xs text-slate-300 max-w-xl">
-              Filtra por Cliente, Ejecutiva, Periodo y Post-Productor para obtener reportes y métricas operativas específicas.
+              Filtra por Tipo de SP (Comercial o DEMO), Cliente, Ejecutiva, Periodo y Post-Productor para obtener reportes específicos y conversión de ventas.
             </p>
           </div>
 
@@ -162,7 +165,7 @@ export default function MonthlyReportPage() {
           </div>
         </div>
 
-        {/* Filter Toolbar with Period, Executive, Client, and Post-Producer */}
+        {/* Filter Toolbar with Period, Executive, Client, Post-Producer, and Order Type */}
         <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <span className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
@@ -178,7 +181,7 @@ export default function MonthlyReportPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {/* Filter 1: Periodo */}
             <div>
               <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
@@ -198,7 +201,25 @@ export default function MonthlyReportPage() {
               </select>
             </div>
 
-            {/* Filter 2: Ejecutiva de Ventas */}
+            {/* Filter 2: Tipo de Solicitud (Comercial vs DEMO) */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5 text-purple-600" /> Tipo de Solicitud:
+              </label>
+              <select
+                value={selectedOrderType}
+                onChange={(e) => setSelectedOrderType(e.target.value)}
+                className="w-full px-3 py-2 bg-purple-50/50 border border-purple-200 rounded-xl text-xs font-bold text-purple-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="ALL">🌟 Todos los Tipos de SP</option>
+                <option value="COMMERCIAL">💰 SPs Comerciales Estándar</option>
+                <option value="DEMO">🧪 Todos los DEMOs ($0 USD)</option>
+                <option value="DEMO_SOLD">🧪 DEMOs Vendidos / Convertidos</option>
+                <option value="DEMO_CONVERTED_SALES">✨ SPs Nacidas de un DEMO</option>
+              </select>
+            </div>
+
+            {/* Filter 3: Ejecutiva de Ventas */}
             <div>
               <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
                 <Users className="w-3.5 h-3.5 text-purple-600" /> Ejecutiva Solicitante:
@@ -217,7 +238,7 @@ export default function MonthlyReportPage() {
               </select>
             </div>
 
-            {/* Filter 3: Cliente / Agencia */}
+            {/* Filter 4: Cliente / Agencia */}
             <div>
               <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
                 <Layers className="w-3.5 h-3.5 text-emerald-600" /> Cliente / Agencia:
@@ -236,7 +257,7 @@ export default function MonthlyReportPage() {
               </select>
             </div>
 
-            {/* Filter 4: Post-Productor */}
+            {/* Filter 5: Post-Productor */}
             <div>
               <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
                 <Clapperboard className="w-3.5 h-3.5 text-cyan-600" /> Post-Productor:
@@ -256,11 +277,12 @@ export default function MonthlyReportPage() {
             </div>
           </div>
 
-          <div className="text-xs text-slate-500 font-semibold pt-2 border-t border-slate-100 flex items-center justify-between">
+          <div className="text-xs text-slate-500 font-semibold pt-2 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2">
             <span>
               Mostrando <strong className="text-slate-900">{data.totalReceived}</strong> órdenes en el reporte actual
             </span>
             <span className="text-[11px] text-slate-400">
+              {selectedOrderType !== 'ALL' && `Tipo: ${selectedOrderType} • `}
               {selectedExecutive !== 'ALL' && `Ejecutiva: ${data.availableExecutives?.find((e: any) => e.id === selectedExecutive)?.name} • `}
               {selectedClient !== 'ALL' && `Cliente: ${selectedClient} • `}
               {monthTitle}
@@ -268,7 +290,7 @@ export default function MonthlyReportPage() {
           </div>
         </div>
 
-        {/* 4 Summary KPI Cards */}
+        {/* 4 General Operational KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Card 1: Total Recibidas */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
@@ -331,6 +353,69 @@ export default function MonthlyReportPage() {
             </div>
             <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
               <RotateCcw className="w-6 h-6" />
+            </div>
+          </div>
+        </div>
+
+        {/* 🧪 PANEL DE CONVERSIÓN Y DESEMPEÑO DE DEMOS ($0 USD → VENTAS) */}
+        <div className="bg-gradient-to-br from-purple-900 via-indigo-950 to-slate-900 rounded-3xl p-6 text-white shadow-lg border border-purple-800/40 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/30 text-purple-300 border border-purple-500/40">
+                Estrategia Comercial & Pilotos
+              </span>
+              <h3 className="text-lg font-black tracking-tight mt-1 flex items-center gap-2">
+                🧪 Rendimiento y Conversión de DEMOS a Ventas
+              </h3>
+              <p className="text-xs text-purple-200/80">
+                Métricas de conversión de muestras gratuitas ($0 USD) transformadas en contratos comerciales oficiales.
+              </p>
+            </div>
+            <div className="text-right">
+              <span className="text-[11px] font-bold text-purple-300 block">Total Recaudado por Demos:</span>
+              <span className="text-xl font-black font-mono text-emerald-400">
+                ${Number(data.revenueFromDemos || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Demo Card 1: Demos Solicitados */}
+            <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-purple-300 block">Demos Solicitados</span>
+              <div className="flex items-baseline justify-between mt-1">
+                <span className="text-2xl font-black font-mono text-white">{data.totalDemos || 0}</span>
+                <span className="text-[10px] text-purple-200">Costo $0 USD</span>
+              </div>
+            </div>
+
+            {/* Demo Card 2: Demos Vendidos */}
+            <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300 block">Demos Comercializados</span>
+              <div className="flex items-baseline justify-between mt-1">
+                <span className="text-2xl font-black font-mono text-emerald-400">{data.totalDemosSold || 0}</span>
+                <span className="text-[10px] text-emerald-200 font-bold">Ventas concretadas</span>
+              </div>
+            </div>
+
+            {/* Demo Card 3: Tasa de Conversión */}
+            <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-300 block">Tasa de Conversión</span>
+              <div className="flex items-baseline justify-between mt-1">
+                <span className="text-2xl font-black font-mono text-cyan-300">{data.demoConversionRate || 0}%</span>
+                <span className="text-[10px] text-cyan-200">Éxito en venta</span>
+              </div>
+            </div>
+
+            {/* Demo Card 4: Ingresos Generados */}
+            <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300 block">Ingresos Generados</span>
+              <div className="flex items-baseline justify-between mt-1">
+                <span className="text-xl font-black font-mono text-amber-300">
+                  ${Number(data.revenueFromDemos || 0).toLocaleString('es-EC', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </span>
+                <span className="text-[10px] text-amber-200">De Demos Convertidos</span>
+              </div>
             </div>
           </div>
         </div>
@@ -452,8 +537,24 @@ export default function MonthlyReportPage() {
                     const statusInfo = STATUS_CONFIG[ord.status] || STATUS_CONFIG.NUEVA;
                     return (
                       <tr key={ord.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="p-3 font-mono font-bold text-slate-900 whitespace-nowrap">
-                          {ord.orderNumber}
+                        <td className="p-3 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-mono font-bold text-slate-900">{ord.orderNumber}</span>
+                            {ord.isDemo && (
+                              <span className={`px-1.5 py-0.2 rounded text-[9px] font-black border ${
+                                ord.demoStatus === 'VENDIDO'
+                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                  : 'bg-purple-100 text-purple-800 border-purple-300'
+                              }`}>
+                                {ord.demoStatus === 'VENDIDO' ? '🧪 DEMO (Vendido 💰)' : '🧪 DEMO ($0)'}
+                              </span>
+                            )}
+                            {ord.sourceDemoId && (
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200" title={`Nacida del demo ${ord.sourceDemoNumber || ''}`}>
+                                ✨ De Demo
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="p-3 font-bold text-slate-900">
                           {ord.clientAgency}

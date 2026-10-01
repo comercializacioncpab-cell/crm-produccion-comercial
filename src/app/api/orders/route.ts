@@ -58,6 +58,12 @@ export async function GET(req: Request) {
         postProducer: {
           select: { id: true, name: true, initials: true, email: true, phone: true },
         },
+        sourceDemo: {
+          select: { id: true, orderNumber: true, clientAgency: true, product: true, isDemo: true, demoStatus: true },
+        },
+        convertedOrders: {
+          select: { id: true, orderNumber: true, clientAgency: true, product: true, packageValue: true, createdAt: true },
+        },
         files: {
           select: { id: true, fileName: true, fileType: true, filePath: true, externalUrl: true },
         },
@@ -96,15 +102,20 @@ export async function POST(req: Request) {
       priority = 'MEDIA',
       files = [],
       executiveId, // ID of the sales executive for the client
+      isDemo = false,
+      sourceDemoId,
     } = body;
 
     if (!clientAgency || !product) {
       return NextResponse.json({ error: 'Cliente/Agencia y Producto son obligatorios' }, { status: 400 });
     }
 
-    const parsedPackageValue = packageValue !== undefined && packageValue !== null && packageValue !== ''
-      ? parseFloat(String(packageValue).replace(/[^0-9.]/g, ''))
-      : 0;
+    const isDemoOrder = Boolean(isDemo);
+    const parsedPackageValue = isDemoOrder 
+      ? 0 
+      : (packageValue !== undefined && packageValue !== null && packageValue !== ''
+          ? parseFloat(String(packageValue).replace(/[^0-9.]/g, ''))
+          : 0);
 
     // 👩‍💼 Resolve executive and initials
     let targetExecutive = null;
@@ -172,8 +183,41 @@ export async function POST(req: Request) {
         creatorId: user.id,
         executiveId: effectiveExecutiveId,
         coordinatorId: (user.role === 'COORDINADOR' || user.role === 'ADMIN') ? user.id : null,
+        isDemo: isDemoOrder,
+        demoStatus: isDemoOrder ? 'PENDIENTE_VENTA' : null,
+        sourceDemoId: sourceDemoId || null,
       },
     });
+
+    // If this regular SP comes from a DEMO, mark the original DEMO as VENDIDO
+    if (sourceDemoId && !isDemoOrder) {
+      try {
+        const sourceDemo = await prisma.productionOrder.findUnique({
+          where: { id: sourceDemoId },
+        });
+
+        if (sourceDemo) {
+          await prisma.productionOrder.update({
+            where: { id: sourceDemoId },
+            data: {
+              demoStatus: 'VENDIDO',
+              demoConvertedAt: new Date(),
+            },
+          });
+
+          await prisma.activityLog.create({
+            data: {
+              orderId: sourceDemoId,
+              userId: user.id,
+              action: 'VENDIDO',
+              details: `🎉 DEMO comercializado exitosamente en la Orden ${orderNumber} con valor de $${parsedPackageValue.toLocaleString('es-EC', { minimumFractionDigits: 2 })} USD por ${user.name}.`,
+            },
+          });
+        }
+      } catch (err) {
+        console.error('Error linking source demo:', err);
+      }
+    }
 
     // Save input files if provided
     if (files && Array.isArray(files) && files.length > 0) {

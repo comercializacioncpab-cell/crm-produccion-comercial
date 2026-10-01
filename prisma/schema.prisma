@@ -75,6 +75,13 @@ model ProductionOrder {
   deliveryNotes        String?
   deliveredAt          DateTime?
 
+  isDemo               Boolean           @default(false)
+  demoStatus           String?           // PENDIENTE_VENTA, VENDIDO, DESCARTADO
+  sourceDemoId         String?           // Si esta SP comercial proviene de un DEMO
+  sourceDemo           ProductionOrder?  @relation("DemoConversions", fields: [sourceDemoId], references: [id])
+  convertedOrders      ProductionOrder[] @relation("DemoConversions")
+  demoConvertedAt      DateTime?
+
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
 

@@ -326,12 +326,28 @@ function OrdersContent() {
                           />
                         </td>
                         <td className="px-4 py-3.5 whitespace-nowrap">
-                          <Link
-                            href={`/orders/${order.id}`}
-                            className="font-mono font-extrabold text-blue-700 hover:underline flex items-center gap-1"
-                          >
-                            {order.orderNumber}
-                          </Link>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Link
+                              href={`/orders/${order.id}`}
+                              className="font-mono font-extrabold text-blue-700 hover:underline flex items-center gap-1"
+                            >
+                              {order.orderNumber}
+                            </Link>
+                            {order.isDemo && (
+                              <span className={`px-1.5 py-0.2 rounded text-[9px] font-black border ${
+                                order.demoStatus === 'VENDIDO'
+                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                  : 'bg-purple-100 text-purple-800 border-purple-300'
+                              }`}>
+                                {order.demoStatus === 'VENDIDO' ? '🧪 DEMO (Vendido 💰)' : '🧪 DEMO ($0)'}
+                              </span>
+                            )}
+                            {order.sourceDemoId && (
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                ✨ De Demo
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3.5 font-bold text-slate-900">
                           {order.clientAgency}
@@ -423,9 +439,20 @@ function OrdersContent() {
                           className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-blue-300 transition-all block group"
                         >
                           <div className="flex items-center justify-between gap-1 mb-2">
-                            <span className="font-mono font-black text-xs text-blue-700 group-hover:text-blue-900">
-                              {order.orderNumber}
-                            </span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-mono font-black text-xs text-blue-700 group-hover:text-blue-900">
+                                {order.orderNumber}
+                              </span>
+                              {order.isDemo && (
+                                <span className={`text-[9px] px-1.5 py-0.2 rounded font-black border ${
+                                  order.demoStatus === 'VENDIDO'
+                                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                    : 'bg-purple-100 text-purple-800 border-purple-300'
+                                }`}>
+                                  🧪 DEMO
+                                </span>
+                              )}
+                            </div>
                             <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${priorityInfo.badge}`}>
                               {priorityInfo.label}
                             </span>
