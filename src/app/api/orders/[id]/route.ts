@@ -354,6 +354,63 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       return NextResponse.json({ success: true, order: updatedOrder });
     }
 
+    // 7. ACTION: UPDATE DATES (Air date and/or material delivery date)
+    if (action === 'UPDATE_DATES') {
+      const { airDate, materialDeliveryDate, dateChangeReason } = body;
+
+      const oldAirDate = order.airDate || 'Sin definir';
+      const newAirDate = airDate || oldAirDate;
+
+      updatedOrder = await prisma.productionOrder.update({
+        where: { id },
+        data: {
+          ...(airDate !== undefined && { airDate }),
+          ...(materialDeliveryDate !== undefined && { materialDeliveryDate }),
+        },
+      });
+
+      const changeDetail = `Fecha al aire modificada de "${oldAirDate}" a "${newAirDate}" por ${user.name}${dateChangeReason ? ` (Motivo: ${dateChangeReason})` : ''}`;
+
+      await prisma.activityLog.create({
+        data: {
+          orderId: id,
+          userId: user.id,
+          action: 'FECHA_MODIFICADA',
+          details: changeDetail,
+        },
+      });
+
+      // 🔔 Notify assigned post-producer if date changed
+      if (order.postProducerId && order.postProducerId !== user.id) {
+        await sendNotification({
+          userId: order.postProducerId,
+          orderId: id,
+          type: 'UPDATED',
+          title: `📅 Fecha Actualizada: ${order.orderNumber}`,
+          message: `${user.name} actualizó la fecha al aire de la orden ${order.orderNumber} a: ${newAirDate}.`,
+          userPhone: order.postProducer?.phone,
+          userEmail: order.postProducer?.email,
+          orderNumber: order.orderNumber,
+        });
+      }
+
+      // 🔔 Notify executive / creator if coordinator/admin changed the date
+      if (order.creatorId && order.creatorId !== user.id) {
+        await sendNotification({
+          userId: order.creatorId,
+          orderId: id,
+          type: 'UPDATED',
+          title: `📅 Fecha Actualizada en tu SP: ${order.orderNumber}`,
+          message: `${user.name} actualizó la fecha de entrega/al aire a: ${newAirDate}.`,
+          userPhone: order.creator.phone,
+          userEmail: order.creator.email,
+          orderNumber: order.orderNumber,
+        });
+      }
+
+      return NextResponse.json({ success: true, order: updatedOrder, message: 'Fechas actualizadas correctamente' });
+    }
+
     // Generic update
     const {
       clientAgency,
@@ -361,6 +418,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       program,
       materialDeliveryDate,
       airDate,
+      downloadUrl,
       materialNotes,
       hasBrief,
       sponsorshipTypes,
@@ -384,6 +442,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         ...(program !== undefined && { program: program.trim() }),
         ...(materialDeliveryDate !== undefined && { materialDeliveryDate }),
         ...(airDate !== undefined && { airDate }),
+        ...(downloadUrl !== undefined && { downloadUrl: downloadUrl ? downloadUrl.trim() : null }),
         ...(materialNotes !== undefined && { materialNotes }),
         ...(hasBrief !== undefined && { hasBrief: Boolean(hasBrief) }),
         ...(sponsorshipTypes && { sponsorshipTypes: JSON.stringify(sponsorshipTypes) }),

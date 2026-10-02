@@ -62,6 +62,12 @@ export default function OrderDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Date Modification States
+  const [showDateModal, setShowDateModal] = useState(false);
+  const [editAirDate, setEditAirDate] = useState('');
+  const [editMaterialDeliveryDate, setEditMaterialDeliveryDate] = useState('');
+  const [dateChangeReason, setDateChangeReason] = useState('');
+
   const fetchOrder = async () => {
     try {
       const res = await fetch(`/api/orders/${orderId}`);
@@ -266,6 +272,40 @@ export default function OrderDetailPage() {
       }
     } catch {
       setMsg({ type: 'error', text: 'Error al aprobar la orden.' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle Update Dates (Air Date / Material Delivery Date)
+  const handleUpdateDates = async () => {
+    if (!editAirDate && !editMaterialDeliveryDate) {
+      setMsg({ type: 'error', text: 'Debes ingresar al menos una fecha para actualizar.' });
+      return;
+    }
+    setActionLoading(true);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'UPDATE_DATES',
+          airDate: editAirDate,
+          materialDeliveryDate: editMaterialDeliveryDate,
+          reason: dateChangeReason,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMsg({ type: 'success', text: '¡Fechas actualizadas exitosamente! Se notificó al equipo y se registró en la trazabilidad.' });
+        setShowDateModal(false);
+        fetchOrder();
+      } else {
+        setMsg({ type: 'error', text: data.error || 'Error al actualizar las fechas.' });
+      }
+    } catch (err: any) {
+      setMsg({ type: 'error', text: err.message || 'Error al actualizar las fechas.' });
     } finally {
       setActionLoading(false);
     }
@@ -576,21 +616,100 @@ export default function OrderDetailPage() {
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="bg-[#fef08a] px-6 py-2.5 border-b border-yellow-300 flex items-center justify-between">
                 <span className="text-xs font-black uppercase text-yellow-950">
-                  MATERIAL
+                  MATERIAL & INSUMOS
                 </span>
-                <span className="text-xs font-bold text-yellow-900">
-                  Brief: {order.hasBrief ? 'SI [✓]' : 'NO [ ]'}
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-bold text-yellow-900">
+                    Brief: {order.hasBrief ? 'SI [✓]' : 'NO [ ]'}
+                  </span>
+                  {user && ['ADMIN', 'COORDINADOR', 'COORDINADORA', 'SOLICITANTE', 'EJECUTIVA'].includes(user.role) && (
+                    <button
+                      onClick={() => {
+                        setEditAirDate(order.airDate || '');
+                        setEditMaterialDeliveryDate(order.materialDeliveryDate || '');
+                        setDateChangeReason('');
+                        setShowDateModal(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-yellow-400 hover:bg-yellow-500 text-yellow-950 font-bold text-[11px] rounded-lg shadow-sm transition-all cursor-pointer"
+                    >
+                      <Calendar className="w-3.5 h-3.5" /> Modificar Fechas
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="p-6 space-y-3 text-xs">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <span className="text-slate-400 text-[11px] block font-semibold">Fecha de entrega de material:</span>
-                    <strong className="text-slate-800 font-bold text-sm">{order.materialDeliveryDate || 'N/A'}</strong>
+              <div className="p-6 space-y-4 text-xs">
+                {/* External Cloud Download Link (Drive, WeTransfer, etc.) */}
+                {order.downloadUrl && (
+                  <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                        <ExternalLink className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-blue-700 block">
+                          Link de Descarga de Insumos (Nube / Drive / WeTransfer)
+                        </span>
+                        <a
+                          href={order.downloadUrl.startsWith('http') ? order.downloadUrl : `https://${order.downloadUrl}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs font-bold text-blue-900 hover:text-blue-700 underline break-all inline-block mt-0.5"
+                        >
+                          {order.downloadUrl}
+                        </a>
+                      </div>
+                    </div>
+                    <a
+                      href={order.downloadUrl.startsWith('http') ? order.downloadUrl : `https://${order.downloadUrl}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl shadow-md transition-all shrink-0 inline-flex items-center justify-center gap-1.5"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" /> Abrir Link de Descarga
+                    </a>
                   </div>
-                  <div className="bg-red-50/50 p-3 rounded-xl border border-red-200">
-                    <span className="text-red-600 text-[11px] block font-bold">Fecha al aire:</span>
-                    <strong className="text-red-700 font-bold text-sm">{order.airDate || 'Por definir'}</strong>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 flex items-center justify-between">
+                    <div>
+                      <span className="text-slate-400 text-[11px] block font-semibold">Fecha de entrega de material:</span>
+                      <strong className="text-slate-800 font-bold text-sm">{order.materialDeliveryDate || 'N/A'}</strong>
+                    </div>
+                    {user && ['ADMIN', 'COORDINADOR', 'COORDINADORA', 'SOLICITANTE', 'EJECUTIVA'].includes(user.role) && (
+                      <button
+                        onClick={() => {
+                          setEditAirDate(order.airDate || '');
+                          setEditMaterialDeliveryDate(order.materialDeliveryDate || '');
+                          setDateChangeReason('');
+                          setShowDateModal(true);
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                        title="Modificar fecha de entrega"
+                      >
+                        <Calendar className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="bg-red-50/50 p-3.5 rounded-xl border border-red-200 flex items-center justify-between">
+                    <div>
+                      <span className="text-red-600 text-[11px] block font-bold">Fecha al aire:</span>
+                      <strong className="text-red-700 font-bold text-sm">{order.airDate || 'Por definir'}</strong>
+                    </div>
+                    {user && ['ADMIN', 'COORDINADOR', 'COORDINADORA', 'SOLICITANTE', 'EJECUTIVA'].includes(user.role) && (
+                      <button
+                        onClick={() => {
+                          setEditAirDate(order.airDate || '');
+                          setEditMaterialDeliveryDate(order.materialDeliveryDate || '');
+                          setDateChangeReason('');
+                          setShowDateModal(true);
+                        }}
+                        className="p-1.5 text-red-400 hover:text-red-700 hover:bg-red-100 rounded-lg transition-colors cursor-pointer"
+                        title="Modificar fecha al aire"
+                      >
+                        <Calendar className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -1219,6 +1338,85 @@ export default function OrderDetailPage() {
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   {actionLoading ? 'Enviando...' : nextChangeCount >= 4 ? 'Aceptar Costo ($200) y Solicitar Cambio' : 'Solicitar Cambio'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Modificación de Fechas (Al Aire / Entrega de Material) */}
+        {showDateModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-black text-sm text-slate-900 flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-blue-600" /> Modificar Fechas de la SP
+                </h3>
+                <button
+                  onClick={() => setShowDateModal(false)}
+                  className="text-slate-400 hover:text-slate-600 text-sm font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-500">
+                Puedes reprogramar la fecha de entrega de insumos o la fecha al aire. Los cambios quedarán registrados con fecha, hora y usuario en la trazabilidad.
+              </p>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Fecha de Entrega de Material:
+                  </label>
+                  <input
+                    type="date"
+                    value={editMaterialDeliveryDate}
+                    onChange={(e) => setEditMaterialDeliveryDate(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Fecha al Aire:
+                  </label>
+                  <input
+                    type="date"
+                    value={editAirDate}
+                    onChange={(e) => setEditAirDate(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Motivo de la modificación (Opcional):
+                  </label>
+                  <input
+                    type="text"
+                    value={dateChangeReason}
+                    onChange={(e) => setDateChangeReason(e.target.value)}
+                    placeholder="Ej. Solicitud del cliente por cambio de pauta publicitaria..."
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  onClick={() => setShowDateModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleUpdateDates}
+                  disabled={actionLoading}
+                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black transition-all shadow-md disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  {actionLoading ? 'Guardando...' : 'Actualizar Fechas'}
                 </button>
               </div>
             </div>

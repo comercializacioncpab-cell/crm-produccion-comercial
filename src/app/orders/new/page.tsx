@@ -21,7 +21,9 @@ import {
   Users,
   FlaskConical,
   BadgePercent,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Link2,
+  ExternalLink
 } from 'lucide-react';
 import { SPONSORSHIP_OPTIONS } from '@/lib/order-utils';
 
@@ -44,6 +46,7 @@ function NewOrderForm() {
     program: '',
     materialDeliveryDate: '',
     airDate: '',
+    downloadUrl: '',
     materialNotes: '',
     hasBrief: true,
     sponsorshipTypes: [] as string[],
@@ -111,6 +114,8 @@ function NewOrderForm() {
             clientAgency: demo.clientAgency || '',
             product: demo.product || '',
             program: demo.program || '',
+            materialDeliveryDate: demo.materialDeliveryDate || '',
+            downloadUrl: demo.downloadUrl || '',
             materialNotes: demo.materialNotes ? `[Origen DEMO ${demo.orderNumber}]: ${demo.materialNotes}` : '',
             hasBrief: Boolean(demo.hasBrief),
             sponsorshipTypes: (() => {
@@ -145,6 +150,7 @@ function NewOrderForm() {
         clientAgency: demo.clientAgency || prev.clientAgency,
         product: demo.product || prev.product,
         program: demo.program || prev.program,
+        downloadUrl: demo.downloadUrl || prev.downloadUrl,
         materialNotes: demo.materialNotes ? `[Origen DEMO ${demo.orderNumber}]: ${demo.materialNotes}` : prev.materialNotes,
       }));
     }
@@ -716,16 +722,53 @@ function NewOrderForm() {
             </div>
           </div>
 
-          {/* SECCIÓN 5: SUBIDA DE ARCHIVOS / BRIEFS */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
-                <Upload className="w-4 h-4 text-blue-600" /> Adjuntar Insumos (Brief, Logos, Guiones, Audios)
-              </h2>
-              <span className="text-[11px] text-slate-400">PDF, PNG, MP4, MP3, ZIP</span>
+          {/* SECCIÓN 5: ENLACE DE DESCARGA & SUBIDA DE INSUMOS */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-6 space-y-5">
+            {/* 🔗 CAMPO PARA ADJUNTAR LINK DE DESCARGA (DRIVE, WETRANSFER, DROPBOX) */}
+            <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-4 sm:p-5 space-y-2.5">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <label className="text-xs font-black text-blue-950 uppercase tracking-wider flex items-center gap-1.5">
+                  <Link2 className="w-4 h-4 text-blue-600" /> Link de Descarga de Insumos (Drive, WeTransfer, Dropbox, OneDrive)
+                </label>
+                <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2.5 py-0.5 rounded-full">
+                  Recomendado para videos y archivos pesados
+                </span>
+              </div>
+              <div className="relative">
+                <input
+                  type="url"
+                  value={formData.downloadUrl}
+                  onChange={(e) => setFormData({ ...formData, downloadUrl: e.target.value })}
+                  placeholder="https://drive.google.com/drive/folders/... o https://we.tl/t-..."
+                  className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-blue-300 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                />
+                {formData.downloadUrl && (
+                  <a
+                    href={formData.downloadUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute right-2.5 top-2.5 text-blue-600 hover:text-blue-800 p-1"
+                    title="Probar enlace"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Pega aquí el enlace a la carpeta compartida en la nube para que post-producción pueda acceder directamente a los videos, audios, fotos y assets.
+              </p>
             </div>
 
-            <div className="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-2xl p-6 text-center transition-colors bg-slate-50/50">
+            {/* SECCIÓN ADJUNTAR INSUMOS (ARCHIVOS LOCALES) */}
+            <div className="space-y-3 pt-1">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                  <Upload className="w-4 h-4 text-blue-600" /> Adjuntar Insumos (Brief, Logos, Guiones, Audios)
+                </h2>
+                <span className="text-[11px] text-slate-400">PDF, PNG, MP4, MP3, ZIP</span>
+              </div>
+
+              <div className="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-2xl p-6 text-center transition-colors bg-slate-50/50">
               <input
                 type="file"
                 multiple
@@ -772,6 +815,7 @@ function NewOrderForm() {
                 </div>
               </div>
             )}
+            </div>
           </div>
 
           {/* Submit Action Bar */}

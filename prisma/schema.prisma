@@ -42,6 +42,7 @@ model ProductionOrder {
   program              String?      // e.g. Novela 15h30 GYE Sorpresa del Destino
   materialDeliveryDate String?      // e.g. 18/09/2026
   airDate              String?      // e.g. 22/09/2026
+  downloadUrl          String?      // Enlace de descarga externo de insumos (Drive, Dropbox, WeTransfer, etc.)
   materialNotes        String?      // Material instructions / notes
   hasBrief             Boolean      @default(true)
   sponsorshipTypes     String       @default("[]") // JSON array of types

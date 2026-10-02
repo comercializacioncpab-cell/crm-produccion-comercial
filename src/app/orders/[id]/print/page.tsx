@@ -188,6 +188,17 @@ export default function PrintOrderPage() {
                   {order.airDate || ''}
                 </td>
               </tr>
+              {/* External Download Link */}
+              {order.downloadUrl && (
+                <tr className="border-b border-slate-900 bg-[#e0f2fe]/40">
+                  <td className="p-1.5 font-bold border-r border-slate-900 text-slate-900 uppercase">
+                    Link de Descarga (Insumos):
+                  </td>
+                  <td className="p-1.5 font-mono text-[11px] text-blue-900 break-all">
+                    {order.downloadUrl}
+                  </td>
+                </tr>
+              )}
               {/* Material Notes Big Box */}
               <tr className="border-b border-slate-900">
                 <td colSpan={2} className="p-4 bg-white min-h-[140px] align-top text-xs text-slate-800">
