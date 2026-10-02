@@ -37,10 +37,14 @@ export default function UserDetailPage() {
   const [targetUser, setTargetUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [newPassword, setNewPassword] = useState('');
+  const [editingName, setEditingName] = useState('');
+  const [editingEmail, setEditingEmail] = useState('');
+  const [editingInitials, setEditingInitials] = useState('');
   const [editingRole, setEditingRole] = useState('');
   const [editingPhone, setEditingPhone] = useState('');
+  const [editingStatus, setEditingStatus] = useState('APROBADO');
   const [savingPassword, setSavingPassword] = useState(false);
-  const [savingRole, setSavingRole] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -53,8 +57,12 @@ export default function UserDetailPage() {
       if (res.ok) {
         const data = await res.json();
         setTargetUser(data.user);
-        setEditingRole(data.user.role);
+        setEditingName(data.user.name || '');
+        setEditingEmail(data.user.email || '');
+        setEditingInitials(data.user.initials || '');
+        setEditingRole(data.user.role || 'SOLICITANTE');
         setEditingPhone(data.user.phone || '');
+        setEditingStatus(data.user.status || 'APROBADO');
       }
     } catch (e) {
       console.error(e);
@@ -89,6 +97,7 @@ export default function UserDetailPage() {
       if (res.ok) {
         setMsg({ type: 'success', text: `¡Contraseña actualizada exitosamente! Nueva contraseña: "${newPassword}"` });
         setNewPassword('');
+        fetchUserDetail();
       } else {
         setMsg({ type: 'error', text: data.error || 'Error al actualizar contraseña' });
       }
@@ -99,31 +108,52 @@ export default function UserDetailPage() {
     }
   };
 
-  const handleUpdateProfile = async () => {
-    setSavingRole(true);
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingName.trim()) {
+      setMsg({ type: 'error', text: 'El nombre completo es obligatorio.' });
+      return;
+    }
+    if (!editingEmail.trim() || !editingEmail.includes('@')) {
+      setMsg({ type: 'error', text: 'Ingresa un correo electrónico válido.' });
+      return;
+    }
+    if (!editingInitials.trim()) {
+      setMsg({ type: 'error', text: 'Las iniciales son obligatorias.' });
+      return;
+    }
+
+    setSavingProfile(true);
     setMsg(null);
     try {
       const res = await fetch(`/api/users/${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          role: editingRole,
+          name: editingName,
+          email: editingEmail,
+          initials: editingInitials,
           phone: editingPhone,
+          role: editingRole,
+          status: editingStatus,
         }),
       });
+      const data = await res.json();
       if (res.ok) {
-        setMsg({ type: 'success', text: 'Perfil y rol actualizados correctamente.' });
+        setMsg({ type: 'success', text: '¡Información del usuario actualizada exitosamente!' });
         fetchUserDetail();
+      } else {
+        setMsg({ type: 'error', text: data.error || 'Error al actualizar usuario' });
       }
     } catch {
-      setMsg({ type: 'error', text: 'Error al actualizar perfil' });
+      setMsg({ type: 'error', text: 'Error al actualizar usuario' });
     } finally {
-      setSavingRole(false);
+      setSavingProfile(false);
     }
   };
 
   const handleApprove = async () => {
-    setSavingRole(true);
+    setSavingProfile(true);
     try {
       const res = await fetch(`/api/users/${userId}`, {
         method: 'PATCH',
@@ -140,7 +170,7 @@ export default function UserDetailPage() {
     } catch {
       setMsg({ type: 'error', text: 'Error al aprobar usuario' });
     } finally {
-      setSavingRole(false);
+      setSavingProfile(false);
     }
   };
 
@@ -303,7 +333,7 @@ export default function UserDetailPage() {
                   </p>
                   <button
                     onClick={handleApprove}
-                    disabled={savingRole}
+                    disabled={savingProfile}
                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5"
                   >
                     <Check className="w-4 h-4" /> Aprobar y Habilitar Acceso
@@ -311,23 +341,60 @@ export default function UserDetailPage() {
                 </div>
               )}
 
-              {/* Edit Role & Phone */}
+              {/* Edit User Information Form */}
               {currentUser?.role === 'ADMIN' && (
-                <div className="space-y-3 pt-2">
+                <form onSubmit={handleUpdateProfile} className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                    <span className="text-[11px] font-black uppercase text-slate-700">
+                      Editar Información del Usuario
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-bold">Admin</span>
+                  </div>
+
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Rol Asignado:
+                      Nombre Completo *
                     </label>
-                    <select
-                      value={editingRole}
-                      onChange={(e) => setEditingRole(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    >
-                      <option value="SOLICITANTE">👩‍💼 Solicitante (Ejecutiva de Ventas)</option>
-                      <option value="COORDINADOR">📋 Coordinadora de Producción</option>
-                      <option value="POST_PRODUCTOR">🎬 Post-Productor (Editor/FX)</option>
-                      <option value="ADMIN">⚡ Administrador General</option>
-                    </select>
+                    <input
+                      type="text"
+                      required
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      placeholder="Ej. Adriana Rojas"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-2">
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Correo Corporativo *
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={editingEmail}
+                        onChange={(e) => setEditingEmail(e.target.value)}
+                        placeholder="usuario@comercial.tv"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Iniciales *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={4}
+                        value={editingInitials}
+                        onChange={(e) => setEditingInitials(e.target.value.toUpperCase())}
+                        placeholder="AR"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black uppercase text-center text-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        title="Prefijo para las SPs: SP-[Iniciales]-*"
+                      />
+                    </div>
                   </div>
 
                   <div>
@@ -343,15 +410,48 @@ export default function UserDetailPage() {
                     />
                   </div>
 
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Rol en Producción:
+                      </label>
+                      <select
+                        value={editingRole}
+                        onChange={(e) => setEditingRole(e.target.value)}
+                        className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      >
+                        <option value="SOLICITANTE">👩‍💼 Solicitante</option>
+                        <option value="COORDINADOR">📋 Coordinadora</option>
+                        <option value="POST_PRODUCTOR">🎬 Post-Productor</option>
+                        <option value="ADMIN">⚡ Administrador</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Estado de Cuenta:
+                      </label>
+                      <select
+                        value={editingStatus}
+                        onChange={(e) => setEditingStatus(e.target.value)}
+                        className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      >
+                        <option value="APROBADO">✓ Aprobado</option>
+                        <option value="PENDIENTE">⏳ Pendiente</option>
+                        <option value="RECHAZADO">✕ Rechazado</option>
+                      </select>
+                    </div>
+                  </div>
+
                   <button
-                    onClick={handleUpdateProfile}
-                    disabled={savingRole}
-                    className="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold py-2 rounded-xl transition-all flex items-center justify-center gap-1.5"
+                    type="submit"
+                    disabled={savingProfile}
+                    className="w-full bg-slate-900 hover:bg-black text-white text-xs font-bold py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
                   >
                     <Save className="w-3.5 h-3.5" />
-                    {savingRole ? 'Guardando...' : 'Guardar Cambios de Perfil'}
+                    {savingProfile ? 'Guardando información...' : 'Guardar Información del Usuario'}
                   </button>
-                </div>
+                </form>
               )}
             </div>
 

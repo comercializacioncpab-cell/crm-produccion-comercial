@@ -25,7 +25,10 @@ import {
   EyeOff,
   Copy,
   MessageCircle,
-  Share2
+  Share2,
+  Pencil,
+  Save,
+  Edit
 } from 'lucide-react';
 
 export default function UsersPage() {
@@ -43,6 +46,18 @@ export default function UsersPage() {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  // Edit User Modal State
+  const [selectedUserForEdit, setSelectedUserForEdit] = useState<any>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editInitials, setEditInitials] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editRole, setEditRole] = useState('SOLICITANTE');
+  const [editStatus, setEditStatus] = useState('APROBADO');
+  const [editNewPassword, setEditNewPassword] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editModalMsg, setEditModalMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Password Reset Modal State
   const [selectedUserForPassword, setSelectedUserForPassword] = useState<any>(null);
@@ -146,6 +161,67 @@ export default function UsersPage() {
       }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const openEditModal = (u: any) => {
+    setSelectedUserForEdit(u);
+    setEditName(u.name || '');
+    setEditEmail(u.email || '');
+    setEditInitials(u.initials || '');
+    setEditPhone(u.phone || '');
+    setEditRole(u.role || 'SOLICITANTE');
+    setEditStatus(u.status || 'APROBADO');
+    setEditNewPassword('');
+    setEditModalMsg(null);
+  };
+
+  const handleSaveUserEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editName.trim()) {
+      setEditModalMsg({ type: 'error', text: 'El nombre completo es obligatorio.' });
+      return;
+    }
+    if (!editEmail.trim() || !editEmail.includes('@')) {
+      setEditModalMsg({ type: 'error', text: 'Ingresa un correo electrónico válido.' });
+      return;
+    }
+    if (!editInitials.trim()) {
+      setEditModalMsg({ type: 'error', text: 'Las iniciales son obligatorias.' });
+      return;
+    }
+
+    setSavingEdit(true);
+    setEditModalMsg(null);
+    try {
+      const res = await fetch(`/api/users/${selectedUserForEdit.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editName,
+          email: editEmail,
+          initials: editInitials,
+          phone: editPhone,
+          role: editRole,
+          status: editStatus,
+          newPassword: editNewPassword.trim() ? editNewPassword : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setEditModalMsg({ type: 'success', text: '¡Información del usuario guardada exitosamente!' });
+        fetchUsers();
+        setTimeout(() => {
+          setSelectedUserForEdit(null);
+          setEditModalMsg(null);
+        }, 1500);
+      } else {
+        setEditModalMsg({ type: 'error', text: data.error || 'Error al guardar los cambios' });
+      }
+    } catch {
+      setEditModalMsg({ type: 'error', text: 'Error de conexión con el servidor' });
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -346,6 +422,13 @@ export default function UsersPage() {
 
                     <div className="flex items-center gap-2 flex-wrap">
                       <button
+                        onClick={() => openEditModal(u)}
+                        className="bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold px-3 py-2 rounded-xl transition-all flex items-center gap-1.5"
+                        title="Editar información del usuario"
+                      >
+                        <Pencil className="w-3.5 h-3.5" /> Editar
+                      </button>
+                      <button
                         onClick={() => handleApproveUser(u.id, u.requestedRole || u.role)}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5"
                       >
@@ -519,6 +602,14 @@ export default function UsersPage() {
 
                         <td className="px-5 py-4 text-right space-x-1.5 whitespace-nowrap">
                           <button
+                            onClick={() => openEditModal(u)}
+                            className="bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold px-2.5 py-1.5 rounded-lg transition-all inline-flex items-center gap-1"
+                            title="Editar Información Completa del Usuario"
+                          >
+                            <Pencil className="w-3.5 h-3.5" /> Editar
+                          </button>
+
+                          <button
                             onClick={() => {
                               setSelectedUserForPassword(u);
                               setNewPasswordInput('');
@@ -527,7 +618,7 @@ export default function UsersPage() {
                             className="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold px-2.5 py-1.5 rounded-lg transition-all inline-flex items-center gap-1"
                             title="Cambiar Contraseña"
                           >
-                            <KeyRound className="w-3.5 h-3.5" /> Cambiar
+                            <KeyRound className="w-3.5 h-3.5" /> Clave
                           </button>
 
                           <Link
@@ -590,6 +681,171 @@ export default function UsersPage() {
                   {bulkDeleting ? 'Eliminando...' : `Sí, Eliminar los ${selectedUserIds.length} Usuarios`}
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL PARA EDITAR INFORMACIÓN DE USUARIO */}
+        {selectedUserForEdit && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                    <Pencil className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-sm text-slate-900">
+                      Editar Información de Usuario
+                    </h3>
+                    <p className="text-[11px] text-slate-500">Modifica nombres, iniciales, correo, rol y teléfono</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedUserForEdit(null)}
+                  className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {editModalMsg && (
+                <div
+                  className={`p-3 rounded-xl text-xs font-bold flex items-center gap-2 ${
+                    editModalMsg.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : 'bg-red-50 text-red-800 border border-red-200'
+                  }`}
+                >
+                  {editModalMsg.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+                  {editModalMsg.text}
+                </div>
+              )}
+
+              <form onSubmit={handleSaveUserEdit} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Nombre Completo *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder="Ej. Adriana Rojas"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Correo Corporativo *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={editEmail}
+                      onChange={(e) => setEditEmail(e.target.value)}
+                      placeholder="usuario@comercial.tv"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Iniciales (SP-**) *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      maxLength={4}
+                      value={editInitials}
+                      onChange={(e) => setEditInitials(e.target.value.toUpperCase())}
+                      placeholder="AR"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-black uppercase text-center text-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      title="Prefijo para las SPs: SP-[Iniciales]-*"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    📱 Teléfono / WhatsApp (Notificaciones):
+                  </label>
+                  <input
+                    type="text"
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value)}
+                    placeholder="+593 99 123 4567"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Rol en Producción:
+                    </label>
+                    <select
+                      value={editRole}
+                      onChange={(e) => setEditRole(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="SOLICITANTE">👩‍💼 Solicitante (Ejecutiva)</option>
+                      <option value="COORDINADOR">📋 Coordinadora</option>
+                      <option value="POST_PRODUCTOR">🎬 Post-Productor</option>
+                      <option value="ADMIN">⚡ Administrador</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Estado de la Cuenta:
+                    </label>
+                    <select
+                      value={editStatus}
+                      onChange={(e) => setEditStatus(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="APROBADO">✓ Aprobado</option>
+                      <option value="PENDIENTE">⏳ Pendiente</option>
+                      <option value="RECHAZADO">✕ Rechazado</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Reasignar Contraseña (Opcional):
+                  </label>
+                  <input
+                    type="text"
+                    value={editNewPassword}
+                    onChange={(e) => setEditNewPassword(e.target.value)}
+                    placeholder="Dejar en blanco para mantener la actual..."
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-mono font-medium focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedUserForEdit(null)}
+                    className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingEdit}
+                    className="px-5 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold shadow-md transition-all flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    {savingEdit ? 'Guardando...' : 'Guardar Cambios'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

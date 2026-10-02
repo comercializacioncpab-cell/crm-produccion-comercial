@@ -58,7 +58,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     const { id } = params;
     const body = await req.json();
-    const { action, role, newPassword, name, phone, initials, status } = body;
+    const { action, role, newPassword, name, email, phone, initials, status } = body;
 
     const targetUser = await prisma.user.findUnique({ where: { id } });
     if (!targetUser) {
@@ -93,31 +93,70 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         status: 'RECHAZADO',
       };
     }
-    // 3. ACTION: RESET PASSWORD
-    else if (action === 'RESET_PASSWORD' || newPassword) {
-      if (!newPassword || newPassword.length < 4) {
-        return NextResponse.json({ error: 'La nueva contraseña debe tener al menos 4 caracteres' }, { status: 400 });
-      }
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-      updateData.password = hashedPassword;
-      updateData.plainPassword = newPassword;
-
-      await sendNotification({
-        userId: targetUser.id,
-        type: 'APPROVED',
-        title: '🔑 Tu contraseña ha sido actualizada',
-        message: `El Administrador ha reasignado tu contraseña de acceso. Tu nueva contraseña es: ${newPassword}`,
-        userPhone: targetUser.phone,
-        userEmail: targetUser.email,
-      });
-    }
-    // 4. GENERAL PROFILE UPDATE
+    // 3. ACTION: RESET PASSWORD OR FULL PROFILE EDIT
     else {
-      if (role) updateData.role = role;
-      if (status) updateData.status = status;
-      if (name) updateData.name = name.trim();
-      if (phone !== undefined) updateData.phone = phone ? phone.trim() : null;
-      if (initials) updateData.initials = initials.toUpperCase();
+      if (name !== undefined) {
+        if (!name.trim()) {
+          return NextResponse.json({ error: 'El nombre no puede estar vacío' }, { status: 400 });
+        }
+        updateData.name = name.trim();
+      }
+
+      if (email !== undefined) {
+        const cleanEmail = email.trim().toLowerCase();
+        if (!cleanEmail || !cleanEmail.includes('@')) {
+          return NextResponse.json({ error: 'Ingresa un correo electrónico válido' }, { status: 400 });
+        }
+        if (cleanEmail !== targetUser.email) {
+          const existing = await prisma.user.findFirst({
+            where: {
+              email: cleanEmail,
+              id: { not: id },
+            },
+          });
+          if (existing) {
+            return NextResponse.json({ error: 'Este correo electrónico ya está registrado por otro usuario' }, { status: 400 });
+          }
+          updateData.email = cleanEmail;
+        }
+      }
+
+      if (initials !== undefined) {
+        const cleanInitials = initials.trim().toUpperCase();
+        if (cleanInitials) {
+          updateData.initials = cleanInitials;
+        }
+      }
+
+      if (phone !== undefined) {
+        updateData.phone = phone ? phone.trim() : null;
+      }
+
+      if (role) {
+        updateData.role = role;
+      }
+
+      if (status) {
+        updateData.status = status;
+      }
+
+      if (newPassword && newPassword.trim().length > 0) {
+        if (newPassword.length < 4) {
+          return NextResponse.json({ error: 'La nueva contraseña debe tener al menos 4 caracteres' }, { status: 400 });
+        }
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        updateData.password = hashedPassword;
+        updateData.plainPassword = newPassword;
+
+        await sendNotification({
+          userId: targetUser.id,
+          type: 'APPROVED',
+          title: '🔑 Tu contraseña ha sido actualizada',
+          message: `El Administrador ha reasignado tu contraseña de acceso. Tu nueva contraseña es: ${newPassword}`,
+          userPhone: targetUser.phone,
+          userEmail: targetUser.email,
+        });
+      }
     }
 
     const updated = await prisma.user.update({
@@ -132,6 +171,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         status: true,
         initials: true,
         phone: true,
+        plainPassword: true,
       },
     });
 

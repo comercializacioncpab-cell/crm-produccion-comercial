@@ -18,10 +18,25 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const { name, phone, initials, newPassword } = await req.json();
+    const { name, email, phone, initials, newPassword } = await req.json();
 
     const updateData: any = {};
     if (name) updateData.name = name.trim();
+    if (email) {
+      const cleanEmail = email.trim().toLowerCase();
+      if (cleanEmail !== user.email) {
+        const existing = await prisma.user.findFirst({
+          where: {
+            email: cleanEmail,
+            id: { not: user.id },
+          },
+        });
+        if (existing) {
+          return NextResponse.json({ error: 'Este correo electrónico ya está en uso' }, { status: 400 });
+        }
+        updateData.email = cleanEmail;
+      }
+    }
     if (phone !== undefined) updateData.phone = phone ? phone.trim() : null;
     if (initials) updateData.initials = initials.trim().toUpperCase();
     if (newPassword && newPassword.length >= 4) {
