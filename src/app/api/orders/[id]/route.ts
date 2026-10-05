@@ -212,18 +212,19 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         include: { creator: true, postProducer: true, files: true, activityLogs: true },
       });
 
-      if (fileName || externalUrl) {
+      // Only create orderFile if an external link is provided and no file was already uploaded via /api/orders/[id]/files
+      if (externalUrl && !fileUrl) {
         await prisma.orderFile.create({
           data: {
             orderId: id,
             uploaderId: user.id,
             fileType: 'OUTPUT_DELIVERY',
-            fileName: fileName || 'Entregable Final',
-            filePath: fileUrl || '',
+            fileName: fileName || 'Enlace Master (Nube)',
+            filePath: '',
             fileSize: 0,
-            fileMime: 'video/mp4',
-            externalUrl: externalUrl || null,
-            notes: deliveryNotes || 'Material final entregado',
+            fileMime: 'text/html',
+            externalUrl: externalUrl,
+            notes: deliveryNotes || 'Material final entregado en enlace externo',
           },
         });
       }
@@ -233,7 +234,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           orderId: id,
           userId: user.id,
           action: 'ENTREGADA',
-          details: `Material final subido y entregado por ${user.name}. Listo para revisión.`,
+          details: `Material final entregado por ${user.name}. Listo para revisión.`,
         },
       });
 

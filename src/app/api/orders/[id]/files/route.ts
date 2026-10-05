@@ -4,6 +4,8 @@ import { getCurrentUser } from '@/lib/auth';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
     const user = await getCurrentUser();

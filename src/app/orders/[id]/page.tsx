@@ -71,6 +71,14 @@ export default function OrderDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Upload Material / Deliverable Modal States
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadModalType, setUploadModalType] = useState<'INPUT_ASSET' | 'OUTPUT_DELIVERY'>('OUTPUT_DELIVERY');
+  const [uploadModalFile, setUploadModalFile] = useState<File | null>(null);
+  const [uploadModalUrl, setUploadModalUrl] = useState('');
+  const [uploadModalNotes, setUploadModalNotes] = useState('');
+  const [uploadModalFileName, setUploadModalFileName] = useState('');
+
   // Date Modification States
   const [showDateModal, setShowDateModal] = useState(false);
   const [editAirDate, setEditAirDate] = useState('');
@@ -194,6 +202,13 @@ export default function OrderDetailPage() {
   // Handle Resolve Delivery (Post-Producer)
   const handleResolveDelivery = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const hasExistingOutput = order?.files?.some((f: any) => f.fileType?.startsWith('OUTPUT') && (f.filePath || f.externalUrl));
+    if (!deliveryFile && !deliveryExternalUrl?.trim() && !hasExistingOutput) {
+      setMsg({ type: 'error', text: 'Por favor selecciona el archivo de video/entregable o ingresa un enlace en la nube (Drive/WeTransfer/Frame.io) para completar la entrega.' });
+      return;
+    }
+
     setActionLoading(true);
     setMsg(null);
     try {
@@ -211,11 +226,15 @@ export default function OrderDetailPage() {
           method: 'POST',
           body: uploadData,
         });
-        if (fileRes.ok) {
-          const fileData = await fileRes.json();
-          uploadedFileName = fileData.file.fileName;
-          uploadedFilePath = fileData.file.filePath;
+        if (!fileRes.ok) {
+          const errData = await fileRes.json().catch(() => ({}));
+          setMsg({ type: 'error', text: errData.error || 'Error al subir el archivo entregable. Por favor verifica el archivo o ingresa un enlace en la nube.' });
+          setActionLoading(false);
+          return;
         }
+        const fileData = await fileRes.json();
+        uploadedFileName = fileData.file?.fileName || '';
+        uploadedFilePath = fileData.file?.filePath || '';
       }
 
       const res = await fetch(`/api/orders/${order.id}`, {
@@ -226,7 +245,7 @@ export default function OrderDetailPage() {
           deliveryNotes,
           fileName: uploadedFileName || (deliveryExternalUrl ? 'Master en la nube' : 'Entrega Final'),
           fileUrl: uploadedFilePath,
-          externalUrl: deliveryExternalUrl,
+          externalUrl: deliveryExternalUrl?.trim() || null,
         }),
       });
 
@@ -236,9 +255,61 @@ export default function OrderDetailPage() {
         setDeliveryNotes('');
         setDeliveryExternalUrl('');
         fetchOrder();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setMsg({ type: 'error', text: err.error || 'Error al registrar la entrega.' });
       }
     } catch {
-      setMsg({ type: 'error', text: 'Error al registrar la entrega.' });
+      setMsg({ type: 'error', text: 'Error de conexión al registrar la entrega.' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle Direct File / Link Upload (Any user with access)
+  const handleUploadNewAsset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uploadModalFile && !uploadModalUrl.trim()) {
+      setMsg({ type: 'error', text: 'Debes seleccionar un archivo físico o ingresar un enlace de descarga en la nube.' });
+      return;
+    }
+    setActionLoading(true);
+    setMsg(null);
+    try {
+      const formData = new FormData();
+      if (uploadModalFile) {
+        formData.append('file', uploadModalFile);
+      }
+      formData.append('fileType', uploadModalType);
+      if (uploadModalUrl.trim()) {
+        formData.append('externalUrl', uploadModalUrl.trim());
+      }
+      if (uploadModalFileName.trim()) {
+        formData.append('fileName', uploadModalFileName.trim());
+      }
+      if (uploadModalNotes.trim()) {
+        formData.append('notes', uploadModalNotes.trim());
+      }
+
+      const res = await fetch(`/api/orders/${order.id}/files`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        setMsg({ type: 'success', text: '¡Material adjuntado exitosamente a la orden!' });
+        setShowUploadModal(false);
+        setUploadModalFile(null);
+        setUploadModalUrl('');
+        setUploadModalNotes('');
+        setUploadModalFileName('');
+        fetchOrder();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setMsg({ type: 'error', text: err.error || 'Error al adjuntar archivo o enlace.' });
+      }
+    } catch {
+      setMsg({ type: 'error', text: 'Error de red al adjuntar archivo.' });
     } finally {
       setActionLoading(false);
     }
@@ -977,45 +1048,80 @@ export default function OrderDetailPage() {
                 <h3 className="font-bold text-xs text-slate-900 uppercase tracking-wider flex items-center gap-2">
                   <FileText className="w-4 h-4 text-blue-600" /> Insumos y Materiales Adjuntos
                 </h3>
-                {order.files && order.files.filter((f: any) => f.filePath).length > 1 && (
-                  <a
-                    href={`/api/orders/${order.id}/download-all?type=ALL`}
-                    download={`Archivos_${order.orderNumber}.zip`}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-black rounded-xl shadow-sm transition-all"
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUploadModalType('INPUT_ASSET');
+                      setShowUploadModal(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all border border-slate-200 cursor-pointer"
                   >
-                    <Download className="w-3.5 h-3.5" /> 📦 Descargar Todo el Paquete ({order.files.filter((f: any) => f.filePath).length} en ZIP)
-                  </a>
-                )}
+                    <Upload className="w-3.5 h-3.5 text-blue-600" /> ➕ Adjuntar Archivo / Link
+                  </button>
+                  {order.files && order.files.filter((f: any) => f.filePath).length > 1 && (
+                    <a
+                      href={`/api/orders/${order.id}/download-all?type=ALL`}
+                      download={`Archivos_${order.orderNumber}.zip`}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-black rounded-xl shadow-sm transition-all"
+                    >
+                      <Download className="w-3.5 h-3.5" /> 📦 Descargar Todo ({order.files.filter((f: any) => f.filePath).length} en ZIP)
+                    </a>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Inputs / Briefs */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-slate-500 block">
+                    <span className="text-[11px] font-bold text-slate-600 block">
                       📥 Insumos Iniciales ({inputFiles.length}):
                     </span>
-                    {inputFiles.filter((f: any) => f.filePath).length > 1 && (
-                      <a
-                        href={`/api/orders/${order.id}/download-all?type=INPUT`}
-                        download={`Insumos_${order.orderNumber}.zip`}
-                        className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 transition-colors shadow-2xs"
-                      >
-                        <Download className="w-3 h-3" /> Descargar Todos ({inputFiles.filter((f: any) => f.filePath).length}) en ZIP
-                      </a>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {inputFiles.filter((f: any) => f.filePath).length > 1 && (
+                        <a
+                          href={`/api/orders/${order.id}/download-all?type=INPUT`}
+                          download={`Insumos_${order.orderNumber}.zip`}
+                          className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200 transition-colors shadow-2xs"
+                        >
+                          <Download className="w-3 h-3" /> Descargar ({inputFiles.filter((f: any) => f.filePath).length}) en ZIP
+                        </a>
+                      )}
+                    </div>
                   </div>
                   {inputFiles.length === 0 ? (
                     <p className="text-xs text-slate-400 bg-slate-50 p-3 rounded-xl">No hay insumos adjuntos.</p>
                   ) : (
                     inputFiles.map((f: any) => (
-                      <div key={f.id} className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
-                        <span className="font-medium text-slate-800 truncate max-w-[180px]">📄 {f.fileName}</span>
-                        {f.filePath && (
-                          <a href={f.filePath} download target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 text-[11px]">
-                            <Download className="w-3.5 h-3.5" /> Descargar
-                          </a>
-                        )}
+                      <div key={f.id} className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center justify-between text-xs gap-2">
+                        <div className="truncate flex-1 min-w-0">
+                          <span className="font-medium text-slate-800 truncate block">📄 {f.fileName}</span>
+                          {f.notes && <span className="text-[10px] text-slate-500 block truncate">{f.notes}</span>}
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {f.externalUrl && (
+                            <a href={f.externalUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-bold flex items-center gap-1 text-[11px] bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-200">
+                              <ExternalLink className="w-3 h-3" /> Enlace
+                            </a>
+                          )}
+                          {f.filePath ? (
+                            <a href={`/api/orders/${order.id}/files/${f.id}/download`} download target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-bold flex items-center gap-1 text-[11px] bg-blue-50 px-2 py-1 rounded-lg border border-blue-200">
+                              <Download className="w-3.5 h-3.5" /> Descargar
+                            </a>
+                          ) : !f.externalUrl ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setUploadModalType('INPUT_ASSET');
+                                setShowUploadModal(true);
+                              }}
+                              className="text-amber-700 bg-amber-100 hover:bg-amber-200 px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                            >
+                              ⚠️ Sin archivo • Adjuntar
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
                     ))
                   )}
@@ -1027,33 +1133,71 @@ export default function OrderDetailPage() {
                     <span className="text-[11px] font-bold text-emerald-700 block">
                       🎬 Entregables de Post-Producción ({outputFiles.length}):
                     </span>
-                    {outputFiles.filter((f: any) => f.filePath).length > 1 && (
-                      <a
-                        href={`/api/orders/${order.id}/download-all?type=OUTPUT`}
-                        download={`Entregables_${order.orderNumber}.zip`}
-                        className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 transition-colors shadow-2xs"
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUploadModalType('OUTPUT_DELIVERY');
+                          setShowUploadModal(true);
+                        }}
+                        className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-100/70 hover:bg-emerald-200 px-2 py-0.5 rounded-lg border border-emerald-300 transition-colors flex items-center gap-1 cursor-pointer"
                       >
-                        <Download className="w-3 h-3" /> Descargar Todos ({outputFiles.filter((f: any) => f.filePath).length}) en ZIP
-                      </a>
-                    )}
+                        <Upload className="w-2.5 h-2.5" /> ➕ Subir Master
+                      </button>
+                      {outputFiles.filter((f: any) => f.filePath).length > 1 && (
+                        <a
+                          href={`/api/orders/${order.id}/download-all?type=OUTPUT`}
+                          download={`Entregables_${order.orderNumber}.zip`}
+                          className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200 transition-colors shadow-2xs"
+                        >
+                          <Download className="w-3 h-3" /> Descargar ({outputFiles.filter((f: any) => f.filePath).length}) en ZIP
+                        </a>
+                      )}
+                    </div>
                   </div>
                   {outputFiles.length === 0 ? (
-                    <p className="text-xs text-slate-400 bg-slate-50 p-3 rounded-xl">Aún no se ha subido el material final resuelto.</p>
+                    <div className="text-xs text-slate-500 bg-slate-50 p-3.5 rounded-xl border border-dashed border-slate-200 text-center space-y-2">
+                      <p className="font-medium">Aún no se ha subido el material final resuelto.</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUploadModalType('OUTPUT_DELIVERY');
+                          setShowUploadModal(true);
+                        }}
+                        className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold shadow-xs cursor-pointer"
+                      >
+                        <Upload className="w-3 h-3" /> Subir Video o Enlace Ahora
+                      </button>
+                    </div>
                   ) : (
                     outputFiles.map((f: any) => (
-                      <div key={f.id} className="bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-200 flex items-center justify-between text-xs">
-                        <span className="font-bold text-emerald-900 truncate max-w-[180px]">✨ {f.fileName}</span>
-                        <div className="flex items-center gap-2">
+                      <div key={f.id} className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200 flex items-center justify-between text-xs gap-2">
+                        <div className="truncate flex-1 min-w-0">
+                          <span className="font-bold text-emerald-900 truncate block">✨ {f.fileName}</span>
+                          {f.notes && <span className="text-[10px] text-emerald-700 block truncate">{f.notes}</span>}
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
                           {f.externalUrl && (
-                            <a href={f.externalUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-bold flex items-center gap-1 text-[11px]">
-                              <ExternalLink className="w-3 h-3" /> Nube
+                            <a href={f.externalUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-bold flex items-center gap-1 text-[11px] bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
+                              <ExternalLink className="w-3 h-3" /> Abrir Enlace
                             </a>
                           )}
-                          {f.filePath && (
-                            <a href={f.filePath} download target="_blank" rel="noopener noreferrer" className="text-emerald-700 hover:underline font-bold flex items-center gap-1 text-[11px]">
-                              <Download className="w-3.5 h-3.5" /> Archivo
+                          {f.filePath ? (
+                            <a href={`/api/orders/${order.id}/files/${f.id}/download`} download target="_blank" rel="noopener noreferrer" className="text-emerald-700 hover:underline font-bold flex items-center gap-1 text-[11px] bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-300 shadow-2xs">
+                              <Download className="w-3.5 h-3.5" /> Descargar Video
                             </a>
-                          )}
+                          ) : !f.externalUrl ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setUploadModalType('OUTPUT_DELIVERY');
+                                setShowUploadModal(true);
+                              }}
+                              className="text-amber-800 bg-amber-200 hover:bg-amber-300 px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                            >
+                              ⚠️ Sin archivo • Adjuntar Video
+                            </button>
+                          ) : null}
                         </div>
                       </div>
                     ))
@@ -2051,6 +2195,131 @@ export default function OrderDetailPage() {
                   >
                     <Check className="w-4 h-4" />
                     {actionLoading ? 'Guardando Cambios...' : 'Guardar y Notificar Cambios'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL: ADJUNTAR ARCHIVO O ENLACE */}
+        {showUploadModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+            <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-sm ${uploadModalType === 'OUTPUT_DELIVERY' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
+                    {uploadModalType === 'OUTPUT_DELIVERY' ? '🎬' : '📥'}
+                  </div>
+                  <div>
+                    <h3 className="font-black text-sm text-slate-900">
+                      {uploadModalType === 'OUTPUT_DELIVERY' ? 'Adjuntar Entregable de Post-Producción' : 'Adjuntar Insumo a la SP'}
+                    </h3>
+                    <p className="text-[11px] text-slate-500">Sube un archivo directo o ingresa un enlace en la nube</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowUploadModal(false)}
+                  className="text-slate-400 hover:text-slate-600 font-bold text-lg p-1"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleUploadNewAsset} className="space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Tipo de Material:
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setUploadModalType('OUTPUT_DELIVERY')}
+                      className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                        uploadModalType === 'OUTPUT_DELIVERY'
+                          ? 'bg-emerald-50 border-emerald-500 text-emerald-800 ring-2 ring-emerald-500/20'
+                          : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      🎬 Video Entregable
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setUploadModalType('INPUT_ASSET')}
+                      className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                        uploadModalType === 'INPUT_ASSET'
+                          ? 'bg-blue-50 border-blue-500 text-blue-800 ring-2 ring-blue-500/20'
+                          : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      📥 Insumo / Brief / Logo
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    1. Subir Archivo Físico (Video, PSD, AI, ZIP, PDF):
+                  </label>
+                  <input
+                    type="file"
+                    onChange={(e) => setUploadModalFile(e.target.files?.[0] || null)}
+                    className="w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3.5 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer border border-slate-200 rounded-xl p-1.5"
+                  />
+                  {uploadModalFile && (
+                    <p className="text-[11px] text-emerald-600 font-bold mt-1">
+                      ✓ Seleccionado: {uploadModalFile.name} ({(uploadModalFile.size / (1024 * 1024)).toFixed(2)} MB)
+                    </p>
+                  )}
+                </div>
+
+                <div className="relative flex items-center justify-center py-1">
+                  <div className="border-t border-slate-200 w-full"></div>
+                  <span className="bg-white px-2 text-[10px] font-bold text-slate-400 uppercase">o también</span>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1">
+                    <Link2 className="w-3.5 h-3.5 text-indigo-600" /> 2. Enlace en la Nube (Google Drive, WeTransfer, OneDrive, Frame.io):
+                  </label>
+                  <input
+                    type="url"
+                    value={uploadModalUrl}
+                    onChange={(e) => setUploadModalUrl(e.target.value)}
+                    placeholder="https://drive.google.com/... o https://we.tl/..."
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Notas o Descripción:
+                  </label>
+                  <input
+                    type="text"
+                    value={uploadModalNotes}
+                    onChange={(e) => setUploadModalNotes(e.target.value)}
+                    placeholder="Ej. Versión final con audio remasterizado..."
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowUploadModal(false)}
+                    className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={actionLoading || (!uploadModalFile && !uploadModalUrl.trim())}
+                    className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black transition-all shadow-md disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Upload className="w-4 h-4" />
+                    {actionLoading ? 'Guardando...' : 'Adjuntar Material'}
                   </button>
                 </div>
               </form>
