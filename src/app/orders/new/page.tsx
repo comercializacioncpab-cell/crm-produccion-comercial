@@ -25,7 +25,7 @@ import {
   Link2,
   ExternalLink
 } from 'lucide-react';
-import { SPONSORSHIP_OPTIONS, SPONSORSHIP_CATEGORIES, hasStrategicPnt } from '@/lib/order-utils';
+import { SPONSORSHIP_OPTIONS, SPONSORSHIP_CATEGORIES, hasStrategicPnt, hasCobertura } from '@/lib/order-utils';
 
 function NewOrderForm() {
   const { user } = useAuth();
@@ -623,16 +623,21 @@ function NewOrderForm() {
             </div>
           </div>
 
-          {/* SECCIÓN 3: TIPO DE AUSPICIO (CATEGORIZADO EN GRÁFICOS Y ESTRATÉGICOS) */}
+          {/* SECCIÓN 3: TIPO DE AUSPICIO (CATEGORIZADO EN GRÁFICOS, ESTRATÉGICOS Y COBERTURAS) */}
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm space-y-4">
             <div className="bg-ev-rowHeader px-6 py-3 border-b border-indigo-200 text-white flex items-center justify-between rounded-t-3xl">
               <div className="flex items-center gap-2">
                 <h2 className="text-xs font-black uppercase tracking-wider">
                   3. TIPO DE AUSPICIO / FORMATOS COMERCIALES
                 </h2>
-                {hasStrategicPnt(formData.sponsorshipTypes) && (
+                {hasCobertura(formData.sponsorshipTypes) && (
+                  <span className="bg-amber-400 text-amber-950 font-black text-[10px] px-2 py-0.5 rounded-full uppercase">
+                    📹 Incluye Cobertura (Permite 2 Editores)
+                  </span>
+                )}
+                {hasStrategicPnt(formData.sponsorshipTypes) && !hasCobertura(formData.sponsorshipTypes) && (
                   <span className="bg-purple-400 text-purple-950 font-black text-[10px] px-2 py-0.5 rounded-full uppercase">
-                    ⭐ Incluye PNT Estratégico
+                    ⭐ Incluye PNT Estratégico (Permite 2 Editores)
                   </span>
                 )}
               </div>
@@ -666,7 +671,9 @@ function NewOrderForm() {
                           key={opt.id}
                           className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                             isChecked
-                              ? opt.isStrategic
+                              ? opt.category === 'COBERTURAS'
+                                ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                                : opt.isStrategic
                                 ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
                                 : 'bg-blue-600 text-white border-blue-600 shadow-sm'
                               : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'

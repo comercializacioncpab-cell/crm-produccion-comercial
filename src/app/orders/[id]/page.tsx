@@ -43,6 +43,8 @@ import {
   SPONSORSHIP_CATEGORIES,
   isStrategicPntId,
   hasStrategicPnt,
+  isCoberturaId,
+  hasCobertura,
   formatDateTime,
   formatDate,
   getWorkflowStageIndex
@@ -940,13 +942,18 @@ export default function OrderDetailPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-5 space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
                       <Tv className="w-4 h-4 text-indigo-600" /> Opciones Comerciales / PNTs
                     </h3>
-                    {hasStrategicPnt(sponsorshipParsed) && (
+                    {hasCobertura(sponsorshipParsed) && (
+                      <span className="bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black px-2 py-0.5 rounded-full">
+                        📹 Incluye Cobertura (2 personas)
+                      </span>
+                    )}
+                    {hasStrategicPnt(sponsorshipParsed) && !hasCobertura(sponsorshipParsed) && (
                       <span className="bg-purple-100 text-purple-900 border border-purple-300 text-[10px] font-black px-2 py-0.5 rounded-full">
-                        🚀 Incluye Estratégico
+                        🚀 Incluye Estratégico (2 personas)
                       </span>
                     )}
                   </div>
@@ -966,14 +973,14 @@ export default function OrderDetailPage() {
                 ) : (
                   <div className="space-y-2">
                     {/* Gráficos */}
-                    {sponsorshipParsed.some((id: string) => !isStrategicPntId(id)) && (
+                    {sponsorshipParsed.some((id: string) => !isStrategicPntId(id) && !isCoberturaId(id)) && (
                       <div>
                         <span className="text-[10px] font-extrabold uppercase text-slate-400 block mb-1">
                           🎨 PNT’s Gráficos:
                         </span>
                         <div className="flex flex-wrap gap-1.5">
                           {sponsorshipParsed
-                            .filter((id: string) => !isStrategicPntId(id))
+                            .filter((id: string) => !isStrategicPntId(id) && !isCoberturaId(id))
                             .map((id: string) => {
                               const opt = SPONSORSHIP_OPTIONS.find((s) => s.id === id);
                               return (
@@ -987,19 +994,40 @@ export default function OrderDetailPage() {
                     )}
 
                     {/* Estratégicos */}
-                    {sponsorshipParsed.some((id: string) => isStrategicPntId(id)) && (
+                    {sponsorshipParsed.some((id: string) => isStrategicPntId(id) && !isCoberturaId(id)) && (
                       <div className="pt-1">
                         <span className="text-[10px] font-black uppercase text-purple-700 block mb-1 flex items-center gap-1">
                           🚀 PNT’s Estratégicos (Apoyo multi-editor habilitado):
                         </span>
                         <div className="flex flex-wrap gap-1.5">
                           {sponsorshipParsed
-                            .filter((id: string) => isStrategicPntId(id))
+                            .filter((id: string) => isStrategicPntId(id) && !isCoberturaId(id))
                             .map((id: string) => {
                               const opt = SPONSORSHIP_OPTIONS.find((s) => s.id === id);
                               return (
                                 <span key={id} className="bg-purple-100 text-purple-950 text-[11px] font-black px-2.5 py-1 rounded-lg border border-purple-300 shadow-2xs">
                                   ⭐ {opt?.label || id}
+                                </span>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Coberturas */}
+                    {sponsorshipParsed.some((id: string) => isCoberturaId(id)) && (
+                      <div className="pt-1">
+                        <span className="text-[10px] font-black uppercase text-amber-800 block mb-1 flex items-center gap-1">
+                          📹 Coberturas (Asignación de hasta 2 personas habilitada):
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {sponsorshipParsed
+                            .filter((id: string) => isCoberturaId(id))
+                            .map((id: string) => {
+                              const opt = SPONSORSHIP_OPTIONS.find((s) => s.id === id);
+                              return (
+                                <span key={id} className="bg-amber-100 text-amber-950 text-[11px] font-black px-2.5 py-1 rounded-lg border border-amber-300 shadow-2xs">
+                                  📹 {opt?.label || id}
                                 </span>
                               );
                             })}
@@ -1223,12 +1251,12 @@ export default function OrderDetailPage() {
                 </div>
 
                 {hasStrategicPnt(sponsorshipParsed) && (
-                  <div className="p-3 bg-purple-50 border border-purple-200 rounded-2xl text-[11px] text-purple-900 space-y-1">
+                  <div className={`p-3 border rounded-2xl text-[11px] space-y-1 ${hasCobertura(sponsorshipParsed) ? 'bg-amber-50 border-amber-200 text-amber-950' : 'bg-purple-50 border-purple-200 text-purple-900'}`}>
                     <p className="font-bold flex items-center gap-1">
-                      🚀 <span>PNTs Estratégicos Detectados</span>
+                      {hasCobertura(sponsorshipParsed) ? '📹' : '🚀'} <span>{hasCobertura(sponsorshipParsed) ? 'Coberturas / Formatos Especiales Detectados' : 'PNTs Estratégicos Detectados'}</span>
                     </p>
-                    <p className="text-[10px] text-purple-700">
-                      Esta SP incluye formatos estratégicos. Puedes asignar un editor principal (responsable del seguimiento) y un segundo editor adicional de apoyo.
+                    <p className={`text-[10px] ${hasCobertura(sponsorshipParsed) ? 'text-amber-800' : 'text-purple-700'}`}>
+                      Esta SP incluye {hasCobertura(sponsorshipParsed) ? 'coberturas o formatos especiales' : 'formatos estratégicos'}. Puedes asignar un editor principal (responsable) y un segundo editor de apoyo (2 personas).
                     </p>
                   </div>
                 )}
@@ -1255,7 +1283,7 @@ export default function OrderDetailPage() {
 
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
-                      <span>Editor Adicional (Formatos Estratégicos / Apoyo):</span>
+                      <span>Editor Adicional (Coberturas / Estratégicos / Apoyo):</span>
                       <span className="text-[10px] text-indigo-600 font-bold">Opcional</span>
                     </label>
                     <select
@@ -2045,7 +2073,7 @@ export default function OrderDetailPage() {
                         <div key={cat.id} className="bg-white/80 p-3 rounded-xl border border-indigo-100 space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-[11px] font-black uppercase text-slate-800 flex items-center gap-1.5">
-                              {cat.id === 'ESTRATEGICOS' ? '🚀' : '🎨'} {cat.category}
+                              {cat.id === 'COBERTURAS' ? '📹' : cat.id === 'ESTRATEGICOS' ? '🚀' : '🎨'} {cat.title}
                             </span>
                             {selectedCount > 0 && (
                               <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.2 rounded-md">
@@ -2061,7 +2089,9 @@ export default function OrderDetailPage() {
                                   key={opt.id}
                                   className={`flex items-center gap-2 p-2 rounded-xl border text-[11px] font-bold cursor-pointer transition-all ${
                                     isChecked
-                                      ? cat.id === 'ESTRATEGICOS'
+                                      ? cat.id === 'COBERTURAS'
+                                        ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                                        : cat.id === 'ESTRATEGICOS'
                                         ? 'bg-purple-700 text-white border-purple-700 shadow-sm'
                                         : 'bg-blue-600 text-white border-blue-600 shadow-sm'
                                       : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'

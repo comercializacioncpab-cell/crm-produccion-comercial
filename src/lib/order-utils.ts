@@ -1,8 +1,9 @@
 export interface SponsorshipOption {
   id: string;
   label: string;
-  category: 'GRAFICOS' | 'ESTRATEGICOS' | 'OTROS';
+  category: 'GRAFICOS' | 'ESTRATEGICOS' | 'COBERTURAS' | 'OTROS';
   isStrategic?: boolean;
+  allowsDualAssignment?: boolean;
 }
 
 export const PNT_GRAFICOS_OPTIONS: SponsorshipOption[] = [
@@ -28,14 +29,21 @@ export const PNT_GRAFICOS_OPTIONS: SponsorshipOption[] = [
 ];
 
 export const PNT_ESTRATEGICOS_OPTIONS: SponsorshipOption[] = [
-  { id: 'EP_ESTRATEGICO', label: 'EP estratégico', category: 'ESTRATEGICOS', isStrategic: true },
-  { id: 'MENCION_ESTRATEGICA', label: 'Mención estratégica', category: 'ESTRATEGICOS', isStrategic: true },
-  { id: 'BUMPER_ESTRATEGICO', label: 'Bumper estratégico', category: 'ESTRATEGICOS', isStrategic: true },
-  { id: 'CAPSULA_ESTRATEGICA', label: 'Cápsula estratégica', category: 'ESTRATEGICOS', isStrategic: true },
-  { id: 'SOBRE_ACTIVA_ESTRATEGICA', label: 'Sobre activa estratégica', category: 'ESTRATEGICOS', isStrategic: true },
-  { id: 'MENCION_ESTRATEGICA_3D', label: 'Mención estratégica 3D', category: 'ESTRATEGICOS', isStrategic: true },
-  { id: 'BILLBOARD_ESTRATEGICO_3D', label: 'Billboard estratégico 3D', category: 'ESTRATEGICOS', isStrategic: true },
-  { id: 'VIDEOWALL_3D', label: 'Videowall 3D', category: 'ESTRATEGICOS', isStrategic: true },
+  { id: 'EP_ESTRATEGICO', label: 'EP estratégico', category: 'ESTRATEGICOS', isStrategic: true, allowsDualAssignment: true },
+  { id: 'MENCION_ESTRATEGICA', label: 'Mención estratégica', category: 'ESTRATEGICOS', isStrategic: true, allowsDualAssignment: true },
+  { id: 'BUMPER_ESTRATEGICO', label: 'Bumper estratégico', category: 'ESTRATEGICOS', isStrategic: true, allowsDualAssignment: true },
+  { id: 'CAPSULA_ESTRATEGICA', label: 'Cápsula estratégica', category: 'ESTRATEGICOS', isStrategic: true, allowsDualAssignment: true },
+  { id: 'SOBRE_ACTIVA_ESTRATEGICA', label: 'Sobre activa estratégica', category: 'ESTRATEGICOS', isStrategic: true, allowsDualAssignment: true },
+  { id: 'MENCION_ESTRATEGICA_3D', label: 'Mención estratégica 3D', category: 'ESTRATEGICOS', isStrategic: true, allowsDualAssignment: true },
+  { id: 'BILLBOARD_ESTRATEGICO_3D', label: 'Billboard estratégico 3D', category: 'ESTRATEGICOS', isStrategic: true, allowsDualAssignment: true },
+  { id: 'VIDEOWALL_3D', label: 'Videowall 3D', category: 'ESTRATEGICOS', isStrategic: true, allowsDualAssignment: true },
+];
+
+export const COBERTURAS_OPTIONS: SponsorshipOption[] = [
+  { id: 'COBERTURA', label: 'Cobertura', category: 'COBERTURAS', isStrategic: true, allowsDualAssignment: true },
+  { id: 'COBERTURA_ESPECIAL', label: 'Cobertura Especial', category: 'COBERTURAS', isStrategic: true, allowsDualAssignment: true },
+  { id: 'COBERTURA_DIGITAL', label: 'Cobertura Digital', category: 'COBERTURAS', isStrategic: true, allowsDualAssignment: true },
+  { id: 'COBERTURA_EVENTO', label: 'Cobertura de Evento / BTL', category: 'COBERTURAS', isStrategic: true, allowsDualAssignment: true },
 ];
 
 export const SPONSORSHIP_CATEGORIES = [
@@ -51,9 +59,17 @@ export const SPONSORSHIP_CATEGORIES = [
     id: 'ESTRATEGICOS',
     title: 'PNT’s ESTRATÉGICOS',
     category: 'PNT’s ESTRATÉGICOS',
-    description: 'Formatos de alto impacto (Permite asignar Editor Post-Productor Adicional)',
+    description: 'Formatos de alto impacto (Permite asignar hasta 2 Editores)',
     badge: 'bg-purple-100 text-purple-900 border-purple-300 font-extrabold',
     options: PNT_ESTRATEGICOS_OPTIONS,
+  },
+  {
+    id: 'COBERTURAS',
+    title: 'COBERTURAS',
+    category: 'COBERTURAS',
+    description: 'Coberturas especiales y eventos (Permite asignar hasta 2 personas / editores)',
+    badge: 'bg-amber-100 text-amber-900 border-amber-300 font-extrabold',
+    options: COBERTURAS_OPTIONS,
   },
 ];
 
@@ -61,23 +77,48 @@ export const SPONSORSHIP_CATEGORIES = [
 export const SPONSORSHIP_OPTIONS: SponsorshipOption[] = [
   ...PNT_GRAFICOS_OPTIONS,
   ...PNT_ESTRATEGICOS_OPTIONS,
+  ...COBERTURAS_OPTIONS,
   // Legacy aliases
   { id: 'ESPACIO_PUBLICITARIO', label: 'ESPACIO PUBLICITARIO', category: 'OTROS' },
-  { id: 'BILLBOARD_ESTRATEGICO', label: 'BILLBOARD ESTRATÉGICO', category: 'ESTRATEGICOS', isStrategic: true },
+  { id: 'BILLBOARD_ESTRATEGICO', label: 'BILLBOARD ESTRATÉGICO', category: 'ESTRATEGICOS', isStrategic: true, allowsDualAssignment: true },
   { id: 'SOBREIMPOSICION_CREATIVA', label: 'SOBREIMPOSICIÓN CREATIVA', category: 'GRAFICOS' },
   { id: 'ANTIZAPING', label: 'ANTIZAPING IA NOVELA 15H30 GYE SORPRESA DEL DESTINO', category: 'GRAFICOS' },
   { id: 'AVANCE', label: 'Avance', category: 'GRAFICOS' },
   { id: 'RESUMEN_NOVELA', label: 'Resumen de Novela 22h00', category: 'GRAFICOS' },
-  { id: 'PNT_PRODUCT_PLACEMENT', label: 'PNT / Product Placement', category: 'ESTRATEGICOS', isStrategic: true },
-  { id: 'PNT_MENCION_VIVO', label: 'PNT / Mención en Vivo', category: 'ESTRATEGICOS', isStrategic: true },
+  { id: 'PNT_PRODUCT_PLACEMENT', label: 'PNT / Product Placement', category: 'ESTRATEGICOS', isStrategic: true, allowsDualAssignment: true },
+  { id: 'PNT_MENCION_VIVO', label: 'PNT / Mención en Vivo', category: 'ESTRATEGICOS', isStrategic: true, allowsDualAssignment: true },
   { id: 'PNT_PANTALLA_DIVIDIDA', label: 'PNT / Pantalla Dividida', category: 'GRAFICOS' },
-  { id: 'PNT_INTEGRACION', label: 'PNT / Integración de Contenido', category: 'ESTRATEGICOS', isStrategic: true },
+  { id: 'PNT_INTEGRACION', label: 'PNT / Integración de Contenido', category: 'ESTRATEGICOS', isStrategic: true, allowsDualAssignment: true },
   { id: 'CINTILLO_ANIMADO', label: 'Cintillo Animado / Lower Third', category: 'GRAFICOS' },
 ];
 
 export function isStrategicPntId(id: string): boolean {
   const opt = SPONSORSHIP_OPTIONS.find((s) => s.id === id);
-  return Boolean(opt?.isStrategic || opt?.category === 'ESTRATEGICOS' || id.includes('ESTRATEGIC') || id.includes('VIDEOWALL'));
+  return Boolean(
+    opt?.isStrategic || 
+    opt?.allowsDualAssignment || 
+    opt?.category === 'ESTRATEGICOS' || 
+    opt?.category === 'COBERTURAS' || 
+    id.includes('ESTRATEGIC') || 
+    id.includes('VIDEOWALL') || 
+    id.includes('COBERTURA')
+  );
+}
+
+export function isCoberturaId(id: string): boolean {
+  const opt = SPONSORSHIP_OPTIONS.find((s) => s.id === id);
+  return Boolean(opt?.category === 'COBERTURAS' || id.includes('COBERTURA'));
+}
+
+export function hasCobertura(sponsorshipTypes: string[] | string): boolean {
+  try {
+    const list: string[] = Array.isArray(sponsorshipTypes)
+      ? sponsorshipTypes
+      : JSON.parse(sponsorshipTypes || '[]');
+    return list.some((id) => isCoberturaId(id));
+  } catch {
+    return false;
+  }
 }
 
 export function hasStrategicPnt(sponsorshipTypes: string[] | string): boolean {
