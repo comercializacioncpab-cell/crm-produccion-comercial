@@ -26,6 +26,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         postProducer: {
           select: { id: true, name: true, initials: true, email: true, phone: true, role: true },
         },
+        secondaryPostProducer: {
+          select: { id: true, name: true, initials: true, email: true, phone: true, role: true },
+        },
         sourceDemo: {
           select: { id: true, orderNumber: true, clientAgency: true, product: true, isDemo: true, demoStatus: true, createdAt: true },
         },
@@ -75,6 +78,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         creator: true,
         executive: true,
         postProducer: true,
+        secondaryPostProducer: true,
       },
     });
 
@@ -86,51 +90,75 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     // 1. ACTION: ASSIGN POST-PRODUCER (Coordinator / Admin)
     if (action === 'ASSIGN') {
-      const { postProducerId, priority } = body;
+      const { postProducerId, secondaryPostProducerId, priority } = body;
       const targetPost = await prisma.user.findUnique({ where: { id: postProducerId } });
       if (!targetPost) {
-        return NextResponse.json({ error: 'Post-Productor no encontrado' }, { status: 400 });
+        return NextResponse.json({ error: 'Post-Productor principal no encontrado' }, { status: 400 });
+      }
+
+      let targetSecondary = null;
+      if (secondaryPostProducerId) {
+        targetSecondary = await prisma.user.findUnique({ where: { id: secondaryPostProducerId } });
       }
 
       updatedOrder = await prisma.productionOrder.update({
         where: { id },
         data: {
           postProducerId,
+          secondaryPostProducerId: secondaryPostProducerId || null,
           coordinatorId: user.id,
           status: 'ASIGNADA',
           ...(priority && { priority }),
         },
-        include: { creator: true, postProducer: true, files: true, activityLogs: true },
+        include: { creator: true, postProducer: true, secondaryPostProducer: true, files: true, activityLogs: true },
       });
+
+      const assignDetails = targetSecondary
+        ? `Asignada por ${user.name} a ${targetPost.name} (Principal / Seguimiento) y ${targetSecondary.name} (Editor Adicional).`
+        : `Asignada por ${user.name} a ${targetPost.name} (Principal).`;
 
       await prisma.activityLog.create({
         data: {
           orderId: id,
           userId: user.id,
           action: 'ASIGNADA',
-          details: `Asignada por ${user.name} a ${targetPost.name}`,
+          details: assignDetails,
         },
       });
 
-      // 🔔 NOTIFY 1: Post-Productor (New work assigned)
+      // 🔔 NOTIFY 1: Post-Productor Principal (Lead tracker)
       await sendNotification({
         userId: targetPost.id,
         orderId: id,
         type: 'ASSIGNED',
         title: `🎯 Tienes una nueva asignación: ${order.orderNumber}`,
-        message: `${user.name} te ha asignado la orden ${order.orderNumber} (${order.clientAgency} - ${order.product}). Fecha al aire: ${order.airDate || 'Por definir'}.`,
+        message: `${user.name} te ha asignado como Editor Principal de la orden ${order.orderNumber} (${order.clientAgency} - ${order.product}). Fecha al aire: ${order.airDate || 'Por definir'}.${targetSecondary ? ` Editor Adicional asignado: ${targetSecondary.name}.` : ''}`,
         userPhone: targetPost.phone,
         userEmail: targetPost.email,
         orderNumber: order.orderNumber,
       });
 
-      // 🔔 NOTIFY 2: Ejecutiva Solicitante (Let her know WHO was assigned)
+      // 🔔 NOTIFY 2: Editor Adicional (if assigned)
+      if (targetSecondary) {
+        await sendNotification({
+          userId: targetSecondary.id,
+          orderId: id,
+          type: 'ASSIGNED',
+          title: `🎯 Asignación como Editor Adicional: ${order.orderNumber}`,
+          message: `${user.name} te ha asignado como Editor Adicional para apoyar en la orden estratégica ${order.orderNumber} (${order.clientAgency} - ${order.product}). Editor Principal (a cargo del seguimiento): ${targetPost.name}. Fecha al aire: ${order.airDate || 'Por definir'}.`,
+          userPhone: targetSecondary.phone,
+          userEmail: targetSecondary.email,
+          orderNumber: order.orderNumber,
+        });
+      }
+
+      // 🔔 NOTIFY 3: Ejecutiva Solicitante
       await sendNotification({
         userId: order.creatorId,
         orderId: id,
         type: 'ASSIGNED',
         title: `📋 Tu Solicitud ${order.orderNumber} ha sido Asignada`,
-        message: `Tu orden ${order.orderNumber} (${order.product}) fue asignada al post-productor ${targetPost.name} para su edición.`,
+        message: `Tu orden ${order.orderNumber} (${order.product}) fue asignada al post-productor ${targetPost.name}${targetSecondary ? ` y al editor adicional ${targetSecondary.name}` : ''} para su edición.`,
         userPhone: order.creator.phone,
         userEmail: order.creator.email,
         orderNumber: order.orderNumber,
@@ -295,6 +323,19 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         });
       }
 
+      if (order.secondaryPostProducerId && order.secondaryPostProducerId !== user.id) {
+        await sendNotification({
+          userId: order.secondaryPostProducerId,
+          orderId: id,
+          type: 'CHANGES_REQUESTED',
+          title: `⚠️ Solicitud de Cambio #${nextCount} en ${order.orderNumber}`,
+          message: `${user.name} ha solicitado el cambio #${nextCount} en ${order.product}: "${changeNotes}".`,
+          userPhone: order.secondaryPostProducer?.phone,
+          userEmail: order.secondaryPostProducer?.email,
+          orderNumber: order.orderNumber,
+        });
+      }
+
       return NextResponse.json({ success: true, order: updatedOrder, changesCount: nextCount });
     }
 
@@ -328,6 +369,19 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           message: `La orden ${order.orderNumber} (${order.product}) fue aprobada por ${user.name}.`,
           userPhone: order.postProducer?.phone,
           userEmail: order.postProducer?.email,
+          orderNumber: order.orderNumber,
+        });
+      }
+
+      if (order.secondaryPostProducerId && order.secondaryPostProducerId !== user.id) {
+        await sendNotification({
+          userId: order.secondaryPostProducerId,
+          orderId: id,
+          type: 'APPROVED',
+          title: `🎉 ¡Orden Aprobada para Salir al Aire! ${order.orderNumber}`,
+          message: `La orden ${order.orderNumber} (${order.product}) fue aprobada por ${user.name}.`,
+          userPhone: order.secondaryPostProducer?.phone,
+          userEmail: order.secondaryPostProducer?.email,
           orderNumber: order.orderNumber,
         });
       }
@@ -380,7 +434,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         },
       });
 
-      // 🔔 Notify assigned post-producer if date changed
+      // 🔔 Notify assigned post-producers if date changed
       if (order.postProducerId && order.postProducerId !== user.id) {
         await sendNotification({
           userId: order.postProducerId,
@@ -390,6 +444,19 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           message: `${user.name} actualizó la fecha al aire de la orden ${order.orderNumber} a: ${newAirDate}.`,
           userPhone: order.postProducer?.phone,
           userEmail: order.postProducer?.email,
+          orderNumber: order.orderNumber,
+        });
+      }
+
+      if (order.secondaryPostProducerId && order.secondaryPostProducerId !== user.id) {
+        await sendNotification({
+          userId: order.secondaryPostProducerId,
+          orderId: id,
+          type: 'UPDATED',
+          title: `📅 Fecha Actualizada: ${order.orderNumber}`,
+          message: `${user.name} actualizó la fecha al aire de la orden ${order.orderNumber} a: ${newAirDate}.`,
+          userPhone: order.secondaryPostProducer?.phone,
+          userEmail: order.secondaryPostProducer?.email,
           orderNumber: order.orderNumber,
         });
       }
@@ -429,6 +496,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         packageValue,
         priority,
         executiveId,
+        secondaryPostProducerId,
       } = body;
 
       const parsedPackageValue = packageValue !== undefined && packageValue !== null && packageValue !== ''
@@ -457,11 +525,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           ...(parsedPackageValue !== undefined && { packageValue: isNaN(parsedPackageValue) ? 0 : parsedPackageValue }),
           ...(priority !== undefined && { priority }),
           ...(executiveId !== undefined && { executiveId: executiveId || null }),
+          ...(secondaryPostProducerId !== undefined && { secondaryPostProducerId: secondaryPostProducerId || null }),
         },
         include: {
           creator: true,
           executive: true,
           postProducer: true,
+          secondaryPostProducer: true,
         },
       });
 
@@ -474,6 +544,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       if (sponsorshipTypes !== undefined) changesSummary.push(`Opciones Comerciales / PNTs actualizados`);
       if (parsedPackageValue !== undefined && parsedPackageValue !== order.packageValue) changesSummary.push(`Valor: $${parsedPackageValue}`);
       if (downloadUrl !== undefined && downloadUrl !== order.downloadUrl) changesSummary.push(`Link de descarga actualizado`);
+      if (secondaryPostProducerId !== undefined && secondaryPostProducerId !== order.secondaryPostProducerId) changesSummary.push(`Editor Adicional asignado/modificado`);
 
       const detailsText = `SP editada por ${user.name} (${user.role}). ${changesSummary.length > 0 ? `Modificaciones: ${changesSummary.join(', ')}` : 'Información general y requerimientos comerciales actualizados.'}`;
 
@@ -486,7 +557,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         },
       });
 
-      // 🔔 Notify assigned post-producer if assigned
+      // 🔔 Notify assigned post-producers
       if (order.postProducerId && order.postProducerId !== user.id) {
         await sendNotification({
           userId: order.postProducerId,
@@ -496,6 +567,19 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           message: `${user.name} ha editado los datos/requerimientos comerciales de la SP ${order.orderNumber} (${order.product}).`,
           userPhone: order.postProducer?.phone,
           userEmail: order.postProducer?.email,
+          orderNumber: order.orderNumber,
+        });
+      }
+
+      if (order.secondaryPostProducerId && order.secondaryPostProducerId !== user.id) {
+        await sendNotification({
+          userId: order.secondaryPostProducerId,
+          orderId: id,
+          type: 'UPDATED',
+          title: `📝 SP Modificada: ${order.orderNumber}`,
+          message: `${user.name} ha editado los requerimientos de la orden ${order.orderNumber} (${order.product}).`,
+          userPhone: order.secondaryPostProducer?.phone,
+          userEmail: order.secondaryPostProducer?.email,
           orderNumber: order.orderNumber,
         });
       }

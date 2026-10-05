@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { SPONSORSHIP_OPTIONS } from '@/lib/order-utils';
+import { SPONSORSHIP_CATEGORIES, SPONSORSHIP_OPTIONS } from '@/lib/order-utils';
 import { Printer, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
@@ -58,7 +58,7 @@ export default function PrintOrderPage() {
 
         <button
           onClick={() => window.print()}
-          className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold px-5 py-2 rounded-xl text-xs flex items-center gap-2 shadow-md transition-all"
+          className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold px-5 py-2 rounded-xl text-xs flex items-center gap-2 shadow-md transition-all cursor-pointer"
         >
           <Printer className="w-4 h-4" /> Imprimir / Guardar como PDF
         </button>
@@ -225,26 +225,54 @@ export default function PrintOrderPage() {
           </table>
         </div>
 
-        {/* SECTION 3: TIPO DE AUSPICIO */}
+        {/* SECTION 3: TIPO DE AUSPICIO (Categorized: Gráficos y Estratégicos) */}
         <div className="border border-slate-900">
           <div className="bg-[#8b80b6] px-3 py-1 font-bold text-xs text-white uppercase border-b border-slate-900">
-            TIPO DE AUSPICIO:
+            TIPO DE AUSPICIO / FORMATOS COMERCIALES
           </div>
           <table className="w-full text-xs border-collapse">
             <tbody>
-              {SPONSORSHIP_OPTIONS.map((opt, idx) => {
-                const isSelected = sponsorshipParsed.includes(opt.id);
-                return (
-                  <tr key={opt.id} className={idx < SPONSORSHIP_OPTIONS.length - 1 ? 'border-b border-slate-900' : ''}>
-                    <td className="p-1.5 font-bold text-slate-900 uppercase border-r border-slate-900 w-2/3">
-                      {opt.label}
-                    </td>
-                    <td className="p-1.5 text-center font-black text-sm">
-                      {isSelected ? 'X' : ''}
+              {SPONSORSHIP_CATEGORIES.map((cat, catIdx) => (
+                <React.Fragment key={cat.id}>
+                  {/* Category Header Row */}
+                  <tr className="bg-[#e0f2fe] border-y border-slate-900">
+                    <td colSpan={2} className="p-1.5 font-black uppercase tracking-wider text-slate-900">
+                      {cat.category}
                     </td>
                   </tr>
-                );
-              })}
+                  {/* Category Options */}
+                  {cat.options.map((opt, optIdx) => {
+                    const isSelected = sponsorshipParsed.includes(opt.id);
+                    return (
+                      <tr 
+                        key={opt.id} 
+                        className={
+                          optIdx < cat.options.length - 1 || catIdx < SPONSORSHIP_CATEGORIES.length - 1
+                            ? 'border-b border-slate-300'
+                            : ''
+                        }
+                      >
+                        <td className="p-1.5 font-medium text-slate-900 uppercase border-r border-slate-900 w-3/4 pl-4">
+                          {opt.label}
+                        </td>
+                        <td className="p-1.5 text-center font-black text-sm bg-slate-50/50">
+                          {isSelected ? 'X' : ''}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </React.Fragment>
+              ))}
+              {order.customSponsorship && (
+                <tr className="border-t border-slate-900 bg-purple-50">
+                  <td className="p-1.5 font-bold text-purple-950 uppercase border-r border-slate-900 w-3/4 pl-4">
+                    OTRO: {order.customSponsorship}
+                  </td>
+                  <td className="p-1.5 text-center font-black text-sm text-purple-900">
+                    X
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -272,7 +300,7 @@ export default function PrintOrderPage() {
                   Específica:
                 </td>
                 <td className="p-1.5 font-bold text-center">
-                  {order.voiceoverType === 'ESPECIFICA' ? 'X' : ''}
+                  {order.voiceoverType === 'EXCLUSIVA_CLIENTE' || order.voiceoverType === 'ESPECIFICA' ? 'X' : ''}
                 </td>
               </tr>
             </tbody>
@@ -298,12 +326,22 @@ export default function PrintOrderPage() {
             <tbody>
               <tr className="border-b border-slate-900">
                 <td className="bg-[#93c5fd] w-1/3 p-2 font-bold border-r border-slate-900">
-                  Post Productor:
+                  Post Productor Principal:
                 </td>
                 <td className="p-2 font-bold uppercase text-slate-900">
-                  {order.postProducer?.name || ''}
+                  {order.postProducer?.name || 'SIN ASIGNAR'}
                 </td>
               </tr>
+              {order.secondaryPostProducer?.name && (
+                <tr className="border-b border-slate-900">
+                  <td className="bg-[#93c5fd] w-1/3 p-2 font-bold border-r border-slate-900">
+                    Post Productor Adicional (Apoyo):
+                  </td>
+                  <td className="p-2 font-bold uppercase text-slate-900 text-indigo-900">
+                    {order.secondaryPostProducer.name}
+                  </td>
+                </tr>
+              )}
               <tr className="border-b border-slate-900">
                 <td className="bg-[#93c5fd] p-2 font-bold border-r border-slate-900">
                   APROBADO

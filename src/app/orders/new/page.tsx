@@ -25,7 +25,7 @@ import {
   Link2,
   ExternalLink
 } from 'lucide-react';
-import { SPONSORSHIP_OPTIONS } from '@/lib/order-utils';
+import { SPONSORSHIP_OPTIONS, SPONSORSHIP_CATEGORIES, hasStrategicPnt } from '@/lib/order-utils';
 
 function NewOrderForm() {
   const { user } = useAuth();
@@ -621,43 +621,72 @@ function NewOrderForm() {
             </div>
           </div>
 
-          {/* SECCIÓN 3: TIPO DE AUSPICIO */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+          {/* SECCIÓN 3: TIPO DE AUSPICIO (CATEGORIZADO EN GRÁFICOS Y ESTRATÉGICOS) */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden space-y-4">
             <div className="bg-ev-rowHeader px-6 py-3 border-b border-indigo-200 text-white flex items-center justify-between">
-              <h2 className="text-xs font-black uppercase tracking-wider">
-                3. TIPO DE AUSPICIO
-              </h2>
-              <span className="text-[10px] text-white/80 font-medium">Selecciona las opciones que apliquen</span>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xs font-black uppercase tracking-wider">
+                  3. TIPO DE AUSPICIO / FORMATOS COMERCIALES
+                </h2>
+                {hasStrategicPnt(formData.sponsorshipTypes) && (
+                  <span className="bg-purple-400 text-purple-950 font-black text-[10px] px-2 py-0.5 rounded-full uppercase">
+                    ⭐ Incluye PNT Estratégico
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] text-white/80 font-medium">
+                {formData.sponsorshipTypes.length} formato(s) seleccionado(s)
+              </span>
             </div>
 
-            <div className="p-6 space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {SPONSORSHIP_OPTIONS.map((opt) => {
-                  const isChecked = formData.sponsorshipTypes.includes(opt.id);
-                  return (
-                    <label
-                      key={opt.id}
-                      className={`flex items-center gap-3 p-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                        isChecked
-                          ? 'bg-blue-50 border-blue-400 text-blue-900 shadow-sm'
-                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => handleSponsorshipToggle(opt.id)}
-                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                      />
-                      <span>{opt.label}</span>
-                    </label>
-                  );
-                })}
-              </div>
+            <div className="p-6 space-y-6">
+              {SPONSORSHIP_CATEGORIES.map((cat, catIdx) => (
+                <div key={catIdx} className="space-y-3">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-black px-2.5 py-0.5 rounded-lg border ${cat.badge}`}>
+                        {cat.title}
+                      </span>
+                      <span className="text-[11px] text-slate-500 font-medium hidden sm:inline">
+                        {cat.description}
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-bold text-slate-400">
+                      {cat.options.filter((o) => formData.sponsorshipTypes.includes(o.id)).length} seleccionados
+                    </span>
+                  </div>
 
-              <div className="pt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                    {cat.options.map((opt) => {
+                      const isChecked = formData.sponsorshipTypes.includes(opt.id);
+                      return (
+                        <label
+                          key={opt.id}
+                          className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                            isChecked
+                              ? opt.isStrategic
+                                ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                                : 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                              : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handleSponsorshipToggle(opt.id)}
+                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 shrink-0"
+                          />
+                          <span className="truncate">{opt.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+
+              <div className="pt-2 border-t">
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Otro Tipo de Auspicio (Opcional)
+                  Otro Tipo de Auspicio / Formato Personalizado (Opcional)
                 </label>
                 <input
                   type="text"

@@ -1,17 +1,95 @@
-export const SPONSORSHIP_OPTIONS = [
-  { id: 'ESPACIO_PUBLICITARIO', label: 'ESPACIO PUBLICITARIO' },
-  { id: 'BILLBOARD_ESTRATEGICO', label: 'BILLBOARD ESTRATÉGICO' },
-  { id: 'SOBREIMPOSICION_CREATIVA', label: 'SOBREIMPOSICIÓN CREATIVA' },
-  { id: 'ANTIZAPING', label: 'ANTIZAPING IA NOVELA 15H30 GYE SORPRESA DEL DESTINO' },
-  { id: 'CAPSULA_ESTRATEGICA', label: 'Cápsula Estratégica 30"' },
-  { id: 'AVANCE', label: 'Avance' },
-  { id: 'RESUMEN_NOVELA', label: 'Resumen de Novela 22h00' },
-  { id: 'PNT_PRODUCT_PLACEMENT', label: 'PNT / Product Placement' },
-  { id: 'PNT_MENCION_VIVO', label: 'PNT / Mención en Vivo' },
-  { id: 'PNT_PANTALLA_DIVIDIDA', label: 'PNT / Pantalla Dividida' },
-  { id: 'PNT_INTEGRACION', label: 'PNT / Integración de Contenido' },
-  { id: 'CINTILLO_ANIMADO', label: 'Cintillo Animado / Lower Third' },
+export interface SponsorshipOption {
+  id: string;
+  label: string;
+  category: 'GRAFICOS' | 'ESTRATEGICOS' | 'OTROS';
+  isStrategic?: boolean;
+}
+
+export const PNT_GRAFICOS_OPTIONS: SponsorshipOption[] = [
+  { id: 'EP', label: 'EP', category: 'GRAFICOS' },
+  { id: 'BUMPER_GRAFICO', label: 'Bumper gráfico', category: 'GRAFICOS' },
+  { id: 'ANTIZAPPING_GRAFICO', label: 'Antizapping gráfico', category: 'GRAFICOS' },
+  { id: 'CAPSULA_GRAFICA', label: 'Cápsula gráfica', category: 'GRAFICOS' },
+  { id: 'CAPSULA_CONCEPTUAL', label: 'Cápsula conceptual', category: 'GRAFICOS' },
+  { id: 'ATRAPA_LA_MARCA', label: 'Atrapa la Marca', category: 'GRAFICOS' },
+  { id: 'SOBRE_EN_BARRA', label: 'Sobre en barra', category: 'GRAFICOS' },
+  { id: 'SOBRE_CREATIVA', label: 'Sobre creativa', category: 'GRAFICOS' },
+  { id: 'SOBRE_ESPECIAL', label: 'Sobre especial', category: 'GRAFICOS' },
+  { id: 'LOGO_MOSCA', label: 'Logo Mosca', category: 'GRAFICOS' },
+  { id: 'CLAQUETA_PRES_DESP', label: 'Claqueta de Presentación/Despedida', category: 'GRAFICOS' },
+  { id: 'CAPSULA_PENSAMIENTO', label: 'Cápsula de Pensamiento', category: 'GRAFICOS' },
+  { id: 'BLOQUE_DISRUPTIVO', label: 'Bloque Disruptivo', category: 'GRAFICOS' },
+  { id: 'TRADUCTOR', label: 'Traductor', category: 'GRAFICOS' },
+  { id: 'EP_3D', label: 'EP 3D', category: 'GRAFICOS' },
+  { id: 'CENTRO_VIRTUAL_3D', label: 'Centro virtual de cancha 3D', category: 'GRAFICOS' },
+  { id: 'ANTIZAPPING_GRAFICO_3D', label: 'Antizapping gráfico 3D', category: 'GRAFICOS' },
+  { id: 'BUMPER_GRAFICO_3D', label: 'Bumper gráfico 3D', category: 'GRAFICOS' },
+  { id: 'SOBRE_BARRA_3D', label: 'Sobre barra 3D', category: 'GRAFICOS' },
 ];
+
+export const PNT_ESTRATEGICOS_OPTIONS: SponsorshipOption[] = [
+  { id: 'EP_ESTRATEGICO', label: 'EP estratégico', category: 'ESTRATEGICOS', isStrategic: true },
+  { id: 'MENCION_ESTRATEGICA', label: 'Mención estratégica', category: 'ESTRATEGICOS', isStrategic: true },
+  { id: 'BUMPER_ESTRATEGICO', label: 'Bumper estratégico', category: 'ESTRATEGICOS', isStrategic: true },
+  { id: 'CAPSULA_ESTRATEGICA', label: 'Cápsula estratégica', category: 'ESTRATEGICOS', isStrategic: true },
+  { id: 'SOBRE_ACTIVA_ESTRATEGICA', label: 'Sobre activa estratégica', category: 'ESTRATEGICOS', isStrategic: true },
+  { id: 'MENCION_ESTRATEGICA_3D', label: 'Mención estratégica 3D', category: 'ESTRATEGICOS', isStrategic: true },
+  { id: 'BILLBOARD_ESTRATEGICO_3D', label: 'Billboard estratégico 3D', category: 'ESTRATEGICOS', isStrategic: true },
+  { id: 'VIDEOWALL_3D', label: 'Videowall 3D', category: 'ESTRATEGICOS', isStrategic: true },
+];
+
+export const SPONSORSHIP_CATEGORIES = [
+  {
+    id: 'GRAFICOS',
+    title: 'PNT’s GRÁFICOS',
+    category: 'PNT’s GRÁFICOS',
+    description: 'Formatos gráficos estándares y animaciones de marca',
+    badge: 'bg-indigo-50 text-indigo-800 border-indigo-200',
+    options: PNT_GRAFICOS_OPTIONS,
+  },
+  {
+    id: 'ESTRATEGICOS',
+    title: 'PNT’s ESTRATÉGICOS',
+    category: 'PNT’s ESTRATÉGICOS',
+    description: 'Formatos de alto impacto (Permite asignar Editor Post-Productor Adicional)',
+    badge: 'bg-purple-100 text-purple-900 border-purple-300 font-extrabold',
+    options: PNT_ESTRATEGICOS_OPTIONS,
+  },
+];
+
+// Backwards-compatible consolidated list
+export const SPONSORSHIP_OPTIONS: SponsorshipOption[] = [
+  ...PNT_GRAFICOS_OPTIONS,
+  ...PNT_ESTRATEGICOS_OPTIONS,
+  // Legacy aliases
+  { id: 'ESPACIO_PUBLICITARIO', label: 'ESPACIO PUBLICITARIO', category: 'OTROS' },
+  { id: 'BILLBOARD_ESTRATEGICO', label: 'BILLBOARD ESTRATÉGICO', category: 'ESTRATEGICOS', isStrategic: true },
+  { id: 'SOBREIMPOSICION_CREATIVA', label: 'SOBREIMPOSICIÓN CREATIVA', category: 'GRAFICOS' },
+  { id: 'ANTIZAPING', label: 'ANTIZAPING IA NOVELA 15H30 GYE SORPRESA DEL DESTINO', category: 'GRAFICOS' },
+  { id: 'AVANCE', label: 'Avance', category: 'GRAFICOS' },
+  { id: 'RESUMEN_NOVELA', label: 'Resumen de Novela 22h00', category: 'GRAFICOS' },
+  { id: 'PNT_PRODUCT_PLACEMENT', label: 'PNT / Product Placement', category: 'ESTRATEGICOS', isStrategic: true },
+  { id: 'PNT_MENCION_VIVO', label: 'PNT / Mención en Vivo', category: 'ESTRATEGICOS', isStrategic: true },
+  { id: 'PNT_PANTALLA_DIVIDIDA', label: 'PNT / Pantalla Dividida', category: 'GRAFICOS' },
+  { id: 'PNT_INTEGRACION', label: 'PNT / Integración de Contenido', category: 'ESTRATEGICOS', isStrategic: true },
+  { id: 'CINTILLO_ANIMADO', label: 'Cintillo Animado / Lower Third', category: 'GRAFICOS' },
+];
+
+export function isStrategicPntId(id: string): boolean {
+  const opt = SPONSORSHIP_OPTIONS.find((s) => s.id === id);
+  return Boolean(opt?.isStrategic || opt?.category === 'ESTRATEGICOS' || id.includes('ESTRATEGIC') || id.includes('VIDEOWALL'));
+}
+
+export function hasStrategicPnt(sponsorshipTypes: string[] | string): boolean {
+  try {
+    const list: string[] = Array.isArray(sponsorshipTypes)
+      ? sponsorshipTypes
+      : JSON.parse(sponsorshipTypes || '[]');
+    return list.some((id) => isStrategicPntId(id));
+  } catch {
+    return false;
+  }
+}
 
 export const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
   NUEVA: {

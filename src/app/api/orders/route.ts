@@ -24,7 +24,10 @@ export async function GET(req: Request) {
         { executiveId: user.id },
       ];
     } else if (scope === 'assigned_to_me' || user.role === 'POST_PRODUCTOR') {
-      where.postProducerId = user.id;
+      where.OR = [
+        { postProducerId: user.id },
+        { secondaryPostProducerId: user.id },
+      ];
     }
 
     if (status && status !== 'ALL') {
@@ -56,6 +59,9 @@ export async function GET(req: Request) {
           select: { id: true, name: true, initials: true, email: true, phone: true },
         },
         postProducer: {
+          select: { id: true, name: true, initials: true, email: true, phone: true },
+        },
+        secondaryPostProducer: {
           select: { id: true, name: true, initials: true, email: true, phone: true },
         },
         sourceDemo: {

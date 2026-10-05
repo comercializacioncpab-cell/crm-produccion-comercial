@@ -40,6 +40,9 @@ import {
   STATUS_CONFIG, 
   PRIORITY_CONFIG, 
   SPONSORSHIP_OPTIONS,
+  SPONSORSHIP_CATEGORIES,
+  isStrategicPntId,
+  hasStrategicPnt,
   formatDateTime,
   formatDate,
   getWorkflowStageIndex
@@ -57,6 +60,7 @@ export default function OrderDetailPage() {
   
   // Action Modals & States
   const [selectedPostId, setSelectedPostId] = useState('');
+  const [selectedSecondaryPostId, setSelectedSecondaryPostId] = useState('');
   const [assignPriority, setAssignPriority] = useState('MEDIA');
   const [deliveryNotes, setDeliveryNotes] = useState('');
   const [deliveryFile, setDeliveryFile] = useState<File | null>(null);
@@ -90,6 +94,8 @@ export default function OrderDetailPage() {
     voiceoverText: '',
     priority: 'MEDIA',
     packageValue: '',
+    postProducerId: '',
+    secondaryPostProducerId: '',
   });
 
   const fetchOrder = async () => {
@@ -100,6 +106,11 @@ export default function OrderDetailPage() {
         setOrder(data.order);
         if (data.order.postProducerId) {
           setSelectedPostId(data.order.postProducerId);
+        }
+        if (data.order.secondaryPostProducerId) {
+          setSelectedSecondaryPostId(data.order.secondaryPostProducerId);
+        } else {
+          setSelectedSecondaryPostId('');
         }
         if (data.order.priority) {
           setAssignPriority(data.order.priority);
@@ -132,7 +143,7 @@ export default function OrderDetailPage() {
   // Handle Assign Post-Producer (Coordinator / Admin)
   const handleAssign = async () => {
     if (!selectedPostId) {
-      setMsg({ type: 'error', text: 'Selecciona un post-productor para asignar.' });
+      setMsg({ type: 'error', text: 'Selecciona un post-productor principal para asignar.' });
       return;
     }
     setActionLoading(true);
@@ -144,11 +155,12 @@ export default function OrderDetailPage() {
         body: JSON.stringify({
           action: 'ASSIGN',
           postProducerId: selectedPostId,
+          secondaryPostProducerId: selectedSecondaryPostId || null,
           priority: assignPriority,
         }),
       });
       if (res.ok) {
-        setMsg({ type: 'success', text: '¡Orden asignada exitosamente! Se registró la fecha y hora exacta y se notificó por WhatsApp/Email.' });
+        setMsg({ type: 'success', text: '¡Orden asignada exitosamente! Se registró la fecha y hora exacta y se notificó a los editores por WhatsApp/Email.' });
         fetchOrder();
       }
     } catch {
@@ -359,6 +371,8 @@ export default function OrderDetailPage() {
       voiceoverText: order.voiceoverText || '',
       priority: order.priority || 'MEDIA',
       packageValue: order.packageValue !== null && order.packageValue !== undefined ? String(order.packageValue) : '',
+      postProducerId: order.postProducerId || '',
+      secondaryPostProducerId: order.secondaryPostProducerId || '',
     });
     setShowEditModal(true);
   };
@@ -699,7 +713,7 @@ export default function OrderDetailPage() {
                   {order.orderNumber}
                 </span>
               </div>
-              <div className="p-6 grid grid-cols-2 sm:grid-cols-5 gap-4 text-xs">
+              <div className="p-6 grid grid-cols-2 sm:grid-cols-6 gap-4 text-xs">
                 <div>
                   <span className="text-slate-400 block text-[11px] font-semibold">Ejecutiva de Cuentas:</span>
                   <strong className="text-slate-900 font-bold">{order.executive?.name || order.creator?.name}</strong>
@@ -720,6 +734,17 @@ export default function OrderDetailPage() {
                 <div>
                   <span className="text-slate-400 block text-[11px] font-semibold">Programa:</span>
                   <strong className="text-slate-900 font-bold">{order.program || 'N/A'}</strong>
+                </div>
+                <div>
+                  <span className="text-purple-700 block text-[11px] font-semibold">Equipo Post:</span>
+                  <strong className="text-purple-950 font-bold block truncate">
+                    {order.postProducer?.name ? `🎬 ${order.postProducer.name}` : 'Sin asignar'}
+                  </strong>
+                  {order.secondaryPostProducer?.name && (
+                    <span className="text-[10px] text-indigo-600 font-semibold block mt-0.5 truncate">
+                      + 🤝 {order.secondaryPostProducer.name} (Apoyo)
+                    </span>
+                  )}
                 </div>
                 <div>
                   <span className="text-emerald-700 block text-[11px] font-bold">Valor Paquete:</span>
@@ -844,9 +869,16 @@ export default function OrderDetailPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-5 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                    <Tv className="w-4 h-4 text-indigo-600" /> Opciones Comerciales / PNTs
-                  </h3>
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                      <Tv className="w-4 h-4 text-indigo-600" /> Opciones Comerciales / PNTs
+                    </h3>
+                    {hasStrategicPnt(sponsorshipParsed) && (
+                      <span className="bg-purple-100 text-purple-900 border border-purple-300 text-[10px] font-black px-2 py-0.5 rounded-full">
+                        🚀 Incluye Estratégico
+                      </span>
+                    )}
+                  </div>
                   {user && ['ADMIN', 'COORDINADOR', 'COORDINADORA', 'SOLICITANTE', 'EJECUTIVA'].includes(user.role) && (
                     <button
                       type="button"
@@ -857,25 +889,65 @@ export default function OrderDetailPage() {
                     </button>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {sponsorshipParsed.length === 0 ? (
-                    <span className="text-xs text-slate-400">Ninguno especificado</span>
-                  ) : (
-                    sponsorshipParsed.map((id: string) => {
-                      const opt = SPONSORSHIP_OPTIONS.find((s) => s.id === id);
-                      return (
-                        <span key={id} className="bg-indigo-50 text-indigo-800 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-indigo-200">
-                          {opt?.label || id}
+
+                {sponsorshipParsed.length === 0 ? (
+                  <p className="text-xs text-slate-400 bg-slate-50 p-3 rounded-xl">Ningún formato especificado</p>
+                ) : (
+                  <div className="space-y-2">
+                    {/* Gráficos */}
+                    {sponsorshipParsed.some((id: string) => !isStrategicPntId(id)) && (
+                      <div>
+                        <span className="text-[10px] font-extrabold uppercase text-slate-400 block mb-1">
+                          🎨 PNT’s Gráficos:
                         </span>
-                      );
-                    })
-                  )}
-                  {order.customSponsorship && (
-                    <span className="bg-purple-50 text-purple-800 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-purple-200">
-                      Otro: {order.customSponsorship}
-                    </span>
-                  )}
-                </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {sponsorshipParsed
+                            .filter((id: string) => !isStrategicPntId(id))
+                            .map((id: string) => {
+                              const opt = SPONSORSHIP_OPTIONS.find((s) => s.id === id);
+                              return (
+                                <span key={id} className="bg-blue-50 text-blue-900 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-blue-200">
+                                  {opt?.label || id}
+                                </span>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Estratégicos */}
+                    {sponsorshipParsed.some((id: string) => isStrategicPntId(id)) && (
+                      <div className="pt-1">
+                        <span className="text-[10px] font-black uppercase text-purple-700 block mb-1 flex items-center gap-1">
+                          🚀 PNT’s Estratégicos (Apoyo multi-editor habilitado):
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {sponsorshipParsed
+                            .filter((id: string) => isStrategicPntId(id))
+                            .map((id: string) => {
+                              const opt = SPONSORSHIP_OPTIONS.find((s) => s.id === id);
+                              return (
+                                <span key={id} className="bg-purple-100 text-purple-950 text-[11px] font-black px-2.5 py-1 rounded-lg border border-purple-300 shadow-2xs">
+                                  ⭐ {opt?.label || id}
+                                </span>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    )}
+
+                    {order.customSponsorship && (
+                      <div className="pt-1">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
+                          Personalizado:
+                        </span>
+                        <span className="bg-purple-50 text-purple-800 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-purple-200 inline-block">
+                          Otro: {order.customSponsorship}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-5 space-y-3">
@@ -1002,26 +1074,59 @@ export default function OrderDetailPage() {
                   </div>
                   <div>
                     <h3 className="font-bold text-xs text-slate-900">Coordinación y Asignación</h3>
-                    <p className="text-[11px] text-slate-500">Asignar editor responsable</p>
+                    <p className="text-[11px] text-slate-500">Asignar editores responsables</p>
                   </div>
                 </div>
 
+                {hasStrategicPnt(sponsorshipParsed) && (
+                  <div className="p-3 bg-purple-50 border border-purple-200 rounded-2xl text-[11px] text-purple-900 space-y-1">
+                    <p className="font-bold flex items-center gap-1">
+                      🚀 <span>PNTs Estratégicos Detectados</span>
+                    </p>
+                    <p className="text-[10px] text-purple-700">
+                      Esta SP incluye formatos estratégicos. Puedes asignar un editor principal (responsable del seguimiento) y un segundo editor adicional de apoyo.
+                    </p>
+                  </div>
+                )}
+
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Post-Productor Asignado:
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
+                      <span>Editor Principal (Seguimiento de SP) *:</span>
+                      <span className="text-[10px] text-purple-700 font-bold">Líder</span>
                     </label>
                     <select
                       value={selectedPostId}
                       onChange={(e) => setSelectedPostId(e.target.value)}
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500"
                     >
-                      <option value="">-- Seleccionar Post-Productor --</option>
+                      <option value="">-- Seleccionar Editor Principal --</option>
                       {postProducers.map((p) => (
                         <option key={p.id} value={p.id}>
                           🎬 {p.name} ({p.phone || 'Sin tel'})
                         </option>
                       ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
+                      <span>Editor Adicional (Formatos Estratégicos / Apoyo):</span>
+                      <span className="text-[10px] text-indigo-600 font-bold">Opcional</span>
+                    </label>
+                    <select
+                      value={selectedSecondaryPostId}
+                      onChange={(e) => setSelectedSecondaryPostId(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="">-- Ninguno (Sin Editor Adicional) --</option>
+                      {postProducers
+                        .filter((p) => p.id !== selectedPostId)
+                        .map((p) => (
+                          <option key={p.id} value={p.id}>
+                            🤝 {p.name} ({p.phone || 'Sin tel'})
+                          </option>
+                        ))}
                     </select>
                   </div>
 
@@ -1044,10 +1149,10 @@ export default function OrderDetailPage() {
                   <button
                     onClick={handleAssign}
                     disabled={actionLoading}
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
                   >
                     <UserCheck className="w-4 h-4" />
-                    {actionLoading ? 'Asignando...' : 'Asignar y Notificar a Post'}
+                    {actionLoading ? 'Asignando...' : 'Asignar y Notificar a Editores'}
                   </button>
                 </div>
               </div>
@@ -1061,9 +1166,10 @@ export default function OrderDetailPage() {
                     🎬
                   </div>
                   <div>
-                    <h3 className="font-bold text-xs text-slate-900">Acciones del Post-Productor</h3>
+                    <h3 className="font-bold text-xs text-slate-900">Acciones de Post-Producción</h3>
                     <p className="text-[11px] text-slate-500">
-                      {order.postProducer?.name ? `Asignado a: ${order.postProducer.name}` : 'Sin asignar'}
+                      {order.postProducer?.name ? `Principal: ${order.postProducer.name}` : 'Sin asignar'}
+                      {order.secondaryPostProducer?.name ? ` • Apoyo: ${order.secondaryPostProducer.name}` : ''}
                     </p>
                   </div>
                 </div>
@@ -1084,7 +1190,7 @@ export default function OrderDetailPage() {
                     <button
                       onClick={handleStartWork}
                       disabled={actionLoading}
-                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-black py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-black py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                     >
                       <Play className="w-4 h-4" />
                       {actionLoading ? 'Registrando recepción...' : 'Confirmar Recepción e Iniciar Edición'}
@@ -1136,7 +1242,7 @@ export default function OrderDetailPage() {
                     <button
                       type="submit"
                       disabled={actionLoading}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
                     >
                       <Sparkles className="w-4 h-4" />
                       {actionLoading ? 'Procesando entrega...' : 'Marcar como Resuelta y Entregar'}
@@ -1260,7 +1366,8 @@ export default function OrderDetailPage() {
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-500">
-                      {order.postProducer?.name ? `Editor: ${order.postProducer.name}` : 'Esperando asignación'}
+                      {order.postProducer?.name ? `Principal: ${order.postProducer.name}` : 'Esperando asignación'}
+                      {order.secondaryPostProducer?.name ? ` • Apoyo: ${order.secondaryPostProducer.name}` : ''}
                     </p>
                     {logAssigned && (
                       <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
@@ -1776,7 +1883,7 @@ export default function OrderDetailPage() {
                 </div>
 
                 {/* 3. OPCIONES COMERCIALES / PNTS & AUSPICIOS */}
-                <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-200 space-y-3">
+                <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-200 space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="font-black text-xs text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
                       📺 3. Opciones Comerciales, Auspicios & PNTs (Selección Múltiple)
@@ -1786,26 +1893,48 @@ export default function OrderDetailPage() {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1">
-                    {SPONSORSHIP_OPTIONS.map((opt) => {
-                      const isChecked = editFormData.sponsorshipTypes.includes(opt.id);
+                  {/* Render Categories: Gráficos vs Estratégicos */}
+                  <div className="space-y-4 max-h-72 overflow-y-auto pr-1">
+                    {SPONSORSHIP_CATEGORIES.map((cat) => {
+                      const selectedCount = cat.options.filter((o) => editFormData.sponsorshipTypes.includes(o.id)).length;
                       return (
-                        <label
-                          key={opt.id}
-                          className={`flex items-center gap-2 p-2 rounded-xl border text-[11px] font-bold cursor-pointer transition-all ${
-                            isChecked
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => handleEditSponsorshipToggle(opt.id)}
-                            className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
-                          />
-                          <span className="truncate">{opt.label}</span>
-                        </label>
+                        <div key={cat.id} className="bg-white/80 p-3 rounded-xl border border-indigo-100 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-black uppercase text-slate-800 flex items-center gap-1.5">
+                              {cat.id === 'ESTRATEGICOS' ? '🚀' : '🎨'} {cat.category}
+                            </span>
+                            {selectedCount > 0 && (
+                              <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.2 rounded-md">
+                                {selectedCount} seleccionada(s)
+                              </span>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                            {cat.options.map((opt) => {
+                              const isChecked = editFormData.sponsorshipTypes.includes(opt.id);
+                              return (
+                                <label
+                                  key={opt.id}
+                                  className={`flex items-center gap-2 p-2 rounded-xl border text-[11px] font-bold cursor-pointer transition-all ${
+                                    isChecked
+                                      ? cat.id === 'ESTRATEGICOS'
+                                        ? 'bg-purple-700 text-white border-purple-700 shadow-sm'
+                                        : 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() => handleEditSponsorshipToggle(opt.id)}
+                                    className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                                  />
+                                  <span className="truncate">{opt.label}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
@@ -1856,6 +1985,55 @@ export default function OrderDetailPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* 5. EQUIPO POST-PRODUCCIÓN (Para Coordinadores / Admins) */}
+                {(user?.role === 'COORDINADOR' || user?.role === 'ADMIN') && (
+                  <div className="bg-purple-50/60 p-4 rounded-2xl border border-purple-200 space-y-3">
+                    <h4 className="font-black text-xs text-purple-950 uppercase tracking-wider flex items-center gap-1.5">
+                      🎬 5. Asignación de Editores (Post-Producción)
+                    </h4>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          Editor Principal (Seguimiento de SP):
+                        </label>
+                        <select
+                          value={editFormData.postProducerId}
+                          onChange={(e) => setEditFormData({ ...editFormData, postProducerId: e.target.value })}
+                          className="w-full p-2.5 bg-white border border-purple-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                        >
+                          <option value="">-- Sin Asignar --</option>
+                          {postProducers.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              🎬 {p.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          Editor Adicional (Formatos Estratégicos / Apoyo):
+                        </label>
+                        <select
+                          value={editFormData.secondaryPostProducerId}
+                          onChange={(e) => setEditFormData({ ...editFormData, secondaryPostProducerId: e.target.value })}
+                          className="w-full p-2.5 bg-white border border-purple-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                        >
+                          <option value="">-- Ninguno --</option>
+                          {postProducers
+                            .filter((p) => p.id !== editFormData.postProducerId)
+                            .map((p) => (
+                              <option key={p.id} value={p.id}>
+                                🤝 {p.name}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Footer Buttons */}
                 <div className="flex items-center justify-end gap-2 pt-2 border-t">
