@@ -411,6 +411,112 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       return NextResponse.json({ success: true, order: updatedOrder, message: 'Fechas actualizadas correctamente' });
     }
 
+    // 8. ACTION: EDIT_ORDER (Full Edit by Executive, Coordinator, Admin)
+    if (action === 'EDIT_ORDER') {
+      const {
+        clientAgency,
+        product,
+        program,
+        materialDeliveryDate,
+        airDate,
+        downloadUrl,
+        materialNotes,
+        hasBrief,
+        sponsorshipTypes,
+        customSponsorship,
+        voiceoverType,
+        voiceoverText,
+        packageValue,
+        priority,
+        executiveId,
+      } = body;
+
+      const parsedPackageValue = packageValue !== undefined && packageValue !== null && packageValue !== ''
+        ? parseFloat(String(packageValue).replace(/[^0-9.]/g, ''))
+        : undefined;
+
+      const updatedSponsorshipTypes = sponsorshipTypes !== undefined
+        ? (Array.isArray(sponsorshipTypes) ? JSON.stringify(sponsorshipTypes) : typeof sponsorshipTypes === 'string' ? sponsorshipTypes : JSON.stringify([]))
+        : undefined;
+
+      updatedOrder = await prisma.productionOrder.update({
+        where: { id },
+        data: {
+          ...(clientAgency !== undefined && { clientAgency: clientAgency.trim() }),
+          ...(product !== undefined && { product: product.trim() }),
+          ...(program !== undefined && { program: program.trim() }),
+          ...(materialDeliveryDate !== undefined && { materialDeliveryDate }),
+          ...(airDate !== undefined && { airDate }),
+          ...(downloadUrl !== undefined && { downloadUrl: downloadUrl ? downloadUrl.trim() : null }),
+          ...(materialNotes !== undefined && { materialNotes }),
+          ...(hasBrief !== undefined && { hasBrief: Boolean(hasBrief) }),
+          ...(updatedSponsorshipTypes !== undefined && { sponsorshipTypes: updatedSponsorshipTypes }),
+          ...(customSponsorship !== undefined && { customSponsorship: customSponsorship.trim() }),
+          ...(voiceoverType !== undefined && { voiceoverType }),
+          ...(voiceoverText !== undefined && { voiceoverText }),
+          ...(parsedPackageValue !== undefined && { packageValue: isNaN(parsedPackageValue) ? 0 : parsedPackageValue }),
+          ...(priority !== undefined && { priority }),
+          ...(executiveId !== undefined && { executiveId: executiveId || null }),
+        },
+        include: {
+          creator: true,
+          executive: true,
+          postProducer: true,
+        },
+      });
+
+      // Track modification in activity log
+      const changesSummary: string[] = [];
+      if (clientAgency && clientAgency !== order.clientAgency) changesSummary.push(`Cliente: "${clientAgency}"`);
+      if (product && product !== order.product) changesSummary.push(`Producto: "${product}"`);
+      if (program !== undefined && program !== order.program) changesSummary.push(`Programa: "${program}"`);
+      if (airDate && airDate !== order.airDate) changesSummary.push(`Fecha al aire: "${airDate}"`);
+      if (sponsorshipTypes !== undefined) changesSummary.push(`Opciones Comerciales / PNTs actualizados`);
+      if (parsedPackageValue !== undefined && parsedPackageValue !== order.packageValue) changesSummary.push(`Valor: $${parsedPackageValue}`);
+      if (downloadUrl !== undefined && downloadUrl !== order.downloadUrl) changesSummary.push(`Link de descarga actualizado`);
+
+      const detailsText = `SP editada por ${user.name} (${user.role}). ${changesSummary.length > 0 ? `Modificaciones: ${changesSummary.join(', ')}` : 'Información general y requerimientos comerciales actualizados.'}`;
+
+      await prisma.activityLog.create({
+        data: {
+          orderId: id,
+          userId: user.id,
+          action: 'SP_MODIFICADA',
+          details: detailsText,
+        },
+      });
+
+      // 🔔 Notify assigned post-producer if assigned
+      if (order.postProducerId && order.postProducerId !== user.id) {
+        await sendNotification({
+          userId: order.postProducerId,
+          orderId: id,
+          type: 'UPDATED',
+          title: `📝 SP Modificada: ${order.orderNumber}`,
+          message: `${user.name} ha editado los datos/requerimientos comerciales de la SP ${order.orderNumber} (${order.product}).`,
+          userPhone: order.postProducer?.phone,
+          userEmail: order.postProducer?.email,
+          orderNumber: order.orderNumber,
+        });
+      }
+
+      // 🔔 Notify executive / creator if coordinator edited
+      if (order.creatorId && order.creatorId !== user.id) {
+        await sendNotification({
+          userId: order.creatorId,
+          orderId: id,
+          type: 'UPDATED',
+          title: `📝 SP Modificada: ${order.orderNumber}`,
+          message: `${user.name} actualizó los datos de tu orden ${order.orderNumber}.`,
+          userPhone: order.creator?.phone,
+          userEmail: order.creator?.email,
+          orderNumber: order.orderNumber,
+        });
+      }
+
+      return NextResponse.json({ success: true, order: updatedOrder, message: 'SP modificada exitosamente' });
+    }
+
     // Generic update
     const {
       clientAgency,

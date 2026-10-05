@@ -1,11 +1,16 @@
 export const SPONSORSHIP_OPTIONS = [
   { id: 'ESPACIO_PUBLICITARIO', label: 'ESPACIO PUBLICITARIO' },
-  { id: 'BILLBOARD_ESTRATEGICO', label: 'BILLBOARD ESTRATEGICO' },
-  { id: 'SOBREIMPOSICION_CREATIVA', label: 'SOBREIMPOSICION CREATIVA' },
+  { id: 'BILLBOARD_ESTRATEGICO', label: 'BILLBOARD ESTRATÉGICO' },
+  { id: 'SOBREIMPOSICION_CREATIVA', label: 'SOBREIMPOSICIÓN CREATIVA' },
   { id: 'ANTIZAPING', label: 'ANTIZAPING IA NOVELA 15H30 GYE SORPRESA DEL DESTINO' },
   { id: 'CAPSULA_ESTRATEGICA', label: 'Cápsula Estratégica 30"' },
   { id: 'AVANCE', label: 'Avance' },
   { id: 'RESUMEN_NOVELA', label: 'Resumen de Novela 22h00' },
+  { id: 'PNT_PRODUCT_PLACEMENT', label: 'PNT / Product Placement' },
+  { id: 'PNT_MENCION_VIVO', label: 'PNT / Mención en Vivo' },
+  { id: 'PNT_PANTALLA_DIVIDIDA', label: 'PNT / Pantalla Dividida' },
+  { id: 'PNT_INTEGRACION', label: 'PNT / Integración de Contenido' },
+  { id: 'CINTILLO_ANIMADO', label: 'Cintillo Animado / Lower Third' },
 ];
 
 export const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
