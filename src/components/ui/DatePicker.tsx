@@ -17,6 +17,7 @@ interface DatePickerProps {
   isUrgent?: boolean;
   placeholder?: string;
   helperText?: string;
+  align?: 'left' | 'right';
 }
 
 const MONTH_NAMES = [
@@ -34,6 +35,7 @@ export default function DatePicker({
   isUrgent = false,
   placeholder = 'Seleccionar fecha en el calendario...',
   helperText,
+  align = 'left',
 }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -157,7 +159,7 @@ export default function DatePicker({
       {/* INTERACTIVE CALENDAR DROPDOWN MODAL */}
       {isOpen && (
         <div
-          className="absolute left-0 mt-2 z-50 bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 w-72 sm:w-80 animate-in fade-in zoom-in-95"
+          className={`absolute ${align === 'right' ? 'right-0 sm:right-0 left-auto' : 'left-0'} mt-2 z-[70] bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 w-72 sm:w-84 animate-in fade-in zoom-in-95`}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header Navigation */}

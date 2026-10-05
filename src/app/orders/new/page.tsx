@@ -402,8 +402,8 @@ function NewOrderForm() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* SECCIÓN 1: INFORMACIÓN GENERAL */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className={`px-6 py-3 border-b flex items-center justify-between ${
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm">
+            <div className={`px-6 py-3 border-b flex items-center justify-between rounded-t-3xl ${
               orderType === 'DEMO' ? 'bg-purple-100 border-purple-200' : 'bg-[#fef08a] border-yellow-300'
             }`}>
               <h2 className={`text-xs font-black uppercase tracking-wider ${
@@ -544,8 +544,8 @@ function NewOrderForm() {
           </div>
 
           {/* SECCIÓN 2: MATERIAL Y FECHAS CRÍTICAS CON CALENDARIO INTERACTIVO */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className={`px-6 py-3 border-b flex items-center justify-between ${
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm">
+            <div className={`px-6 py-3 border-b flex items-center justify-between rounded-t-3xl ${
               orderType === 'DEMO' ? 'bg-purple-100 border-purple-200' : 'bg-[#fef08a] border-yellow-300'
             }`}>
               <h2 className={`text-xs font-black uppercase tracking-wider flex items-center gap-2 ${
@@ -565,6 +565,7 @@ function NewOrderForm() {
                   onChange={(d) => setFormData({ ...formData, materialDeliveryDate: d })}
                   placeholder="Elegir fecha de entrega..."
                   helperText="Fecha en que se reciben los archivos de la agencia."
+                  align="left"
                 />
 
                 {/* DATEPICKER 2: FECHA AL AIRE (OBLIGATORIA) */}
@@ -576,6 +577,7 @@ function NewOrderForm() {
                   isUrgent={orderType !== 'DEMO'}
                   placeholder="Elegir fecha..."
                   helperText={orderType === 'DEMO' ? "Día límite para presentar el DEMO al cliente." : "Día programado para salir al aire en pantalla."}
+                  align="right"
                 />
               </div>
 
@@ -622,8 +624,8 @@ function NewOrderForm() {
           </div>
 
           {/* SECCIÓN 3: TIPO DE AUSPICIO (CATEGORIZADO EN GRÁFICOS Y ESTRATÉGICOS) */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden space-y-4">
-            <div className="bg-ev-rowHeader px-6 py-3 border-b border-indigo-200 text-white flex items-center justify-between">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm space-y-4">
+            <div className="bg-ev-rowHeader px-6 py-3 border-b border-indigo-200 text-white flex items-center justify-between rounded-t-3xl">
               <div className="flex items-center gap-2">
                 <h2 className="text-xs font-black uppercase tracking-wider">
                   3. TIPO DE AUSPICIO / FORMATOS COMERCIALES
@@ -700,8 +702,8 @@ function NewOrderForm() {
           </div>
 
           {/* SECCIÓN 4: LOCUCIÓN */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="bg-ev-rowHeader px-6 py-3 border-b border-indigo-200 text-white flex items-center justify-between">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm">
+            <div className="bg-ev-rowHeader px-6 py-3 border-b border-indigo-200 text-white flex items-center justify-between rounded-t-3xl">
               <h2 className="text-xs font-black uppercase tracking-wider">
                 4. LOCUCIÓN
               </h2>
