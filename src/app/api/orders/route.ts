@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 import { sendNotification } from '@/lib/notifications';
+import { formatInitials } from '@/lib/order-utils';
 
 export async function GET(req: Request) {
   try {
@@ -132,19 +133,37 @@ export async function POST(req: Request) {
       });
     }
 
-    // Default to creator if they are SOLICITANTE or if no target executive
+    // Default to creator if they are SOLICITANTE and no executive is explicitly set
     if (!targetExecutive && user.role === 'SOLICITANTE') {
       targetExecutive = user;
     }
 
-    const effectiveExecutiveId = targetExecutive ? targetExecutive.id : null;
-    const userInitials = (targetExecutive?.initials || user.initials || 'SP').toUpperCase();
+    // If user is coordinator/admin/senior and no executive is set, require it
+    const isUserCoordinator = user.role === 'COORDINADOR' || user.role?.toUpperCase().includes('COORDINAD');
+    if ((isUserCoordinator || user.role === 'ADMIN' || user.role === 'PRODUCTOR_SENIOR') && !targetExecutive) {
+      return NextResponse.json(
+        { error: 'Como perfil de Coordinación o Administración, debes seleccionar a qué Ejecutiva de Ventas pertenece la cuenta.' },
+        { status: 400 }
+      );
+    }
 
-    // 🔢 Consecutive logic per executive prefix (e.g. SP-AR-001, SP-CM-001)
+    const effectiveExecutiveId = targetExecutive ? targetExecutive.id : null;
+    let userInitials = targetExecutive?.initials;
+    if (!userInitials && targetExecutive?.name) {
+      userInitials = formatInitials(targetExecutive.name);
+    }
+    if (!userInitials) {
+      userInitials = user.initials || (user.name ? formatInitials(user.name) : 'SP');
+    }
+    userInitials = userInitials.toUpperCase().trim();
+
+    // 🔢 Consecutive logic per executive prefix (e.g. SP-AR-001, SP-SI-001)
     const lastOrderForExecutive = await prisma.productionOrder.findFirst({
       where: {
         OR: [
-          effectiveExecutiveId ? { executiveId: effectiveExecutiveId } : { creatorId: user.id },
+          effectiveExecutiveId
+            ? { OR: [{ executiveId: effectiveExecutiveId }, { creatorId: effectiveExecutiveId }] }
+            : { creatorId: user.id },
           { orderNumber: { startsWith: `SP-${userInitials}-` } },
         ],
       },
@@ -156,14 +175,8 @@ export async function POST(req: Request) {
     let orderNumber = `SP-${userInitials}-${paddedNumber}`;
 
     // Ensure uniqueness across database
-    const existingWithSameCode = await prisma.productionOrder.findUnique({
-      where: { orderNumber },
-    });
-    if (existingWithSameCode) {
-      const allWithPrefix = await prisma.productionOrder.count({
-        where: { orderNumber: { startsWith: `SP-${userInitials}-` } },
-      });
-      nextConsecutive = allWithPrefix + 1;
+    while (await prisma.productionOrder.findUnique({ where: { orderNumber } })) {
+      nextConsecutive++;
       paddedNumber = String(nextConsecutive).padStart(3, '0');
       orderNumber = `SP-${userInitials}-${paddedNumber}`;
     }

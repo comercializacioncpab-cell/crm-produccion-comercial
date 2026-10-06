@@ -25,7 +25,7 @@ import {
   Link2,
   ExternalLink
 } from 'lucide-react';
-import { SPONSORSHIP_OPTIONS, SPONSORSHIP_CATEGORIES, hasStrategicPnt, hasCobertura } from '@/lib/order-utils';
+import { SPONSORSHIP_OPTIONS, SPONSORSHIP_CATEGORIES, hasStrategicPnt, hasCobertura, formatInitials } from '@/lib/order-utils';
 
 function NewOrderForm() {
   const { user } = useAuth();
@@ -59,11 +59,13 @@ function NewOrderForm() {
 
   const [executives, setExecutives] = useState<any[]>([]);
   const [selectedExecutiveId, setSelectedExecutiveId] = useState('');
+  const [isAssigningForOther, setIsAssigningForOther] = useState(false);
   const [files, setFiles] = useState<{ name: string; size: number; fileObj?: File }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const isCoordinatorOrAdmin = user?.role === 'COORDINADOR' || user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR';
+  const isCoordinator = user?.role === 'COORDINADOR' || Boolean(user?.role?.toUpperCase().includes('COORDINAD'));
+  const isCoordinatorOrAdmin = isCoordinator || user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR';
 
   // Load executives and available demos
   useEffect(() => {
@@ -186,7 +188,7 @@ function NewOrderForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isCoordinatorOrAdmin && !selectedExecutiveId) {
-      setError('Por favor indica de qué Ejecutiva de Ventas es el cliente solicitante.');
+      setError('Por favor selecciona de qué Ejecutiva de Ventas es la cuenta antes de ingresar la SP.');
       return;
     }
     if (!formData.clientAgency || !formData.product) {
@@ -202,9 +204,10 @@ function NewOrderForm() {
     setError('');
 
     try {
+      const resolvedExecutiveId = selectedExecutiveId || user?.id || null;
       const payload = {
         ...formData,
-        executiveId: isCoordinatorOrAdmin ? selectedExecutiveId : (user?.id || null),
+        executiveId: resolvedExecutiveId,
         isDemo: orderType === 'DEMO',
         packageValue: orderType === 'DEMO' ? 0 : formData.packageValue,
         sourceDemoId: (orderType === 'COMMERCIAL' && isFromDemo && sourceDemoId) ? sourceDemoId : null,
@@ -252,9 +255,11 @@ function NewOrderForm() {
   };
 
   const selectedExec = executives.find((e) => e.id === selectedExecutiveId);
-  const activeInitials = (isCoordinatorOrAdmin && selectedExec)
-    ? (selectedExec.initials || 'SP')
-    : (user?.initials || 'SP');
+  const activeInitials = selectedExec
+    ? (selectedExec.initials || formatInitials(selectedExec.name))
+    : (isCoordinatorOrAdmin
+        ? 'EJ'
+        : (user?.initials || (user?.name ? formatInitials(user.name) : 'SP')));
 
   return (
     <AppLayout>
@@ -285,9 +290,15 @@ function NewOrderForm() {
 
           <div className="bg-white/10 px-4 py-2 rounded-2xl border border-white/20 text-right">
             <span className="text-[10px] text-slate-300 block font-semibold">Formato de Nomenclatura:</span>
-            <span className="font-mono font-black text-amber-400 text-sm">
-              SP-{activeInitials}-001...
-            </span>
+            {isCoordinatorOrAdmin && !selectedExec ? (
+              <span className="font-mono font-black text-amber-300 text-xs">
+                SP-[EJECUTIVA]-001...
+              </span>
+            ) : (
+              <span className="font-mono font-black text-amber-400 text-sm">
+                SP-{activeInitials}-001...
+              </span>
+            )}
           </div>
         </div>
 
@@ -436,32 +447,91 @@ function NewOrderForm() {
             <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Coordinator Field: Select which Executive owns the client */}
               {isCoordinatorOrAdmin && (
-                <div className="sm:col-span-2 bg-gradient-to-r from-blue-50 to-indigo-50/60 border border-blue-200 p-4 rounded-2xl space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-xs font-black text-blue-950 flex items-center gap-1.5">
+                <div className="sm:col-span-2 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-400 p-4.5 rounded-2xl space-y-3 shadow-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                    <label className="block text-xs font-black text-blue-950 flex items-center gap-2">
                       <Users className="w-4 h-4 text-blue-600" />
-                      ¿De qué Ejecutiva de Ventas es este Cliente? *
+                      ¿A qué Ejecutiva/o de Ventas pertenece esta Cuenta / Cliente? *
                     </label>
-                    <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2.5 py-0.5 rounded-full border border-blue-200">
-                      Coordinación / Asignación
+                    <span className="text-[10px] font-black text-blue-900 bg-blue-100 px-3 py-1 rounded-full border border-blue-300 w-fit">
+                      Obligatorio para Coordinación
                     </span>
                   </div>
                   <select
                     required
                     value={selectedExecutiveId}
                     onChange={(e) => setSelectedExecutiveId(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-blue-300 bg-white text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3.5 py-3 rounded-xl border-2 border-blue-400 bg-white text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
                   >
-                    <option value="">-- Seleccionar Ejecutiva de Ventas --</option>
+                    <option value="">-- Seleccionar Ejecutiva de Ventas Titular --</option>
                     {executives.map((exec) => (
                       <option key={exec.id} value={exec.id}>
                         👩‍💼 {exec.name} {exec.initials ? `(Iniciales: ${exec.initials})` : ''} {exec.role === 'SOLICITANTE' ? '• Ejecutiva de Ventas' : `• ${exec.role}`}
                       </option>
                     ))}
                   </select>
-                  <p className="text-[11px] text-blue-700 font-medium">
-                    📌 Al seleccionar la ejecutiva, la SP se nombrará con sus iniciales (ej. <strong className="font-mono text-blue-900">SP-{activeInitials}-001</strong>) y quedará registrado que es su cliente en los reportes y trazabilidad.
-                  </p>
+
+                  {selectedExec ? (
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-300 px-3 py-2 rounded-xl font-bold">
+                      <span>✓ Iniciales asignadas a la SP:</span>
+                      <span className="font-mono bg-emerald-200/90 text-emerald-950 px-2.5 py-0.5 rounded-lg font-black text-xs">
+                        SP-{selectedExec.initials || formatInitials(selectedExec.name)}-00X
+                      </span>
+                      <span className="text-[10px] text-emerald-700 font-normal">
+                        (La SP se registrará a nombre de {selectedExec.name} y con sus iniciales, indicando que fue ingresada por {user?.name})
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 px-3 py-2 rounded-xl font-semibold">
+                      ⚠️ Selecciona la ejecutiva: la SP se nombrará automáticamente con las iniciales de la ejecutiva asignada y no las tuyas.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {!isCoordinatorOrAdmin && (
+                <div className="sm:col-span-2">
+                  {!isAssigningForOther ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsAssigningForOther(true)}
+                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      ¿Estás ingresando esta SP en representación de otra ejecutiva? Haz clic aquí para asignarla
+                    </button>
+                  ) : (
+                    <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-2xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <Users className="w-3.5 h-3.5 text-blue-600" />
+                          Seleccionar Ejecutiva de Ventas Titular:
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsAssigningForOther(false);
+                            setSelectedExecutiveId('');
+                          }}
+                          className="text-[11px] text-slate-500 hover:text-slate-700 underline cursor-pointer"
+                        >
+                          Cancelar (Soy yo la titular)
+                        </button>
+                      </div>
+                      <select
+                        value={selectedExecutiveId}
+                        onChange={(e) => setSelectedExecutiveId(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">-- Soy yo ({user?.name}) --</option>
+                        {executives.map((exec) => (
+                          <option key={exec.id} value={exec.id}>
+                            👩‍💼 {exec.name} {exec.initials ? `(Iniciales: ${exec.initials})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
               )}
 
