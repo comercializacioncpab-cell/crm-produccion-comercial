@@ -1275,7 +1275,7 @@ export default function OrderDetailPage() {
                       <option value="">-- Seleccionar Editor Principal --</option>
                       {postProducers.map((p) => (
                         <option key={p.id} value={p.id}>
-                          🎬 {p.name} ({p.phone || 'Sin tel'})
+                          {p.role === 'PRODUCTOR_SENIOR' ? '👑' : '🎬'} {p.name} {p.role === 'PRODUCTOR_SENIOR' ? '(Productor Senior)' : ''} ({p.phone || 'Sin tel'})
                         </option>
                       ))}
                     </select>
@@ -1296,7 +1296,7 @@ export default function OrderDetailPage() {
                         .filter((p) => p.id !== selectedPostId)
                         .map((p) => (
                           <option key={p.id} value={p.id}>
-                            🤝 {p.name} ({p.phone || 'Sin tel'})
+                            {p.role === 'PRODUCTOR_SENIOR' ? '👑' : '🤝'} {p.name} {p.role === 'PRODUCTOR_SENIOR' ? '(Productor Senior)' : ''} ({p.phone || 'Sin tel'})
                           </option>
                         ))}
                     </select>
@@ -2180,7 +2180,7 @@ export default function OrderDetailPage() {
                           <option value="">-- Sin Asignar --</option>
                           {postProducers.map((p) => (
                             <option key={p.id} value={p.id}>
-                              🎬 {p.name}
+                              {p.role === 'PRODUCTOR_SENIOR' ? '👑' : '🎬'} {p.name} {p.role === 'PRODUCTOR_SENIOR' ? '(Productor Senior)' : ''}
                             </option>
                           ))}
                         </select>
@@ -2200,7 +2200,7 @@ export default function OrderDetailPage() {
                             .filter((p) => p.id !== editFormData.postProducerId)
                             .map((p) => (
                               <option key={p.id} value={p.id}>
-                                🤝 {p.name}
+                                {p.role === 'PRODUCTOR_SENIOR' ? '👑' : '🤝'} {p.name} {p.role === 'PRODUCTOR_SENIOR' ? '(Productor Senior)' : ''}
                               </option>
                             ))}
                         </select>

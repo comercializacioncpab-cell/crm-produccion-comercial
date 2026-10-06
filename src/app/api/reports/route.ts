@@ -33,8 +33,8 @@ export async function GET(req: Request) {
     const orderTypeParam = searchParams.get('orderType') || 'ALL'; // 'ALL', 'COMMERCIAL', 'DEMO', 'DEMO_SOLD', 'DEMO_CONVERTED_SALES'
 
     const postProducersList = await prisma.user.findMany({
-      where: { role: 'POST_PRODUCTOR' },
-      select: { id: true, name: true, email: true, phone: true, initials: true },
+      where: { role: { in: ['POST_PRODUCTOR', 'PRODUCTOR_SENIOR'] } },
+      select: { id: true, name: true, email: true, phone: true, initials: true, role: true },
       orderBy: { name: 'asc' },
     });
 

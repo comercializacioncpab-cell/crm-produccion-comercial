@@ -15,7 +15,13 @@ export async function GET(req: Request) {
 
     const where: any = {};
     if (role) {
-      where.role = role;
+      if (role === 'POST_PRODUCTOR') {
+        where.role = { in: ['POST_PRODUCTOR', 'PRODUCTOR_SENIOR'] };
+      } else if (role.includes(',')) {
+        where.role = { in: role.split(',') };
+      } else {
+        where.role = role;
+      }
     }
     if (status) {
       where.status = status;
