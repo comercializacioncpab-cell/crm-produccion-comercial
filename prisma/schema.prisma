@@ -14,7 +14,7 @@ model User {
   email         String            @unique
   password      String
   plainPassword String?           // Contraseña visible para el Administrador
-  role          String            @default("SOLICITANTE") // SOLICITANTE, COORDINADOR, POST_PRODUCTOR, ADMIN
+  role          String            @default("SOLICITANTE") // SOLICITANTE, COORDINADOR, POST_PRODUCTOR, ADMIN, PRODUCTOR_SENIOR, COORDINADOR_PRODUCTOR
   requestedRole String?           // Rol solicitado durante el registro
   status        String            @default("APROBADO")    // PENDIENTE, APROBADO, RECHAZADO
   initials      String            @default("SP")

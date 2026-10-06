@@ -69,7 +69,7 @@ export default function MonthlyReportPage() {
   };
 
   useEffect(() => {
-    if (user && (user.role === 'COORDINADOR' || user.role === 'ADMIN' || user.role === 'PRODUCTOR_SENIOR')) {
+    if (user && (user.role === 'COORDINADOR' || user.role === 'ADMIN' || user.role === 'PRODUCTOR_SENIOR' || user.role === 'COORDINADOR_PRODUCTOR')) {
       fetchReport();
     } else if (user) {
       setError('Acceso restringido: Este reporte está disponible para Coordinadoras, Productores Senior y Administradores.');

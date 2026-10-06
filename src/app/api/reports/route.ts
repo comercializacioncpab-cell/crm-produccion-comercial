@@ -21,7 +21,7 @@ function formatHoursToReadable(hours: number): string {
 export async function GET(req: Request) {
   try {
     const user = await getCurrentUser();
-    if (!user || (user.role !== 'ADMIN' && user.role !== 'PRODUCTOR_SENIOR' && user.role !== 'COORDINADOR')) {
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'PRODUCTOR_SENIOR' && user.role !== 'COORDINADOR' && user.role !== 'COORDINADOR_PRODUCTOR')) {
       return NextResponse.json({ error: 'Acceso restringido: Solo para Coordinación, Productores Senior y Administración' }, { status: 403 });
     }
 
@@ -33,7 +33,7 @@ export async function GET(req: Request) {
     const orderTypeParam = searchParams.get('orderType') || 'ALL'; // 'ALL', 'COMMERCIAL', 'DEMO', 'DEMO_SOLD', 'DEMO_CONVERTED_SALES'
 
     const postProducersList = await prisma.user.findMany({
-      where: { role: { in: ['POST_PRODUCTOR', 'PRODUCTOR_SENIOR'] } },
+      where: { role: { in: ['POST_PRODUCTOR', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'] } },
       select: { id: true, name: true, email: true, phone: true, initials: true, role: true },
       orderBy: { name: 'asc' },
     });

@@ -203,7 +203,7 @@ export async function POST(req: Request) {
         priority,
         creatorId: user.id,
         executiveId: effectiveExecutiveId,
-        coordinatorId: (user.role === 'COORDINADOR' || user.role === 'ADMIN' || user.role === 'PRODUCTOR_SENIOR') ? user.id : null,
+        coordinatorId: (user.role === 'COORDINADOR' || user.role === 'ADMIN' || user.role === 'PRODUCTOR_SENIOR' || user.role === 'COORDINADOR_PRODUCTOR') ? user.id : null,
         isDemo: isDemoOrder,
         demoStatus: isDemoOrder ? 'PENDIENTE_VENTA' : null,
         sourceDemoId: sourceDemoId || null,
@@ -275,7 +275,7 @@ export async function POST(req: Request) {
 
     // 🔔 OBLIGATORY NOTIFICATION TO ALL COORDINATORS AND ADMINS
     const coordinators = await prisma.user.findMany({
-      where: { role: { in: ['COORDINADOR', 'ADMIN'] } },
+      where: { role: { in: ['COORDINADOR', 'COORDINADOR_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR'] } },
     });
 
     const executiveDisplayName = targetExecutive ? targetExecutive.name : user.name;

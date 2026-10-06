@@ -79,7 +79,7 @@ function NewOrderForm() {
         if (usersRes.ok) {
           const data = await usersRes.json();
           const allUsers = data.users || [];
-          const salesUsers = allUsers.filter((u: any) => u.status === 'APROBADO' && (u.role === 'SOLICITANTE' || u.role === 'ADMIN' || u.role === 'PRODUCTOR_SENIOR' || u.role === 'COORDINADOR'));
+          const salesUsers = allUsers.filter((u: any) => u.status === 'APROBADO' && (u.role === 'SOLICITANTE' || u.role === 'ADMIN' || u.role === 'PRODUCTOR_SENIOR' || u.role === 'COORDINADOR' || u.role === 'COORDINADOR_PRODUCTOR'));
           setExecutives(salesUsers);
         }
 

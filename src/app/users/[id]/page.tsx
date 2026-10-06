@@ -422,6 +422,7 @@ export default function UserDetailPage() {
                       >
                         <option value="SOLICITANTE">👩‍💼 Solicitante</option>
                         <option value="COORDINADOR">📋 Coordinadora</option>
+                        <option value="COORDINADOR_PRODUCTOR">🎯 Coordinador/a - Productor</option>
                         <option value="POST_PRODUCTOR">🎬 Post-Productor</option>
                         <option value="PRODUCTOR_SENIOR">👑 Productor Senior</option>
                         <option value="ADMIN">⚡ Administrador</option>

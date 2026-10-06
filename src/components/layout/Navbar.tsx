@@ -68,6 +68,8 @@ export default function Navbar() {
         return { text: 'Post-Productor', bg: 'bg-blue-100 text-blue-700 border-blue-200' };
       case 'PRODUCTOR_SENIOR':
         return { text: '👑 Productor Senior', bg: 'bg-amber-100 text-amber-900 border-amber-300 font-extrabold' };
+      case 'COORDINADOR_PRODUCTOR':
+        return { text: '🎯 Coordinador/a - Productor', bg: 'bg-teal-100 text-teal-800 border-teal-300 font-bold' };
       case 'ADMIN':
         return { text: 'Administrador', bg: 'bg-slate-100 text-slate-700 border-slate-200' };
       default:
@@ -235,7 +237,7 @@ export default function Navbar() {
                       <Layers className="w-4 h-4 text-slate-400" /> Mis Órdenes
                     </Link>
 
-                    {(user.role === 'ADMIN' || user.role === 'PRODUCTOR_SENIOR' || user.role === 'COORDINADOR') && (
+                    {(user.role === 'ADMIN' || user.role === 'PRODUCTOR_SENIOR' || user.role === 'COORDINADOR' || user.role === 'COORDINADOR_PRODUCTOR') && (
                       <Link
                         href="/users"
                         onClick={() => setShowUserMenu(false)}

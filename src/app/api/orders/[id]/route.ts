@@ -251,7 +251,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       });
 
       // 🔔 NOTIFY 2: Coordinadoras
-      const coordinators = await prisma.user.findMany({ where: { role: 'COORDINADOR' } });
+      const coordinators = await prisma.user.findMany({ where: { role: { in: ['COORDINADOR', 'COORDINADOR_PRODUCTOR'] } } });
       for (const coord of coordinators) {
         await sendNotification({
           userId: coord.id,
