@@ -656,8 +656,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
     const user = await getCurrentUser();
-    if (!user || user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Solo los Administradores pueden eliminar solicitudes de producción' }, { status: 403 });
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'PRODUCTOR_SENIOR')) {
+      return NextResponse.json({ error: 'Solo los Administradores y Productores Senior pueden eliminar solicitudes de producción' }, { status: 403 });
     }
 
     const { id } = params;

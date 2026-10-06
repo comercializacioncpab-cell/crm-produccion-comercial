@@ -21,8 +21,8 @@ function formatHoursToReadable(hours: number): string {
 export async function GET(req: Request) {
   try {
     const user = await getCurrentUser();
-    if (!user || (user.role !== 'ADMIN' && user.role !== 'COORDINADOR')) {
-      return NextResponse.json({ error: 'Acceso restringido: Solo para Coordinación y Administración' }, { status: 403 });
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'PRODUCTOR_SENIOR' && user.role !== 'COORDINADOR')) {
+      return NextResponse.json({ error: 'Acceso restringido: Solo para Coordinación, Productores Senior y Administración' }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);

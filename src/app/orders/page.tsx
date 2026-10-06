@@ -196,7 +196,7 @@ function OrdersContent() {
           </span>
         </div>
 
-        {selectedOrderIds.length > 0 && user?.role === 'ADMIN' && (
+        {selectedOrderIds.length > 0 && (user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR') && (
           <button
             onClick={() => setShowBulkDeleteModal(true)}
             className="bg-red-600 hover:bg-red-700 text-white text-xs font-black px-4 py-2 rounded-xl shadow-md transition-all flex items-center gap-1.5 animate-bounce"
@@ -387,7 +387,7 @@ function OrdersContent() {
                             Gestionar <ExternalLink className="w-3 h-3" />
                           </Link>
 
-                          {user?.role === 'ADMIN' && (
+                          {(user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR') && (
                             <button
                               onClick={() => setOrderToDelete(order)}
                               className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 p-1 rounded-lg transition-all inline-flex items-center justify-center"

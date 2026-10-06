@@ -50,3 +50,11 @@ export async function getCurrentUser() {
     return null;
   }
 }
+
+export function isAdminRole(role?: string | null): boolean {
+  return role === 'ADMIN' || role === 'PRODUCTOR_SENIOR';
+}
+
+export function isCoordinatorOrAdminRole(role?: string | null): boolean {
+  return role === 'COORDINADOR' || role === 'ADMIN' || role === 'PRODUCTOR_SENIOR';
+}

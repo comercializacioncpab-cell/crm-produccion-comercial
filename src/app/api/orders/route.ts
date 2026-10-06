@@ -190,7 +190,7 @@ export async function POST(req: Request) {
         priority,
         creatorId: user.id,
         executiveId: effectiveExecutiveId,
-        coordinatorId: (user.role === 'COORDINADOR' || user.role === 'ADMIN') ? user.id : null,
+        coordinatorId: (user.role === 'COORDINADOR' || user.role === 'ADMIN' || user.role === 'PRODUCTOR_SENIOR') ? user.id : null,
         isDemo: isDemoOrder,
         demoStatus: isDemoOrder ? 'PENDIENTE_VENTA' : null,
         sourceDemoId: sourceDemoId || null,

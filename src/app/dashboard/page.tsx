@@ -64,12 +64,13 @@ export default function DashboardPage() {
                 {user?.role === 'SOLICITANTE' && 'Gestiona tus solicitudes de producción publicitaria, sube briefs y revisa el material entregado.'}
                 {user?.role === 'COORDINADOR' && 'Bandeja de recepción general: revisa solicitudes entrantes, asígnalas a post-productores y consulta métricas de productividad.'}
                 {user?.role === 'POST_PRODUCTOR' && 'Aquí tienes tus órdenes asignadas para edición. Sube los masters terminados y avisa a las ejecutivas.'}
+                {user?.role === 'PRODUCTOR_SENIOR' && 'Panel de control maestro de producción comercial, asignaciones, auditoría y métricas de desempeño.'}
                 {user?.role === 'ADMIN' && 'Panel de control maestro de producción comercial, auditoría y métricas de desempeño.'}
               </p>
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              {(user?.role === 'COORDINADOR' || user?.role === 'ADMIN') && (
+              {(user?.role === 'COORDINADOR' || user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR') && (
                 <Link
                   href="/reports"
                   className="bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold px-4 py-3 rounded-2xl text-xs sm:text-sm shadow-sm backdrop-blur-sm transition-all flex items-center gap-2"
@@ -78,7 +79,7 @@ export default function DashboardPage() {
                 </Link>
               )}
 
-              {(user?.role === 'SOLICITANTE' || user?.role === 'COORDINADOR' || user?.role === 'ADMIN') && (
+              {(user?.role === 'SOLICITANTE' || user?.role === 'COORDINADOR' || user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR') && (
                 <Link
                   href="/orders/new"
                   className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-5 py-3 rounded-2xl text-xs sm:text-sm shadow-lg hover:shadow-cyan-500/30 transition-all flex items-center gap-2"

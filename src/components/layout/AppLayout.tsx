@@ -47,56 +47,56 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       name: 'Dashboard General',
       href: '/dashboard',
       icon: LayoutDashboard,
-      roles: ['SOLICITANTE', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN'],
+      roles: ['SOLICITANTE', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR'],
     },
     {
       name: 'Nueva Solicitud (SP)',
       href: '/orders/new',
       icon: FilePlus2,
-      roles: ['SOLICITANTE', 'COORDINADOR', 'ADMIN'],
+      roles: ['SOLICITANTE', 'COORDINADOR', 'ADMIN', 'PRODUCTOR_SENIOR'],
       highlight: true,
     },
     {
       name: 'Todas las Órdenes',
       href: '/orders',
       icon: Layers,
-      roles: ['SOLICITANTE', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN'],
+      roles: ['SOLICITANTE', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR'],
     },
     {
       name: 'Bandeja Coordinación',
       href: '/orders?status=NUEVA',
       icon: Inbox,
-      roles: ['COORDINADOR', 'ADMIN'],
+      roles: ['COORDINADOR', 'ADMIN', 'PRODUCTOR_SENIOR'],
     },
     {
       name: 'Mis Asignaciones',
       href: '/orders?scope=assigned_to_me',
       icon: Clapperboard,
-      roles: ['POST_PRODUCTOR', 'COORDINADOR', 'ADMIN'],
+      roles: ['POST_PRODUCTOR', 'COORDINADOR', 'ADMIN', 'PRODUCTOR_SENIOR'],
     },
     {
       name: 'Equipo y Roles',
       href: '/users',
       icon: Users,
-      roles: ['COORDINADOR', 'ADMIN'],
+      roles: ['COORDINADOR', 'ADMIN', 'PRODUCTOR_SENIOR'],
     },
     {
       name: 'Mi Perfil / Celular',
       href: '/profile',
       icon: User,
-      roles: ['SOLICITANTE', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN'],
+      roles: ['SOLICITANTE', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR'],
     },
     {
       name: 'Ingresos Totales ($)',
       href: '/financial',
       icon: DollarSign,
-      roles: ['ADMIN'],
+      roles: ['ADMIN', 'PRODUCTOR_SENIOR'],
     },
     {
       name: 'Reporte Mensual / Productividad',
       href: '/reports',
       icon: BarChart3,
-      roles: ['COORDINADOR', 'ADMIN'],
+      roles: ['COORDINADOR', 'ADMIN', 'PRODUCTOR_SENIOR'],
     },
   ];
 
@@ -123,6 +123,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       {user.role === 'SOLICITANTE' && '👩‍💼 Ejecutiva de Ventas'}
                       {user.role === 'COORDINADOR' && '📋 Coordinadora de Producción'}
                       {user.role === 'POST_PRODUCTOR' && '🎬 Post-Productor'}
+                      {user.role === 'PRODUCTOR_SENIOR' && '👑 Productor Senior'}
                       {user.role === 'ADMIN' && '⚡ Administrador General'}
                     </span>
                     {user.phone && <p className="text-[10px] text-slate-400 mt-1">📱 {user.phone}</p>}

@@ -5,8 +5,8 @@ import { getCurrentUser } from '@/lib/auth';
 export async function POST(req: Request) {
   try {
     const currentUser = await getCurrentUser();
-    if (!currentUser || currentUser.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Solo los Administradores pueden eliminar órdenes' }, { status: 403 });
+    if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'PRODUCTOR_SENIOR')) {
+      return NextResponse.json({ error: 'Solo los Administradores y Productores Senior pueden eliminar órdenes' }, { status: 403 });
     }
 
     const { orderIds } = await req.json();

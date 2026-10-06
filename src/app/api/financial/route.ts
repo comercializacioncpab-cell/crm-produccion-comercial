@@ -5,8 +5,8 @@ import { getCurrentUser } from '@/lib/auth';
 export async function GET() {
   try {
     const user = await getCurrentUser();
-    if (!user || user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Acceso restringido solo para Administradores' }, { status: 403 });
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'PRODUCTOR_SENIOR')) {
+      return NextResponse.json({ error: 'Acceso restringido solo para Administradores y Productores Senior' }, { status: 403 });
     }
 
     const orders = await prisma.productionOrder.findMany({

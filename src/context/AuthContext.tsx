@@ -7,7 +7,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'SOLICITANTE' | 'COORDINADOR' | 'POST_PRODUCTOR' | 'ADMIN';
+  role: 'SOLICITANTE' | 'COORDINADOR' | 'POST_PRODUCTOR' | 'PRODUCTOR_SENIOR' | 'ADMIN' | string;
   initials: string;
   phone?: string | null;
   avatar?: string | null;

@@ -633,7 +633,7 @@ export default function OrderDetailPage() {
 
           <div className="flex items-center gap-2 flex-wrap">
             {/* Convert Demo to Official Commercial SP Action */}
-            {order.isDemo && order.demoStatus !== 'VENDIDO' && (user?.role === 'COORDINADOR' || user?.role === 'ADMIN' || user?.role === 'SOLICITANTE') && (
+            {order.isDemo && order.demoStatus !== 'VENDIDO' && (user?.role === 'COORDINADOR' || user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR' || user?.role === 'SOLICITANTE') && (
               <Link
                 href={`/orders/new?fromDemoId=${order.id}`}
                 className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-md animate-pulse"
@@ -643,7 +643,7 @@ export default function OrderDetailPage() {
             )}
 
             {/* Edit Full SP Action (Executive, Coordinator, Admin) */}
-            {user && ['ADMIN', 'COORDINADOR', 'COORDINADORA', 'SOLICITANTE', 'EJECUTIVA'].includes(user.role) && (
+            {user && ['ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR', 'COORDINADORA', 'SOLICITANTE', 'EJECUTIVA'].includes(user.role) && (
               <button
                 type="button"
                 onClick={openEditModal}
@@ -715,7 +715,7 @@ export default function OrderDetailPage() {
               </div>
             </div>
 
-            {order.demoStatus !== 'VENDIDO' && (user?.role === 'COORDINADOR' || user?.role === 'ADMIN' || user?.role === 'SOLICITANTE') && (
+            {order.demoStatus !== 'VENDIDO' && (user?.role === 'COORDINADOR' || user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR' || user?.role === 'SOLICITANTE') && (
               <Link
                 href={`/orders/new?fromDemoId=${order.id}`}
                 className="bg-purple-700 hover:bg-purple-800 text-white text-xs font-black px-4 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5"
@@ -772,7 +772,7 @@ export default function OrderDetailPage() {
                   <span className="text-xs font-black uppercase text-yellow-950">
                     INFORMACIÓN GENERAL
                   </span>
-                  {user && ['ADMIN', 'COORDINADOR', 'COORDINADORA', 'SOLICITANTE', 'EJECUTIVA'].includes(user.role) && (
+                  {user && ['ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR', 'COORDINADORA', 'SOLICITANTE', 'EJECUTIVA'].includes(user.role) && (
                     <button
                       type="button"
                       onClick={openEditModal}
@@ -838,7 +838,7 @@ export default function OrderDetailPage() {
                   <span className="text-xs font-bold text-yellow-900">
                     Brief: {order.hasBrief ? 'SI [✓]' : 'NO [ ]'}
                   </span>
-                  {user && ['ADMIN', 'COORDINADOR', 'COORDINADORA', 'SOLICITANTE', 'EJECUTIVA'].includes(user.role) && (
+                  {user && ['ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR', 'COORDINADORA', 'SOLICITANTE', 'EJECUTIVA'].includes(user.role) && (
                     <button
                       onClick={() => {
                         setEditAirDate(order.airDate || '');
@@ -892,7 +892,7 @@ export default function OrderDetailPage() {
                       <span className="text-slate-400 text-[11px] block font-semibold">Fecha de entrega de material:</span>
                       <strong className="text-slate-800 font-bold text-sm">{order.materialDeliveryDate || 'N/A'}</strong>
                     </div>
-                    {user && ['ADMIN', 'COORDINADOR', 'COORDINADORA', 'SOLICITANTE', 'EJECUTIVA'].includes(user.role) && (
+                    {user && ['ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR', 'COORDINADORA', 'SOLICITANTE', 'EJECUTIVA'].includes(user.role) && (
                       <button
                         onClick={() => {
                           setEditAirDate(order.airDate || '');
@@ -912,7 +912,7 @@ export default function OrderDetailPage() {
                       <span className="text-red-600 text-[11px] block font-bold">Fecha al aire:</span>
                       <strong className="text-red-700 font-bold text-sm">{order.airDate || 'Por definir'}</strong>
                     </div>
-                    {user && ['ADMIN', 'COORDINADOR', 'COORDINADORA', 'SOLICITANTE', 'EJECUTIVA'].includes(user.role) && (
+                    {user && ['ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR', 'COORDINADORA', 'SOLICITANTE', 'EJECUTIVA'].includes(user.role) && (
                       <button
                         onClick={() => {
                           setEditAirDate(order.airDate || '');
@@ -957,7 +957,7 @@ export default function OrderDetailPage() {
                       </span>
                     )}
                   </div>
-                  {user && ['ADMIN', 'COORDINADOR', 'COORDINADORA', 'SOLICITANTE', 'EJECUTIVA'].includes(user.role) && (
+                  {user && ['ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR', 'COORDINADORA', 'SOLICITANTE', 'EJECUTIVA'].includes(user.role) && (
                     <button
                       type="button"
                       onClick={openEditModal}
@@ -1054,7 +1054,7 @@ export default function OrderDetailPage() {
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
                     <Radio className="w-4 h-4 text-cyan-600" /> Locución ({order.voiceoverType})
                   </h3>
-                  {user && ['ADMIN', 'COORDINADOR', 'COORDINADORA', 'SOLICITANTE', 'EJECUTIVA'].includes(user.role) && (
+                  {user && ['ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR', 'COORDINADORA', 'SOLICITANTE', 'EJECUTIVA'].includes(user.role) && (
                     <button
                       type="button"
                       onClick={openEditModal}
@@ -1237,8 +1237,8 @@ export default function OrderDetailPage() {
 
           {/* Right Action & Activity Column (1 col) */}
           <div className="space-y-6">
-            {/* PANEL 1: ASIGNACIÓN A POST-PRODUCTOR (Coordinador / Admin) */}
-            {(user?.role === 'COORDINADOR' || user?.role === 'ADMIN') && (
+            {/* PANEL 1: ASIGNACIÓN A POST-PRODUCTOR (Coordinador / Admin / Productor Senior) */}
+            {(user?.role === 'COORDINADOR' || user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR') && (
               <div className="bg-white rounded-3xl border border-purple-200 p-5 shadow-sm space-y-4">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
@@ -1331,7 +1331,7 @@ export default function OrderDetailPage() {
             )}
 
             {/* PANEL 2: POST-PRODUCTOR ACCIONES (Recepción y Entrega) */}
-            {(user?.role === 'POST_PRODUCTOR' || user?.role === 'ADMIN') && (
+            {(user?.role === 'POST_PRODUCTOR' || user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR') && (
               <div className="bg-white rounded-3xl border border-blue-200 p-5 shadow-sm space-y-4">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
@@ -1371,7 +1371,7 @@ export default function OrderDetailPage() {
                 )}
 
                 {/* Sub-Action B: Formulario de Entrega Final de Post */}
-                {(order.status === 'EN_PROCESO' || order.status === 'CON_CAMBIOS' || order.status === 'ASIGNADA' || user?.role === 'ADMIN') && (
+                {(order.status === 'EN_PROCESO' || order.status === 'CON_CAMBIOS' || order.status === 'ASIGNADA' || user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR') && (
                   <form onSubmit={handleResolveDelivery} className="space-y-3 pt-1">
                     <span className="text-[11px] font-bold text-slate-700 block">
                       Subir Video / Master Resuelto:
@@ -1424,8 +1424,8 @@ export default function OrderDetailPage() {
               </div>
             )}
 
-            {/* PANEL 3: APROBACIÓN Y REVISIÓN (Solicitante / Coordinadora / Admin) */}
-            {(user?.role === 'SOLICITANTE' || user?.role === 'COORDINADOR' || user?.role === 'ADMIN') && (
+            {/* PANEL 3: APROBACIÓN Y REVISIÓN (Solicitante / Coordinadora / Admin / Productor Senior) */}
+            {(user?.role === 'SOLICITANTE' || user?.role === 'COORDINADOR' || user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR') && (
               <div className="bg-white rounded-3xl border border-emerald-200 p-5 shadow-sm space-y-4">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
@@ -2161,7 +2161,7 @@ export default function OrderDetailPage() {
                 </div>
 
                 {/* 5. EQUIPO POST-PRODUCCIÓN (Para Coordinadores / Admins) */}
-                {(user?.role === 'COORDINADOR' || user?.role === 'ADMIN') && (
+                {(user?.role === 'COORDINADOR' || user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR') && (
                   <div className="bg-purple-50/60 p-4 rounded-2xl border border-purple-200 space-y-3">
                     <h4 className="font-black text-xs text-purple-950 uppercase tracking-wider flex items-center gap-1.5">
                       🎬 5. Asignación de Editores (Post-Producción)

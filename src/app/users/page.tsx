@@ -545,11 +545,14 @@ export default function UsersPage() {
                               ? 'bg-purple-50 text-purple-700 border-purple-200'
                               : u.role === 'POST_PRODUCTOR'
                               ? 'bg-blue-50 text-blue-700 border-blue-200'
+                              : u.role === 'PRODUCTOR_SENIOR'
+                              ? 'bg-amber-50 text-amber-900 border-amber-300'
                               : 'bg-slate-100 text-slate-800 border-slate-300'
                           }`}>
                             {u.role === 'SOLICITANTE' && '👩‍💼 Ejecutiva'}
                             {u.role === 'COORDINADOR' && '📋 Coordinadora'}
                             {u.role === 'POST_PRODUCTOR' && '🎬 Post-Productor'}
+                            {u.role === 'PRODUCTOR_SENIOR' && '👑 Productor Senior'}
                             {u.role === 'ADMIN' && '⚡ Administrador'}
                           </span>
                         </td>
@@ -795,6 +798,7 @@ export default function UsersPage() {
                       <option value="SOLICITANTE">👩‍💼 Solicitante (Ejecutiva)</option>
                       <option value="COORDINADOR">📋 Coordinadora</option>
                       <option value="POST_PRODUCTOR">🎬 Post-Productor</option>
+                      <option value="PRODUCTOR_SENIOR">👑 Productor Senior</option>
                       <option value="ADMIN">⚡ Administrador</option>
                     </select>
                   </div>

@@ -63,7 +63,7 @@ function NewOrderForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const isCoordinatorOrAdmin = user?.role === 'COORDINADOR' || user?.role === 'ADMIN';
+  const isCoordinatorOrAdmin = user?.role === 'COORDINADOR' || user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR';
 
   // Load executives and available demos
   useEffect(() => {
@@ -77,7 +77,7 @@ function NewOrderForm() {
         if (usersRes.ok) {
           const data = await usersRes.json();
           const allUsers = data.users || [];
-          const salesUsers = allUsers.filter((u: any) => u.status === 'APROBADO' && (u.role === 'SOLICITANTE' || u.role === 'ADMIN' || u.role === 'COORDINADOR'));
+          const salesUsers = allUsers.filter((u: any) => u.status === 'APROBADO' && (u.role === 'SOLICITANTE' || u.role === 'ADMIN' || u.role === 'PRODUCTOR_SENIOR' || u.role === 'COORDINADOR'));
           setExecutives(salesUsers);
         }
 

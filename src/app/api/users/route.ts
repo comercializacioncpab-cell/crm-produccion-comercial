@@ -21,7 +21,7 @@ export async function GET(req: Request) {
       where.status = status;
     }
 
-    const isAdmin = user.role === 'ADMIN';
+    const isAdmin = user.role === 'ADMIN' || user.role === 'PRODUCTOR_SENIOR';
 
     const users = await prisma.user.findMany({
       where,

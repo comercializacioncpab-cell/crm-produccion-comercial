@@ -39,9 +39,12 @@ export async function POST(req: Request) {
       },
     });
 
-    // Notify Admins
+    // Notify Admins and Productor Senior
     const admins = await prisma.user.findMany({
-      where: { role: 'ADMIN' },
+      where: {
+        role: { in: ['ADMIN', 'PRODUCTOR_SENIOR'] },
+        status: 'APROBADO',
+      },
     });
 
     for (const admin of admins) {

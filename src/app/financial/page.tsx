@@ -56,10 +56,10 @@ export default function FinancialDashboardPage() {
       }
     }
 
-    if (user && user.role === 'ADMIN') {
+    if (user && (user.role === 'ADMIN' || user.role === 'PRODUCTOR_SENIOR')) {
       loadStats();
-    } else if (user && user.role !== 'ADMIN') {
-      setError('Acceso restringido: Esta sección es exclusiva para el Administrador General.');
+    } else if (user && user.role !== 'ADMIN' && user.role !== 'PRODUCTOR_SENIOR') {
+      setError('Acceso restringido: Esta sección es exclusiva para Administradores y Productores Senior.');
       setLoading(false);
     }
   }, [user]);

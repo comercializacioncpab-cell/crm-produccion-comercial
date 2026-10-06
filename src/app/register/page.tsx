@@ -155,6 +155,7 @@ export default function RegisterPage() {
                 <option value="SOLICITANTE">👩‍💼 Ejecutiva de Ventas (Crea SPs y aprueba)</option>
                 <option value="COORDINADOR">📋 Coordinadora de Producción (Asigna y supervisa)</option>
                 <option value="POST_PRODUCTOR">🎬 Post-Productor (Edita y sube entregables)</option>
+                <option value="PRODUCTOR_SENIOR">👑 Productor Senior (Control total y supervisión)</option>
                 <option value="ADMIN">⚡ Administrador General</option>
               </select>
             </div>

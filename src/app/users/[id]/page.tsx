@@ -26,7 +26,7 @@ import {
   Copy,
   MessageCircle
 } from 'lucide-react';
-import { STATUS_CONFIG, PRIORITY_CONFIG } from '@/lib/order-utils';
+import { STATUS_CONFIG, PRIORITY_CONFIG, isAdminRole } from '@/lib/order-utils';
 
 export default function UserDetailPage() {
   const { user: currentUser } = useAuth();
@@ -282,7 +282,7 @@ export default function UserDetailPage() {
             </div>
           </div>
 
-          {currentUser?.role === 'ADMIN' && !isSelf && (
+          {isAdminRole(currentUser?.role) && !isSelf && (
             <button
               onClick={() => setShowDeleteModal(true)}
               className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5"
@@ -342,7 +342,7 @@ export default function UserDetailPage() {
               )}
 
               {/* Edit User Information Form */}
-              {currentUser?.role === 'ADMIN' && (
+              {isAdminRole(currentUser?.role) && (
                 <form onSubmit={handleUpdateProfile} className="space-y-3 pt-2">
                   <div className="flex items-center justify-between pb-1 border-b border-slate-100">
                     <span className="text-[11px] font-black uppercase text-slate-700">
@@ -423,6 +423,7 @@ export default function UserDetailPage() {
                         <option value="SOLICITANTE">👩‍💼 Solicitante</option>
                         <option value="COORDINADOR">📋 Coordinadora</option>
                         <option value="POST_PRODUCTOR">🎬 Post-Productor</option>
+                        <option value="PRODUCTOR_SENIOR">👑 Productor Senior</option>
                         <option value="ADMIN">⚡ Administrador</option>
                       </select>
                     </div>
@@ -456,7 +457,7 @@ export default function UserDetailPage() {
             </div>
 
               {/* Admin Password View & WhatsApp Widget */}
-              {currentUser?.role === 'ADMIN' && (
+              {isAdminRole(currentUser?.role) && (
                 <div className="bg-slate-50 border border-slate-200 rounded-3xl p-5 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -506,7 +507,7 @@ export default function UserDetailPage() {
               )}
 
               {/* Admin Password Reset Widget */}
-              {currentUser?.role === 'ADMIN' && (
+              {isAdminRole(currentUser?.role) && (
                 <div className="bg-white rounded-3xl border border-blue-200 p-6 shadow-sm space-y-3">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">

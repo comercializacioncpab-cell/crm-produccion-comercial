@@ -40,7 +40,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     return NextResponse.json({
       user: {
         ...safeUser,
-        plainPassword: user.role === 'ADMIN' ? (plainPassword || null) : undefined,
+        plainPassword: (user.role === 'ADMIN' || user.role === 'PRODUCTOR_SENIOR') ? (plainPassword || null) : undefined,
       },
     });
   } catch (error) {
@@ -52,8 +52,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
     const currentUser = await getCurrentUser();
-    if (!currentUser || currentUser.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Solo los Administradores pueden gestionar usuarios y contraseñas' }, { status: 403 });
+    if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'PRODUCTOR_SENIOR')) {
+      return NextResponse.json({ error: 'Solo los Administradores y Productores Senior pueden gestionar usuarios y contraseñas' }, { status: 403 });
     }
 
     const { id } = params;
@@ -185,14 +185,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
     const currentUser = await getCurrentUser();
-    if (!currentUser || currentUser.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Solo los Administradores pueden eliminar usuarios' }, { status: 403 });
+    if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'PRODUCTOR_SENIOR')) {
+      return NextResponse.json({ error: 'Solo los Administradores y Productores Senior pueden eliminar usuarios' }, { status: 403 });
     }
 
     const { id } = params;
 
     if (id === currentUser.id) {
-      return NextResponse.json({ error: 'No puedes eliminar tu propia cuenta de Administrador' }, { status: 400 });
+      return NextResponse.json({ error: 'No puedes eliminar tu propia cuenta' }, { status: 400 });
     }
 
     const targetUser = await prisma.user.findUnique({ where: { id } });
