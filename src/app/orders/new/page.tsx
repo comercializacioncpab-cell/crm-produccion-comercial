@@ -345,10 +345,14 @@ function NewOrderForm() {
         )}
 
         {/* SELECTOR DE VINCULACIÓN A DEMO PREVIO (EN MODO COMERCIAL) */}
-        {orderType === 'COMMERCIAL' && !fromDemoId && availableDemos.length > 0 && (
-          <div className="bg-indigo-50/70 border border-indigo-200 p-4 rounded-2xl space-y-2 text-xs">
+        {orderType === 'COMMERCIAL' && !fromDemoId && (
+          <div className={`p-4 rounded-2xl border transition-all text-xs ${
+            isFromDemo 
+              ? 'bg-emerald-50/90 border-emerald-300 ring-2 ring-emerald-500/20' 
+              : 'bg-indigo-50/70 border-indigo-200'
+          }`}>
             <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 font-bold text-indigo-950 cursor-pointer">
+              <label className="flex items-center gap-2 font-bold text-slate-900 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={isFromDemo}
@@ -359,34 +363,42 @@ function NewOrderForm() {
                       setSourceDemoInfo(null);
                     }
                   }}
-                  className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer"
+                  className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
                 />
-                <span>🎯 ¿Esta orden de venta proviene de un DEMO previo que se logró comercializar?</span>
+                <span className="flex items-center gap-1.5">
+                  🧪 <strong>¿Esta nueva SP proviene de un DEMO previo que se logró comercializar / vender?</strong>
+                </span>
               </label>
-              <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full">
-                Métrica de Conversión
+              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                Conversión de DEMO
               </span>
             </div>
 
             {isFromDemo && (
-              <div className="pt-2 space-y-1">
-                <label className="block text-[11px] font-bold text-indigo-900">
-                  Selecciona el DEMO original a convertir en Venta:
+              <div className="pt-3 space-y-2">
+                <label className="block text-[11px] font-bold text-slate-800">
+                  Selecciona el DEMO original que cerró esta venta:
                 </label>
-                <select
-                  value={sourceDemoId}
-                  onChange={(e) => handleSelectDemoToConvert(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-indigo-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">-- Seleccionar DEMO disponible --</option>
-                  {availableDemos.map((demo) => (
-                    <option key={demo.id} value={demo.id}>
-                      🧪 {demo.orderNumber} • {demo.clientAgency} ({demo.product})
-                    </option>
-                  ))}
-                </select>
-                <p className="text-[11px] text-indigo-700">
-                  Al asociarlo, el DEMO original quedará registrado como <strong>VENDIDO</strong> y se sumará a los reportes de efectividad comercial.
+                {availableDemos.length === 0 ? (
+                  <div className="p-3 bg-white rounded-xl border border-amber-200 text-amber-800 text-[11px]">
+                    ⚠️ No hay solicitudes de DEMO pendientes de venta registradas actualmente en el sistema.
+                  </div>
+                ) : (
+                  <select
+                    value={sourceDemoId}
+                    onChange={(e) => handleSelectDemoToConvert(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-white border border-emerald-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+                  >
+                    <option value="">-- Seleccionar DEMO disponible --</option>
+                    {availableDemos.map((demo) => (
+                      <option key={demo.id} value={demo.id}>
+                        🧪 {demo.orderNumber} • {demo.clientAgency} - {demo.product} ({demo.program || 'Sin programa'})
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <p className="text-[11px] text-slate-600">
+                  Al asociarlo, los datos del cliente se autocompletarán, el DEMO original quedará registrado como <strong>VENDIDO</strong> y se sumará a los reportes de ingresos y efectividad comercial.
                 </p>
               </div>
             )}
