@@ -89,6 +89,7 @@ export default function OrderDetailPage() {
 
   // Full SP Edit States
   const [showEditModal, setShowEditModal] = useState(false);
+  const [executives, setExecutives] = useState<any[]>([]);
   const [editFormData, setEditFormData] = useState({
     clientAgency: '',
     product: '',
@@ -106,6 +107,7 @@ export default function OrderDetailPage() {
     packageValue: '',
     postProducerId: '',
     secondaryPostProducerId: '',
+    executiveId: '',
   });
 
   const fetchOrder = async () => {
@@ -145,9 +147,26 @@ export default function OrderDetailPage() {
     }
   };
 
+  const fetchExecutives = async () => {
+    try {
+      const res = await fetch('/api/users');
+      if (res.ok) {
+        const data = await res.json();
+        const allUsers = data.users || [];
+        const salesUsers = allUsers.filter(
+          (u: any) => u.status === 'APROBADO' && (u.role === 'SOLICITANTE' || u.role === 'ADMIN' || u.role === 'PRODUCTOR_SENIOR' || u.role === 'COORDINADOR')
+        );
+        setExecutives(salesUsers);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
     fetchOrder();
     fetchPostProducers();
+    fetchExecutives();
   }, [orderId]);
 
   // Handle Assign Post-Producer (Coordinator / Admin)
@@ -446,6 +465,7 @@ export default function OrderDetailPage() {
       packageValue: order.packageValue !== null && order.packageValue !== undefined ? String(order.packageValue) : '',
       postProducerId: order.postProducerId || '',
       secondaryPostProducerId: order.secondaryPostProducerId || '',
+      executiveId: order.executiveId || order.creatorId || '',
     });
     setShowEditModal(true);
   };
@@ -1930,6 +1950,25 @@ export default function OrderDetailPage() {
                         className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none"
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
+                      <span>👩‍💼 Ejecutiva / Solicitante de la Cuenta (Titular)</span>
+                      <span className="text-[10px] text-slate-400 font-normal">Reasigna a quién pertenece este cliente/SP</span>
+                    </label>
+                    <select
+                      value={editFormData.executiveId}
+                      onChange={(e) => setEditFormData({ ...editFormData, executiveId: e.target.value })}
+                      className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    >
+                      <option value="">-- Sin Ejecutiva Asignada (Usar creador original) --</option>
+                      {executives.map((exec) => (
+                        <option key={exec.id} value={exec.id}>
+                          {exec.name} ({exec.role})
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

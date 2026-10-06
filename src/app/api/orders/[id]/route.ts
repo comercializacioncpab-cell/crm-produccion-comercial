@@ -543,9 +543,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       if (program !== undefined && program !== order.program) changesSummary.push(`Programa: "${program}"`);
       if (airDate && airDate !== order.airDate) changesSummary.push(`Fecha al aire: "${airDate}"`);
       if (sponsorshipTypes !== undefined) changesSummary.push(`Opciones Comerciales / PNTs actualizados`);
-      if (parsedPackageValue !== undefined && parsedPackageValue !== order.packageValue) changesSummary.push(`Valor: $${parsedPackageValue}`);
-      if (downloadUrl !== undefined && downloadUrl !== order.downloadUrl) changesSummary.push(`Link de descarga actualizado`);
       if (secondaryPostProducerId !== undefined && secondaryPostProducerId !== order.secondaryPostProducerId) changesSummary.push(`Editor Adicional asignado/modificado`);
+      if (executiveId !== undefined && executiveId !== order.executiveId) changesSummary.push(`Ejecutiva/Solicitante reasignada`);
 
       const detailsText = `SP editada por ${user.name} (${user.role}). ${changesSummary.length > 0 ? `Modificaciones: ${changesSummary.join(', ')}` : 'Información general y requerimientos comerciales actualizados.'}`;
 
