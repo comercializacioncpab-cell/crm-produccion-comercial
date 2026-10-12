@@ -25,7 +25,7 @@ import {
   Link2,
   ExternalLink
 } from 'lucide-react';
-import { SPONSORSHIP_OPTIONS, SPONSORSHIP_CATEGORIES, hasStrategicPnt, hasCobertura, formatInitials } from '@/lib/order-utils';
+import { SPONSORSHIP_OPTIONS, SPONSORSHIP_CATEGORIES, hasStrategicPnt, hasCobertura, formatInitials, SP_TEMPLATES } from '@/lib/order-utils';
 
 function NewOrderForm() {
   const { user } = useAuth();
@@ -35,6 +35,7 @@ function NewOrderForm() {
 
   // Modalidad: COMMERCIAL o DEMO
   const [orderType, setOrderType] = useState<'COMMERCIAL' | 'DEMO'>('COMMERCIAL');
+  const [appliedTemplateName, setAppliedTemplateName] = useState<string | null>(null);
   const [isFromDemo, setIsFromDemo] = useState(false);
   const [sourceDemoId, setSourceDemoId] = useState(fromDemoId || '');
   const [sourceDemoInfo, setSourceDemoInfo] = useState<any>(null);
@@ -254,6 +255,27 @@ function NewOrderForm() {
     }
   };
 
+  const handleApplyTemplate = (tpl: any) => {
+    setAppliedTemplateName(tpl.title);
+    if (tpl.id === 'demo_preventa') {
+      setOrderType('DEMO');
+    }
+    setFormData((prev) => ({
+      ...prev,
+      product: tpl.defaults.product || prev.product,
+      voiceoverType: tpl.defaults.voiceoverType || prev.voiceoverType,
+      priority: tpl.defaults.priority || prev.priority,
+      materialNotes: tpl.defaults.materialNotes
+        ? prev.materialNotes
+          ? `${prev.materialNotes}\n${tpl.defaults.materialNotes}`
+          : tpl.defaults.materialNotes
+        : prev.materialNotes,
+      sponsorshipTypes: tpl.defaults.sponsorshipTypes?.length
+        ? tpl.defaults.sponsorshipTypes
+        : prev.sponsorshipTypes,
+    }));
+  };
+
   const selectedExec = executives.find((e) => e.id === selectedExecutiveId);
   const activeInitials = selectedExec
     ? (selectedExec.initials || formatInitials(selectedExec.name))
@@ -335,6 +357,47 @@ function NewOrderForm() {
             <FlaskConical className="w-4 h-4 text-purple-300" />
             <span>🧪 Solicitud de DEMO / Piloto (Costo $0 USD)</span>
           </button>
+        </div>
+
+        {/* ⚡ JOB TEMPLATES / PLANTILLAS RÁPIDAS DE PRODUCCIÓN (Workamajig Feature) */}
+        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 p-4 sm:p-5 rounded-3xl border border-slate-700 text-white space-y-3 shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> Plantillas Rápidas de Producción (Job Templates)
+            </span>
+            {appliedTemplateName && (
+              <span className="text-[10px] font-bold bg-cyan-500/20 text-cyan-300 px-2.5 py-0.5 rounded-full border border-cyan-500/40 animate-pulse">
+                ✨ Aplicada: {appliedTemplateName}
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-slate-300">
+            Haz clic en un formato típico para auto-completar requerimientos de pauta, especificaciones técnicas y tipo de locución:
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1">
+            {SP_TEMPLATES.map((tpl) => {
+              const isSelected = appliedTemplateName === tpl.title;
+              return (
+                <button
+                  key={tpl.id}
+                  type="button"
+                  onClick={() => handleApplyTemplate(tpl)}
+                  className={`p-3 rounded-2xl text-left transition-all cursor-pointer border ${
+                    isSelected
+                      ? 'bg-cyan-500/20 border-cyan-400 ring-1 ring-cyan-400/50'
+                      : 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-slate-500'
+                  }`}
+                >
+                  <span className="text-xs font-black block text-white truncate">
+                    {tpl.title}
+                  </span>
+                  <span className="text-[10px] text-slate-400 block line-clamp-2 mt-1 leading-tight">
+                    {tpl.description}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* BANNER SI ESTÁ CONVIRTIENDO UN DEMO EN VENTA */}

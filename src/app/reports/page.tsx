@@ -357,6 +357,69 @@ export default function MonthlyReportPage() {
           </div>
         </div>
 
+        {/* ⏱️ MÉTRICAS WORKAMAJIG DE SLA & APROBACIÓN EN 1ER CORTE */}
+        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 rounded-3xl border border-indigo-900/40 text-white space-y-4 shadow-xl">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                Métricas de Eficiencia & SLA
+              </span>
+              <h3 className="text-lg font-black tracking-tight mt-1 flex items-center gap-2 text-white">
+                ⏱️ Tiempos de Ciclo SLA & Aprobación en 1er Corte
+              </h3>
+              <p className="text-xs text-slate-300">
+                Control de tiempos de respuesta por etapa operativa y porcentaje de comerciales aprobados sin solicitar ajustes.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-2">
+            {/* SLA 1: Tiempo de Asignación */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
+              <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide block">
+                ⏱️ Tiempo de Asignación
+              </span>
+              <p className="text-2xl font-black text-cyan-400 font-mono mt-1">
+                {data.avgAssignmentHours !== undefined && data.avgAssignmentHours !== null ? `${data.avgAssignmentHours} hrs` : 'N/A'}
+              </p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Desde creación de SP hasta asignación a editor</p>
+            </div>
+
+            {/* SLA 2: Tiempo de Edición */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
+              <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide block">
+                🎬 Tiempo de Edición (SLA)
+              </span>
+              <p className="text-2xl font-black text-emerald-400 font-mono mt-1">
+                {data.avgResolutionHours !== undefined && data.avgResolutionHours !== null ? `${data.avgResolutionHours} hrs` : data.avgResolutionTimeFormatted || 'N/A'}
+              </p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Desde asignación hasta primer corte resuelto</p>
+            </div>
+
+            {/* SLA 3: Tiempo de Aprobación */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
+              <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide block">
+                🤝 Tiempo de Aprobación
+              </span>
+              <p className="text-2xl font-black text-amber-400 font-mono mt-1">
+                {data.avgApprovalHours !== undefined && data.avgApprovalHours !== null ? `${data.avgApprovalHours} hrs` : 'N/A'}
+              </p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Desde entrega hasta visto bueno de cliente</p>
+            </div>
+
+            {/* SLA 4: First-Pass Approval */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
+              <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide block">
+                🎯 Aprobación en 1er Corte
+              </span>
+              <p className="text-2xl font-black text-purple-400 font-mono mt-1">
+                {data.firstPassApprovalRate !== undefined && data.firstPassApprovalRate !== null ? `${data.firstPassApprovalRate}%` : 'N/A'}
+              </p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Piezas aprobadas en V1 sin solicitar cambios</p>
+            </div>
+          </div>
+        </div>
+
         {/* 🧪 PANEL DE CONVERSIÓN Y DESEMPEÑO DE DEMOS ($0 USD → VENTAS) */}
         <div className="bg-gradient-to-br from-purple-900 via-indigo-950 to-slate-900 rounded-3xl p-6 text-white shadow-lg border border-purple-800/40 space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">

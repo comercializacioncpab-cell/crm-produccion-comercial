@@ -23,7 +23,17 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 });
     }
 
-    const formData = await req.formData();
+    let formData: FormData;
+    try {
+      formData = await req.formData();
+    } catch (parseError: any) {
+      console.error('Error parsing multipart formData:', parseError);
+      return NextResponse.json(
+        { error: 'El archivo excede el tamaño máximo permitido por el servidor web o la conexión se interrumpió. Para videos master o renders pesados, por favor utiliza un enlace en la nube (Drive/WeTransfer/Frame.io).' },
+        { status: 413 }
+      );
+    }
+
     const file = formData.get('file') as File | null;
     const fileType = (formData.get('fileType') as string) || 'INPUT_ASSET';
     const notes = (formData.get('notes') as string) || '';
@@ -35,26 +45,60 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     let fileMime = 'application/octet-stream';
 
     if (file && typeof file === 'object' && 'arrayBuffer' in file) {
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-
       fileName = file.name;
-      fileSize = file.size;
+      fileSize = Math.round(Number(file.size)) || 0;
       fileMime = file.type || 'application/octet-stream';
 
-      // Create uploads directory
-      const uploadDir = path.join(process.cwd(), 'public', 'uploads', `sp-${order.orderNumber}`);
-      await mkdir(uploadDir, { recursive: true });
+      // Check max size limit for direct upload (15MB)
+      const MAX_DIRECT_UPLOAD_BYTES = 15 * 1024 * 1024;
+      if (fileSize > MAX_DIRECT_UPLOAD_BYTES) {
+        return NextResponse.json(
+          {
+            error: `El archivo "${fileName}" (${(fileSize / (1024 * 1024)).toFixed(1)} MB) excede el límite de subida directa (15 MB). Por favor pega un enlace en la nube (Google Drive, WeTransfer o Frame.io).`,
+          },
+          { status: 413 }
+        );
+      }
 
-      const safeName = `${Date.now()}_${fileName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-      const fullPath = path.join(uploadDir, safeName);
-      await writeFile(fullPath, buffer);
+      try {
+        const bytes = await file.arrayBuffer();
+        const buffer = Buffer.from(bytes);
 
-      savedFilePath = `/uploads/sp-${order.orderNumber}/${safeName}`;
+        // Create uploads directory
+        const uploadDir = path.join(process.cwd(), 'public', 'uploads', `sp-${order.orderNumber}`);
+        await mkdir(uploadDir, { recursive: true });
+
+        const safeName = `${Date.now()}_${fileName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+        const fullPath = path.join(uploadDir, safeName);
+        await writeFile(fullPath, buffer);
+
+        savedFilePath = `/uploads/sp-${order.orderNumber}/${safeName}`;
+      } catch (fsError: any) {
+        console.warn('Filesystem write error (e.g. read-only environment or permissions):', fsError?.message);
+        // Fallback for small files (<= 2.5MB) in serverless/read-only disk: store as data URI
+        if (fileSize <= 2.5 * 1024 * 1024) {
+          const bytes = await file.arrayBuffer();
+          const base64 = Buffer.from(bytes).toString('base64');
+          savedFilePath = `data:${fileMime};base64,${base64}`;
+        } else {
+          return NextResponse.json(
+            { error: 'El servidor no permite almacenar archivos locales de este tamaño en su disco actual. Por favor ingresa el enlace de descarga en la nube (Google Drive, Frame.io o WeTransfer).' },
+            { status: 500 }
+          );
+        }
+      }
     } else if (externalUrl) {
       fileName = (formData.get('fileName') as string) || 'Enlace Externo (Drive/Frame.io)';
     } else {
       return NextResponse.json({ error: 'No se envió ningún archivo ni enlace' }, { status: 400 });
+    }
+
+    let fileVersion: number | null = null;
+    if (fileType.startsWith('OUTPUT')) {
+      const prevOutputsCount = await prisma.orderFile.count({
+        where: { orderId: id, fileType: { startsWith: 'OUTPUT' } },
+      });
+      fileVersion = prevOutputsCount + 1;
     }
 
     const newFile = await prisma.orderFile.create({
@@ -66,6 +110,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         filePath: savedFilePath,
         fileSize,
         fileMime,
+        version: fileVersion || 1,
         externalUrl,
         notes,
       },
@@ -87,6 +132,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ success: true, file: newFile }, { status: 201 });
   } catch (error: any) {
     console.error('File upload error:', error);
-    return NextResponse.json({ error: 'Error al subir archivo' }, { status: 500 });
+    return NextResponse.json(
+      { error: error?.message || 'Error al subir archivo. Si es un video pesado, por favor utiliza un enlace en la nube.' },
+      { status: 500 }
+    );
   }
 }

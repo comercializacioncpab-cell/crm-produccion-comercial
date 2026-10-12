@@ -202,15 +202,33 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (action === 'RESOLVE_DELIVERY') {
       const { deliveryNotes, fileUrl, fileName, externalUrl } = body;
 
+      // Workamajig Suite: Ensure client review token exists
+      const reviewToken = order.clientReviewToken || `${order.orderNumber.toLowerCase().replace(/[^a-z0-9]/g, '')}-${Date.now().toString(36)}`;
+
+      // Calculate next output version
+      const prevOutputsCount = await prisma.orderFile.count({
+        where: { orderId: id, fileType: { startsWith: 'OUTPUT' } },
+      });
+      const nextVersion = prevOutputsCount + 1;
+
       updatedOrder = await prisma.productionOrder.update({
         where: { id },
         data: {
           status: 'RESUELTA',
           deliveryNotes: deliveryNotes || null,
           deliveredAt: new Date(),
+          clientReviewToken: reviewToken,
         },
         include: { creator: true, postProducer: true, files: true, activityLogs: true },
       });
+
+      // If a file was uploaded previously right before delivery without version set, update it
+      if (fileUrl) {
+        await prisma.orderFile.updateMany({
+          where: { orderId: id, fileType: 'OUTPUT_DELIVERY', filePath: fileUrl },
+          data: { version: nextVersion },
+        });
+      }
 
       // Only create orderFile if an external link is provided and no file was already uploaded via /api/orders/[id]/files
       if (externalUrl && !fileUrl) {
@@ -219,12 +237,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
             orderId: id,
             uploaderId: user.id,
             fileType: 'OUTPUT_DELIVERY',
-            fileName: fileName || 'Enlace Master (Nube)',
+            fileName: fileName || `Master V${nextVersion} (Enlace Nube)`,
             filePath: '',
             fileSize: 0,
             fileMime: 'text/html',
+            version: nextVersion,
             externalUrl: externalUrl,
-            notes: deliveryNotes || 'Material final entregado en enlace externo',
+            notes: deliveryNotes || `Material final entregado en enlace externo (Versión ${nextVersion})`,
           },
         });
       }
@@ -234,7 +253,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           orderId: id,
           userId: user.id,
           action: 'ENTREGADA',
-          details: `Material final entregado por ${user.name}. Listo para revisión.`,
+          details: `Material final (Versión ${nextVersion}) entregado por ${user.name}. Listo para revisión.`,
         },
       });
 
@@ -244,7 +263,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         orderId: id,
         type: 'RESOLVED',
         title: `✨ ¡Tu Solicitud ${order.orderNumber} ha sido Resuelta y Atendida!`,
-        message: `${user.name} ha terminado el trabajo de producción para ${order.product} y subió el material requerido. Ya puedes descargarlo y aprobarlo.`,
+        message: `${user.name} ha terminado el trabajo de producción (V${nextVersion}) para ${order.product} y subió el material requerido. Ya puedes descargarlo y aprobarlo.`,
         userPhone: order.creator.phone,
         userEmail: order.creator.email,
         orderNumber: order.orderNumber,
@@ -257,7 +276,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           userId: coord.id,
           orderId: id,
           type: 'RESOLVED',
-          title: `✅ SP ${order.orderNumber} Entregada por ${user.name}`,
+          title: `✅ SP ${order.orderNumber} Entregada (V${nextVersion}) por ${user.name}`,
           message: `${user.name} ha completado y subido la entrega para ${order.clientAgency} (${order.product}).`,
           userPhone: coord.phone,
           userEmail: coord.email,
@@ -265,12 +284,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         });
       }
 
-      return NextResponse.json({ success: true, order: updatedOrder });
+      return NextResponse.json({ success: true, order: updatedOrder, version: nextVersion, clientReviewToken: reviewToken });
     }
 
     // 4. ACTION: REQUEST CHANGES (Solicitante / Coordinador)
     if (action === 'REQUEST_CHANGES') {
-      const { changeNotes, acceptExtraCost } = body;
+      const { changeNotes, acceptExtraCost, changeChecklist } = body;
 
       if (!changeNotes) {
         return NextResponse.json({ error: 'Debes especificar las correcciones solicitadas' }, { status: 400 });
@@ -289,12 +308,17 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         }, { status: 400 });
       }
 
+      const formattedChecklist = changeChecklist 
+        ? (typeof changeChecklist === 'string' ? changeChecklist : JSON.stringify(changeChecklist))
+        : null;
+
       updatedOrder = await prisma.productionOrder.update({
         where: { id },
         data: {
           status: 'CON_CAMBIOS',
           hasChanges: true,
           changeNotes,
+          changeChecklist: formattedChecklist || order.changeChecklist,
           changesCount: nextCount,
           extraCostAccepted: nextCount >= 4 ? true : order.extraCostAccepted,
         },
@@ -599,6 +623,40 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       }
 
       return NextResponse.json({ success: true, order: updatedOrder, message: 'SP modificada exitosamente' });
+    }
+
+    // 8. ACTION: TOGGLE CHECKLIST ITEM (Post-Producer / Coordinator)
+    if (action === 'TOGGLE_CHECKLIST_ITEM') {
+      const { itemId, completed } = body;
+      if (!order.changeChecklist) {
+        return NextResponse.json({ error: 'No hay lista de cambios activa en esta orden' }, { status: 400 });
+      }
+
+      try {
+        const items = JSON.parse(order.changeChecklist);
+        const updatedItems = items.map((it: any) =>
+          it.id === itemId ? { ...it, completed: Boolean(completed) } : it
+        );
+
+        updatedOrder = await prisma.productionOrder.update({
+          where: { id },
+          data: { changeChecklist: JSON.stringify(updatedItems) },
+        });
+
+        return NextResponse.json({ success: true, order: updatedOrder });
+      } catch (err) {
+        return NextResponse.json({ error: 'Error al actualizar elemento del checklist' }, { status: 500 });
+      }
+    }
+
+    // 9. ACTION: GENERATE CLIENT REVIEW TOKEN (Solicitante / Coordinator / Admin)
+    if (action === 'GENERATE_CLIENT_TOKEN') {
+      const token = order.clientReviewToken || `${order.orderNumber.toLowerCase().replace(/[^a-z0-9]/g, '')}-${Date.now().toString(36)}`;
+      updatedOrder = await prisma.productionOrder.update({
+        where: { id },
+        data: { clientReviewToken: token },
+      });
+      return NextResponse.json({ success: true, token, order: updatedOrder });
     }
 
     // Generic update

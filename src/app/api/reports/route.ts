@@ -159,6 +159,11 @@ export async function GET(req: Request) {
 
     let totalResolutionHoursSum = 0;
     let deliveredWithTimeCount = 0;
+    let totalAssignmentHoursSum = 0;
+    let assignedOrdersCount = 0;
+    let totalApprovalHoursSum = 0;
+    let approvedWithTimeCount = 0;
+    let firstPassApprovedCount = 0;
 
     const postProducerStatsMap: Record<string, {
       id: string;
@@ -201,7 +206,12 @@ export async function GET(req: Request) {
       const hasChanges = ord.hasChanges || (ord.changesCount && ord.changesCount > 0);
 
       if (isDelivered) totalDelivered += 1;
-      if (isApproved) totalApproved += 1;
+      if (isApproved) {
+        totalApproved += 1;
+        if (!ord.changesCount || ord.changesCount === 0) {
+          firstPassApprovedCount += 1;
+        }
+      }
       if (hasChanges) {
         totalWithChanges += 1;
         totalChangesSum += (ord.changesCount || 1);
@@ -235,6 +245,24 @@ export async function GET(req: Request) {
       // Find assignment date or creation date
       const logAssign = ord.activityLogs.find((l) => l.action === 'ASIGNADA');
       const startRefDate = logAssign ? new Date(logAssign.createdAt) : new Date(ord.createdAt);
+
+      // Track Assignment SLA: from creation to assignment
+      if (logAssign) {
+        const assignDiffMs = new Date(logAssign.createdAt).getTime() - new Date(ord.createdAt).getTime();
+        if (assignDiffMs > 0) {
+          totalAssignmentHoursSum += (assignDiffMs / (1000 * 60 * 60));
+          assignedOrdersCount += 1;
+        }
+      }
+
+      // Track Approval SLA: from delivery to approval
+      if (isApproved && ord.deliveredAt && ord.approvedAt) {
+        const approveDiffMs = new Date(ord.approvedAt).getTime() - new Date(ord.deliveredAt).getTime();
+        if (approveDiffMs > 0) {
+          totalApprovalHoursSum += (approveDiffMs / (1000 * 60 * 60));
+          approvedWithTimeCount += 1;
+        }
+      }
 
       if (isDelivered) {
         const endDate = ord.deliveredAt ? new Date(ord.deliveredAt) : ord.updatedAt ? new Date(ord.updatedAt) : new Date();
@@ -301,6 +329,16 @@ export async function GET(req: Request) {
 
     const avgResolutionHours = deliveredWithTimeCount > 0 ? (totalResolutionHoursSum / deliveredWithTimeCount) : 0;
     const avgResolutionTimeFormatted = formatHoursToReadable(avgResolutionHours);
+
+    // Workamajig Suite: SLA & First-Pass approval metrics
+    const avgAssignmentHours = assignedOrdersCount > 0 ? (totalAssignmentHoursSum / assignedOrdersCount) : 0;
+    const avgAssignmentFormatted = formatHoursToReadable(avgAssignmentHours);
+
+    const avgApprovalHours = approvedWithTimeCount > 0 ? (totalApprovalHoursSum / approvedWithTimeCount) : 0;
+    const avgApprovalFormatted = formatHoursToReadable(avgApprovalHours);
+
+    const firstPassApprovalRate = totalApproved > 0 ? Math.round((firstPassApprovedCount / totalApproved) * 100) : 0;
+
     const demoConversionRate = totalDemos > 0 ? Math.round((totalDemosSold / totalDemos) * 100) : 0;
 
     // Compute final post-producer summary list
@@ -352,6 +390,13 @@ export async function GET(req: Request) {
       totalCommercialRevenue,
       avgResolutionHours: Number(avgResolutionHours.toFixed(1)),
       avgResolutionTimeFormatted,
+      // Workamajig Suite SLA metrics
+      avgAssignmentHours: Number(avgAssignmentHours.toFixed(1)),
+      avgAssignmentFormatted,
+      avgApprovalHours: Number(avgApprovalHours.toFixed(1)),
+      avgApprovalFormatted,
+      firstPassApprovedCount,
+      firstPassApprovalRate,
       completionRate: totalReceived > 0 ? Math.round((totalDelivered / totalReceived) * 100) : 0,
       postProducersSummary,
       orders: detailedOrders,

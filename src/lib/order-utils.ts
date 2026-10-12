@@ -264,3 +264,113 @@ export function isCoordinatorOrAdminRole(role?: string | null): boolean {
 export function isPostProducerRole(role?: string | null): boolean {
   return role === 'POST_PRODUCTOR' || role === 'PRODUCTOR_SENIOR' || role === 'COORDINADOR_PRODUCTOR';
 }
+
+// 🚦 Workamajig Suite: Semáforo de Capacidad del Post-Productor
+export function getWorkloadStatus(activeCount: number) {
+  if (activeCount <= 1) {
+    return {
+      level: 'DISPONIBLE',
+      label: 'Disponible',
+      dot: '🟢',
+      badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+      pillClass: 'bg-emerald-500',
+    };
+  }
+  if (activeCount <= 3) {
+    return {
+      level: 'MEDIA',
+      label: 'Carga Media',
+      dot: '🟡',
+      badgeClass: 'bg-amber-50 text-amber-900 border-amber-200',
+      pillClass: 'bg-amber-500',
+    };
+  }
+  return {
+    level: 'SOBRECARGADO',
+    label: 'Sobrecargado',
+    dot: '🔴',
+    badgeClass: 'bg-rose-50 text-rose-800 border-rose-200 font-bold',
+    pillClass: 'bg-rose-500 animate-pulse',
+  };
+}
+
+// ⚡ Workamajig Suite: Plantillas Rápidas de Producción Comercial
+export interface SpTemplate {
+  id: string;
+  title: string;
+  categoryLabel: string;
+  description: string;
+  icon: string;
+  sponsorshipTypes: string[];
+  voiceoverType: 'GENERICA' | 'ESPECIFICA';
+  voiceoverDefaultText?: string;
+  priority: 'BAJA' | 'MEDIA' | 'ALTA' | 'URGENTE';
+  hasBrief: boolean;
+  notesSuggestion: string;
+}
+
+export const SP_TEMPLATES: SpTemplate[] = [
+  {
+    id: 'BILLBOARD_10',
+    title: 'Billboard Estratégico 10"',
+    categoryLabel: 'Auspicio de Entrada/Salida',
+    description: 'Apertura de bloque o programa con logo 3D y locución genérica institucional.',
+    icon: '🚀',
+    sponsorshipTypes: ['BILLBOARD_ESTRATEGICO_3D', 'BUMPER_ESTRATEGICO'],
+    voiceoverType: 'GENERICA',
+    priority: 'MEDIA',
+    hasBrief: true,
+    notesSuggestion: 'Billboard de 10 segundos. Incluir claqueta de entrada, logo en 3D y remate de audio oficial.',
+  },
+  {
+    id: 'CAPSULA_30',
+    title: 'Cápsula Estratégica 30"',
+    categoryLabel: 'Contenido / Infomercial',
+    description: 'Cápsula comercial con locución específica, guion comercial y mayor despliegue de edición.',
+    icon: '🎬',
+    sponsorshipTypes: ['CAPSULA_ESTRATEGICA'],
+    voiceoverType: 'ESPECIFICA',
+    voiceoverDefaultText: 'Texto del guion a grabar con locutor asignado...',
+    priority: 'ALTA',
+    hasBrief: true,
+    notesSuggestion: 'Cápsula de 30 segundos. Requiere edición dinámica, musicalización autorizada y mezcla a -24 LUFS.',
+  },
+  {
+    id: 'SOBREIMPOSICION',
+    title: 'Sobreimposición Creativa',
+    categoryLabel: 'Gráficos en Pantalla',
+    description: 'Gráfico animado / lower-third durante emisión de novela o programa en vivo.',
+    icon: '🎨',
+    sponsorshipTypes: ['SOBRE_CREATIVA', 'LOGO_MOSCA'],
+    voiceoverType: 'GENERICA',
+    priority: 'MEDIA',
+    hasBrief: true,
+    notesSuggestion: 'Animación en canal alfa (transparente) ajustada al tercio inferior de pantalla.',
+  },
+  {
+    id: 'COBERTURA_BTL',
+    title: 'Cobertura Especial / Evento BTL',
+    categoryLabel: 'Producción en Exteriores',
+    description: 'Grabación o edición de activación de marca en exteriores o eventos.',
+    icon: '📹',
+    sponsorshipTypes: ['COBERTURA', 'COBERTURA_DIGITAL'],
+    voiceoverType: 'GENERICA',
+    priority: 'ALTA',
+    hasBrief: true,
+    notesSuggestion: 'Cobertura presencial con cámara y edición de reel resumen para emisión y redes.',
+  },
+  {
+    id: 'MENCION_VIVO',
+    title: 'Mención en Vivo de Programa',
+    categoryLabel: 'PNT con Presentador',
+    description: 'PNT con producto en mesa o interacción directa del talento en vivo.',
+    icon: '🎙️',
+    sponsorshipTypes: ['MENCION_ESTRATEGICA'],
+    voiceoverType: 'ESPECIFICA',
+    voiceoverDefaultText: 'Guion que leerá el presentador durante el programa en vivo...',
+    priority: 'ALTA',
+    hasBrief: true,
+    notesSuggestion: 'Mención en vivo de 20s. Coordinar producto físico en estudio con utilería.',
+  },
+];
+

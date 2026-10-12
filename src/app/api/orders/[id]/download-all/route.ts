@@ -48,6 +48,19 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     let addedCount = 0;
 
     for (const file of localFiles) {
+      const zipFileName = file.fileName || 'archivo';
+      if (file.filePath.startsWith('data:')) {
+        try {
+          const base64Data = file.filePath.split(',')[1] || '';
+          const fileData = Buffer.from(base64Data, 'base64');
+          zip.file(zipFileName, fileData);
+          addedCount++;
+        } catch (e) {
+          console.error(`Error parsing data URI for ${zipFileName}:`, e);
+        }
+        continue;
+      }
+
       // Remove leading slash if any
       const relativePath = file.filePath.replace(/^\//, '');
       const fullPath = path.join(process.cwd(), 'public', relativePath);
@@ -55,7 +68,6 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       if (existsSync(fullPath)) {
         try {
           const fileData = await readFile(fullPath);
-          const zipFileName = file.fileName || path.basename(fullPath);
           zip.file(zipFileName, fileData);
           addedCount++;
         } catch (e) {

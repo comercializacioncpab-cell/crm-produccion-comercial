@@ -80,6 +80,15 @@ model ProductionOrder {
   deliveryNotes        String?
   deliveredAt          DateTime?
 
+  // 🎯 Workamajig Suite: Proofing & Checklist de Cambios
+  changeChecklist      String?           // JSON serializado: [{ id: string, text: string, completed: boolean }]
+
+  // 🔗 Workamajig Suite: Aprobación Externa para Clientes sin Login
+  clientReviewToken    String?           @unique // Token único para acceso público de revisión
+  clientApprovedAt     DateTime?
+  clientApprovedBy     String?           // Nombre del contacto de la agencia o cliente
+  clientNotes          String?           // Comentarios o ajustes del cliente
+
   isDemo               Boolean           @default(false)
   demoStatus           String?           // PENDIENTE_VENTA, VENDIDO, DESCARTADO
   sourceDemoId         String?           // Si esta SP comercial proviene de un DEMO
@@ -106,6 +115,7 @@ model OrderFile {
   filePath    String
   fileSize    Int             @default(0)
   fileMime    String          @default("application/octet-stream")
+  version     Int?            @default(1) // 🎬 Workamajig Suite: V1, V2, V3 correlativo de entregables
   externalUrl String?
   notes       String?
   createdAt   DateTime        @default(now())

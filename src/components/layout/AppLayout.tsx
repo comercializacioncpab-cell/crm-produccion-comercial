@@ -15,7 +15,9 @@ import {
   Clapperboard, 
   Radio,
   DollarSign,
-  BarChart3
+  BarChart3,
+  CalendarClock,
+  Sparkles
 } from 'lucide-react';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -48,6 +50,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       href: '/dashboard',
       icon: LayoutDashboard,
       roles: ['SOLICITANTE', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
+    },
+    {
+      name: 'Mesa de Trabajo (Hoy)',
+      href: '/today',
+      icon: Sparkles,
+      roles: ['POST_PRODUCTOR', 'COORDINADOR_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR'],
+    },
+    {
+      name: 'Tráfico & Cargas',
+      href: '/traffic',
+      icon: CalendarClock,
+      roles: ['COORDINADOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
     },
     {
       name: 'Nueva Solicitud (SP)',
@@ -93,7 +107,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       roles: ['ADMIN', 'PRODUCTOR_SENIOR'],
     },
     {
-      name: 'Reporte Mensual / Productividad',
+      name: 'Reporte Mensual / SLA',
       href: '/reports',
       icon: BarChart3,
       roles: ['COORDINADOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],

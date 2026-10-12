@@ -34,7 +34,12 @@ import {
   Pencil,
   DollarSign,
   Package,
-  Link2
+  Link2,
+  CheckSquare,
+  Square,
+  Plus,
+  Trash2,
+  Copy
 } from 'lucide-react';
 import { 
   STATUS_CONFIG, 
@@ -68,6 +73,7 @@ export default function OrderDetailPage() {
   const [deliveryFile, setDeliveryFile] = useState<File | null>(null);
   const [deliveryExternalUrl, setDeliveryExternalUrl] = useState('');
   const [changeNotes, setChangeNotes] = useState('');
+  const [changeChecklistItems, setChangeChecklistItems] = useState<string[]>(['']);
   const [showChangesModal, setShowChangesModal] = useState(false);
   const [acceptCostChecked, setAcceptCostChecked] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -137,13 +143,61 @@ export default function OrderDetailPage() {
 
   const fetchPostProducers = async () => {
     try {
-      const res = await fetch('/api/users?role=POST_PRODUCTOR');
+      const res = await fetch('/api/traffic');
       if (res.ok) {
         const data = await res.json();
-        setPostProducers(data.users || []);
+        setPostProducers(data.editors || []);
+      } else {
+        const res2 = await fetch('/api/users?role=POST_PRODUCTOR');
+        if (res2.ok) {
+          const data2 = await res2.json();
+          setPostProducers(data2.users || []);
+        }
       }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleToggleChecklist = async (itemIndex: number) => {
+    try {
+      // Optimistic update
+      setOrder((prev: any) => {
+        if (!prev) return prev;
+        const list = Array.isArray(prev.changeChecklist) ? [...prev.changeChecklist] : [];
+        if (list[itemIndex]) {
+          list[itemIndex] = { ...list[itemIndex], done: !list[itemIndex].done };
+        }
+        return { ...prev, changeChecklist: list };
+      });
+
+      await fetch(`/api/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'TOGGLE_CHECKLIST_ITEM', itemIndex }),
+      });
+    } catch (e) {
+      console.error(e);
+      fetchOrder();
+    }
+  };
+
+  const handleGenerateClientToken = async () => {
+    try {
+      setActionLoading(true);
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'GENERATE_CLIENT_TOKEN' }),
+      });
+      if (res.ok) {
+        setMsg({ type: 'success', text: '¡Enlace de revisión para cliente generado con éxito!' });
+        fetchOrder();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -238,24 +292,60 @@ export default function OrderDetailPage() {
 
       // Upload deliverable file if provided
       if (deliveryFile) {
-        const uploadData = new FormData();
-        uploadData.append('file', deliveryFile);
-        uploadData.append('fileType', 'OUTPUT_DELIVERY');
-        uploadData.append('notes', deliveryNotes || 'Entrega final de post-producción');
+        const fileSizeMB = deliveryFile.size / (1024 * 1024);
 
-        const fileRes = await fetch(`/api/orders/${order.id}/files`, {
-          method: 'POST',
-          body: uploadData,
-        });
-        if (!fileRes.ok) {
-          const errData = await fileRes.json().catch(() => ({}));
-          setMsg({ type: 'error', text: errData.error || 'Error al subir el archivo entregable. Por favor verifica el archivo o ingresa un enlace en la nube.' });
-          setActionLoading(false);
-          return;
+        // If file is > 10 MB and no external URL is provided, guide user to use cloud link
+        if (fileSizeMB > 10) {
+          if (!deliveryExternalUrl?.trim()) {
+            setMsg({
+              type: 'error',
+              text: `El video "${deliveryFile.name}" pesa ${fileSizeMB.toFixed(1)} MB y supera el límite de subida directa (10 MB). Para videos master y comerciales en alta resolución, por favor sube el archivo a Google Drive, WeTransfer o Frame.io y pega aquí el enlace de descarga.`
+            });
+            setActionLoading(false);
+            return;
+          }
+          // If external URL is provided, we skip heavy file upload and use the external URL!
+        } else {
+          const uploadData = new FormData();
+          uploadData.append('file', deliveryFile);
+          uploadData.append('fileType', 'OUTPUT_DELIVERY');
+          uploadData.append('notes', deliveryNotes || 'Entrega final de post-producción');
+
+          const fileRes = await fetch(`/api/orders/${order.id}/files`, {
+            method: 'POST',
+            body: uploadData,
+          });
+
+          if (!fileRes.ok) {
+            let errorMsg = '';
+            try {
+              const errData = await fileRes.json();
+              if (errData?.error) errorMsg = errData.error;
+            } catch {
+              if (fileRes.status === 413) {
+                errorMsg = `El archivo (${fileSizeMB.toFixed(1)} MB) excede el límite del servidor web (Error 413).`;
+              } else {
+                errorMsg = `Error del servidor (${fileRes.status}) al procesar el archivo directo.`;
+              }
+            }
+
+            // If external URL was also entered, proceed with external URL instead of blocking
+            if (deliveryExternalUrl?.trim()) {
+              console.warn('Direct upload skipped, proceeding with cloud link:', errorMsg);
+            } else {
+              setMsg({
+                type: 'error',
+                text: `${errorMsg || 'Error al subir el archivo entregable.'} Para videos pesados o de alta calidad, por favor ingresa el enlace de Google Drive, WeTransfer o Frame.io.`
+              });
+              setActionLoading(false);
+              return;
+            }
+          } else {
+            const fileData = await fileRes.json();
+            uploadedFileName = fileData.file?.fileName || '';
+            uploadedFilePath = fileData.file?.filePath || '';
+          }
         }
-        const fileData = await fileRes.json();
-        uploadedFileName = fileData.file?.fileName || '';
-        uploadedFilePath = fileData.file?.filePath || '';
       }
 
       const res = await fetch(`/api/orders/${order.id}`, {
@@ -294,11 +384,23 @@ export default function OrderDetailPage() {
       setMsg({ type: 'error', text: 'Debes seleccionar un archivo físico o ingresar un enlace de descarga en la nube.' });
       return;
     }
+
+    if (uploadModalFile) {
+      const fileSizeMB = uploadModalFile.size / (1024 * 1024);
+      if (fileSizeMB > 10 && !uploadModalUrl.trim()) {
+        setMsg({
+          type: 'error',
+          text: `El archivo "${uploadModalFile.name}" pesa ${fileSizeMB.toFixed(1)} MB y supera el límite directo (10 MB). Por favor pega el enlace de descarga en la nube (Drive/WeTransfer/Frame.io).`
+        });
+        return;
+      }
+    }
+
     setActionLoading(true);
     setMsg(null);
     try {
       const formData = new FormData();
-      if (uploadModalFile) {
+      if (uploadModalFile && (uploadModalFile.size / (1024 * 1024) <= 10)) {
         formData.append('file', uploadModalFile);
       }
       formData.append('fileType', uploadModalType);
@@ -326,8 +428,18 @@ export default function OrderDetailPage() {
         setUploadModalFileName('');
         fetchOrder();
       } else {
-        const err = await res.json().catch(() => ({}));
-        setMsg({ type: 'error', text: err.error || 'Error al adjuntar archivo o enlace.' });
+        let errorMsg = '';
+        try {
+          const err = await res.json();
+          if (err?.error) errorMsg = err.error;
+        } catch {
+          if (res.status === 413) {
+            errorMsg = 'El archivo supera el tamaño permitido por el servidor web (413).';
+          } else {
+            errorMsg = `Error del servidor (${res.status}).`;
+          }
+        }
+        setMsg({ type: 'error', text: `${errorMsg || 'Error al adjuntar archivo.'} Por favor utiliza un enlace en la nube.` });
       }
     } catch {
       setMsg({ type: 'error', text: 'Error de red al adjuntar archivo.' });
@@ -360,6 +472,7 @@ export default function OrderDetailPage() {
         body: JSON.stringify({
           action: 'REQUEST_CHANGES',
           changeNotes,
+          changeChecklist: changeChecklistItems.filter((i) => i.trim().length > 0),
           acceptExtraCost: acceptCostChecked || nextChangeNum < 4,
         }),
       });
@@ -375,6 +488,7 @@ export default function OrderDetailPage() {
       });
       setShowChangesModal(false);
       setChangeNotes('');
+      setChangeChecklistItems(['']);
       setAcceptCostChecked(false);
       fetchOrder();
     } catch (err: any) {
@@ -1228,37 +1342,92 @@ export default function OrderDetailPage() {
                       </button>
                     </div>
                   ) : (
-                    outputFiles.map((f: any) => (
-                      <div key={f.id} className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200 flex items-center justify-between text-xs gap-2">
-                        <div className="truncate flex-1 min-w-0">
-                          <span className="font-bold text-emerald-900 truncate block">✨ {f.fileName}</span>
-                          {f.notes && <span className="text-[10px] text-emerald-700 block truncate">{f.notes}</span>}
+                    <>
+                      {outputFiles.map((f: any) => (
+                        <div key={f.id} className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200 flex items-center justify-between text-xs gap-2">
+                          <div className="flex items-center gap-2 truncate flex-1 min-w-0">
+                            <span className="bg-emerald-200 text-emerald-900 font-black px-1.5 py-0.5 rounded text-[10px] shrink-0">
+                              V{f.version || 1}
+                            </span>
+                            <div className="truncate">
+                              <span className="font-bold text-emerald-900 truncate block">✨ {f.fileName}</span>
+                              {f.notes && <span className="text-[10px] text-emerald-700 block truncate">{f.notes}</span>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {f.externalUrl && (
+                              <a href={f.externalUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-bold flex items-center gap-1 text-[11px] bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
+                                <ExternalLink className="w-3 h-3" /> Abrir Enlace
+                              </a>
+                            )}
+                            {f.filePath ? (
+                              <a href={`/api/orders/${order.id}/files/${f.id}/download`} download target="_blank" rel="noopener noreferrer" className="text-emerald-700 hover:underline font-bold flex items-center gap-1 text-[11px] bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-300 shadow-2xs">
+                                <Download className="w-3.5 h-3.5" /> Descargar Video
+                              </a>
+                            ) : !f.externalUrl ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setUploadModalType('OUTPUT_DELIVERY');
+                                  setShowUploadModal(true);
+                                }}
+                                className="text-amber-800 bg-amber-200 hover:bg-amber-300 px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                              >
+                                ⚠️ Sin archivo • Adjuntar Video
+                              </button>
+                            ) : null}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {f.externalUrl && (
-                            <a href={f.externalUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-bold flex items-center gap-1 text-[11px] bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
-                              <ExternalLink className="w-3 h-3" /> Abrir Enlace
-                            </a>
-                          )}
-                          {f.filePath ? (
-                            <a href={`/api/orders/${order.id}/files/${f.id}/download`} download target="_blank" rel="noopener noreferrer" className="text-emerald-700 hover:underline font-bold flex items-center gap-1 text-[11px] bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-300 shadow-2xs">
-                              <Download className="w-3.5 h-3.5" /> Descargar Video
-                            </a>
-                          ) : !f.externalUrl ? (
+                      ))}
+
+                      {/* Workamajig Feature: Client Review Link */}
+                      <div className="mt-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-black text-blue-950 flex items-center gap-1">
+                              🔗 Link de Aprobación para Cliente / Agencia
+                            </span>
+                            {order.clientApprovedAt ? (
+                              <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                                ✅ Aprobado por {order.clientApprovedBy || 'Cliente'}
+                              </span>
+                            ) : (
+                              <span className="text-[9px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                                Sin login requerido
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-blue-700 mt-0.5">
+                            Comparte este enlace directo para que el cliente revise las piezas y apruebe o solicite cambios en 1 clic.
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {order.clientReviewToken ? (
                             <button
                               type="button"
                               onClick={() => {
-                                setUploadModalType('OUTPUT_DELIVERY');
-                                setShowUploadModal(true);
+                                const url = `${window.location.origin}/review/${order.clientReviewToken}`;
+                                navigator.clipboard.writeText(url);
+                                alert('¡Enlace de revisión copiado al portapapeles!\n' + url);
                               }}
-                              className="text-amber-800 bg-amber-200 hover:bg-amber-300 px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
                             >
-                              ⚠️ Sin archivo • Adjuntar Video
+                              <Copy className="w-3.5 h-3.5" /> Copiar Link Cliente
                             </button>
-                          ) : null}
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={handleGenerateClientToken}
+                              disabled={actionLoading}
+                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                            >
+                              <Link2 className="w-3.5 h-3.5" /> Generar Link Cliente
+                            </button>
+                          )}
                         </div>
                       </div>
-                    ))
+                    </>
                   )}
                 </div>
               </div>
@@ -1312,7 +1481,7 @@ export default function OrderDetailPage() {
                       <option value="">-- Seleccionar Editor Principal --</option>
                       {postProducers.map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.role === 'PRODUCTOR_SENIOR' ? '👑' : p.role === 'COORDINADOR_PRODUCTOR' ? '🎯' : '🎬'} {p.name} {p.role === 'PRODUCTOR_SENIOR' ? '(Productor Senior)' : p.role === 'COORDINADOR_PRODUCTOR' ? '(Coordinador/a - Productor)' : ''} ({p.phone || 'Sin tel'})
+                          {p.workload?.dot ? `${p.workload.dot} ` : ''}{p.role === 'PRODUCTOR_SENIOR' ? '👑 ' : p.role === 'COORDINADOR_PRODUCTOR' ? '🎯 ' : '🎬 '}{p.name} {p.activeOrders !== undefined ? `[${p.activeOrders} activas]` : ''} {p.role === 'PRODUCTOR_SENIOR' ? '(Senior)' : p.role === 'COORDINADOR_PRODUCTOR' ? '(Coord-Prod)' : ''}
                         </option>
                       ))}
                     </select>
@@ -1333,7 +1502,7 @@ export default function OrderDetailPage() {
                         .filter((p) => p.id !== selectedPostId)
                         .map((p) => (
                           <option key={p.id} value={p.id}>
-                            {p.role === 'PRODUCTOR_SENIOR' ? '👑' : p.role === 'COORDINADOR_PRODUCTOR' ? '🎯' : '🤝'} {p.name} {p.role === 'PRODUCTOR_SENIOR' ? '(Productor Senior)' : p.role === 'COORDINADOR_PRODUCTOR' ? '(Coordinador/a - Productor)' : ''} ({p.phone || 'Sin tel'})
+                            {p.workload?.dot ? `${p.workload.dot} ` : ''}{p.role === 'PRODUCTOR_SENIOR' ? '👑 ' : p.role === 'COORDINADOR_PRODUCTOR' ? '🎯 ' : '🤝 '}{p.name} {p.activeOrders !== undefined ? `[${p.activeOrders} activas]` : ''}
                           </option>
                         ))}
                     </select>
@@ -1407,43 +1576,111 @@ export default function OrderDetailPage() {
                   </div>
                 )}
 
+                {/* Sub-Action: Checklist Interactivo de Correcciones (Workamajig Feature) */}
+                {Array.isArray(order.changeChecklist) && order.changeChecklist.length > 0 && (
+                  <div className="bg-amber-50/80 border border-amber-300 rounded-2xl p-3.5 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                        <CheckSquare className="w-4 h-4 text-amber-700" /> Checklist de Correcciones
+                      </span>
+                      <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full">
+                        {order.changeChecklist.filter((c: any) => c.done).length} / {order.changeChecklist.length} listos
+                      </span>
+                    </div>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                      {order.changeChecklist.map((item: any, idx: number) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handleToggleChecklist(idx)}
+                          className={`w-full text-left flex items-start gap-2 p-2 rounded-xl text-xs transition-colors cursor-pointer ${
+                            item.done ? 'bg-amber-100/50 text-slate-400 line-through' : 'bg-white text-slate-800 hover:bg-amber-100/60 shadow-2xs'
+                          }`}
+                        >
+                          {item.done ? (
+                            <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          ) : (
+                            <Square className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                          )}
+                          <span className="leading-snug">{item.text}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Sub-Action B: Formulario de Entrega Final de Post */}
                 {(order.status === 'EN_PROCESO' || order.status === 'CON_CAMBIOS' || order.status === 'ASIGNADA' || user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR') && (
-                  <form onSubmit={handleResolveDelivery} className="space-y-3 pt-1">
-                    <span className="text-[11px] font-bold text-slate-700 block">
-                      Subir Video / Master Resuelto:
-                    </span>
-
-                    <div>
-                      <input
-                        type="file"
-                        onChange={(e) => setDeliveryFile(e.target.files?.[0] || null)}
-                        className="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                      />
+                  <form onSubmit={handleResolveDelivery} className="space-y-3.5 pt-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                        <Sparkles className="w-4 h-4 text-emerald-600" /> Entrega del Video / Master Final:
+                      </span>
                     </div>
 
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                        O Enlace Externo (Drive / Frame.io / Vimeo):
-                      </label>
+                    {/* Opción 1: Enlace en la Nube (Recomendada para Videos Comerciales) */}
+                    <div className="bg-indigo-50/70 border border-indigo-200 rounded-2xl p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-black text-indigo-950 flex items-center gap-1.5">
+                          <Link2 className="w-3.5 h-3.5 text-indigo-600" /> Enlace en la Nube (Drive / Frame.io / WeTransfer):
+                        </label>
+                        <span className="text-[9px] font-black tracking-wider uppercase bg-indigo-600 text-white px-2 py-0.5 rounded-full">
+                          ⭐ Recomendado
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-indigo-700 leading-tight">
+                        Para masters en alta resolución (MP4, ProRes, MOV), pega el enlace para entrega inmediata sin límite de tamaño.
+                      </p>
                       <input
                         type="url"
                         value={deliveryExternalUrl}
                         onChange={(e) => setDeliveryExternalUrl(e.target.value)}
-                        placeholder="https://drive.google.com/..."
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="https://drive.google.com/... o enlace WeTransfer / Frame.io"
+                        className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       />
                     </div>
 
+                    <div className="relative flex items-center justify-center py-0.5">
+                      <div className="border-t border-slate-200 w-full"></div>
+                      <span className="bg-white px-2 text-[10px] font-bold text-slate-400 uppercase">o subir archivo directo (hasta 10 MB)</span>
+                    </div>
+
+                    {/* Opción 2: Archivo Local */}
+                    <div className="space-y-1.5">
+                      <input
+                        type="file"
+                        onChange={(e) => setDeliveryFile(e.target.files?.[0] || null)}
+                        className="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer border border-slate-200 rounded-xl p-1"
+                      />
+
+                      {deliveryFile && (
+                        <div className={`p-2.5 rounded-xl border text-[11px] space-y-1 ${
+                          deliveryFile.size > 10 * 1024 * 1024
+                            ? 'bg-amber-50 border-amber-300 text-amber-900'
+                            : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                        }`}>
+                          <div className="flex items-center justify-between font-bold">
+                            <span className="truncate">📁 {deliveryFile.name}</span>
+                            <span className="font-mono shrink-0 ml-2">{(deliveryFile.size / (1024 * 1024)).toFixed(1)} MB</span>
+                          </div>
+                          {deliveryFile.size > 10 * 1024 * 1024 && (
+                            <p className="text-[10px] text-amber-800 leading-tight">
+                              ⚠️ <strong>Video pesado (más de 10 MB):</strong> Por restricciones de los servidores web, los videos pesados deben entregarse pegando el enlace de <strong>Google Drive, Frame.io o WeTransfer</strong> en el campo superior.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                        Notas de Entrega:
+                      <label className="block text-[10px] font-bold text-slate-600 mb-1">
+                        Notas de Entrega (Opcional):
                       </label>
                       <textarea
                         rows={2}
                         value={deliveryNotes}
                         onChange={(e) => setDeliveryNotes(e.target.value)}
-                        placeholder="Ej. Master en ProRes y MP4, audio -24 LUFS..."
+                        placeholder="Ej. Master en ProRes y MP4, audio nivelado a -24 LUFS..."
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                       ></textarea>
                     </div>
@@ -1802,15 +2039,61 @@ export default function OrderDetailPage() {
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  Descripción Detallada de los Ajustes Requeridos:
+                  Descripción General de los Ajustes Requeridos:
                 </label>
                 <textarea
-                  rows={4}
+                  rows={3}
                   value={changeNotes}
                   onChange={(e) => setChangeNotes(e.target.value)}
                   placeholder="Ej. Ajustar la duración del logo final a 3 segundos, corregir el color del cintillo y cambiar el audio de fondo..."
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500 font-medium"
                 ></textarea>
+              </div>
+
+              {/* Checklist de Puntos Específicos para el Editor */}
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[11px] font-bold text-slate-700">
+                    Puntos específicos a corregir (Checklist para el editor):
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setChangeChecklistItems([...changeChecklistItems, ''])}
+                    className="text-[10px] text-rose-600 hover:text-rose-700 font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" /> Agregar punto
+                  </button>
+                </div>
+
+                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                  {changeChecklistItems.map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <span className="text-[11px] text-slate-400 font-mono w-4">{idx + 1}.</span>
+                      <input
+                        type="text"
+                        placeholder="Ej: En 0:12 corregir el precio final."
+                        value={item}
+                        onChange={(e) => {
+                          const updated = [...changeChecklistItems];
+                          updated[idx] = e.target.value;
+                          setChangeChecklistItems(updated);
+                        }}
+                        className="flex-1 px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500"
+                      />
+                      {changeChecklistItems.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setChangeChecklistItems(changeChecklistItems.filter((_, i) => i !== idx));
+                          }}
+                          className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2">
@@ -2236,7 +2519,7 @@ export default function OrderDetailPage() {
                           <option value="">-- Sin Asignar --</option>
                           {postProducers.map((p) => (
                             <option key={p.id} value={p.id}>
-                              {p.role === 'PRODUCTOR_SENIOR' ? '👑' : p.role === 'COORDINADOR_PRODUCTOR' ? '🎯' : '🎬'} {p.name} {p.role === 'PRODUCTOR_SENIOR' ? '(Productor Senior)' : p.role === 'COORDINADOR_PRODUCTOR' ? '(Coordinador/a - Productor)' : ''}
+                              {p.workload?.dot ? `${p.workload.dot} ` : ''}{p.role === 'PRODUCTOR_SENIOR' ? '👑 ' : p.role === 'COORDINADOR_PRODUCTOR' ? '🎯 ' : '🎬 '}{p.name} {p.activeOrders !== undefined ? `[${p.activeOrders} activas]` : ''}
                             </option>
                           ))}
                         </select>
@@ -2256,7 +2539,7 @@ export default function OrderDetailPage() {
                             .filter((p) => p.id !== editFormData.postProducerId)
                             .map((p) => (
                               <option key={p.id} value={p.id}>
-                                {p.role === 'PRODUCTOR_SENIOR' ? '👑' : p.role === 'COORDINADOR_PRODUCTOR' ? '🎯' : '🤝'} {p.name} {p.role === 'PRODUCTOR_SENIOR' ? '(Productor Senior)' : p.role === 'COORDINADOR_PRODUCTOR' ? '(Coordinador/a - Productor)' : ''}
+                                {p.workload?.dot ? `${p.workload.dot} ` : ''}{p.role === 'PRODUCTOR_SENIOR' ? '👑 ' : p.role === 'COORDINADOR_PRODUCTOR' ? '🎯 ' : '🤝 '}{p.name} {p.activeOrders !== undefined ? `[${p.activeOrders} activas]` : ''}
                               </option>
                             ))}
                         </select>
@@ -2354,9 +2637,20 @@ export default function OrderDetailPage() {
                     className="w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3.5 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer border border-slate-200 rounded-xl p-1.5"
                   />
                   {uploadModalFile && (
-                    <p className="text-[11px] text-emerald-600 font-bold mt-1">
-                      ✓ Seleccionado: {uploadModalFile.name} ({(uploadModalFile.size / (1024 * 1024)).toFixed(2)} MB)
-                    </p>
+                    <div className={`mt-2 p-2 rounded-xl text-[11px] space-y-0.5 ${
+                      uploadModalFile.size > 10 * 1024 * 1024
+                        ? 'bg-amber-50 border border-amber-300 text-amber-900'
+                        : 'bg-emerald-50 text-emerald-800'
+                    }`}>
+                      <p className="font-bold">
+                        ✓ Seleccionado: {uploadModalFile.name} ({(uploadModalFile.size / (1024 * 1024)).toFixed(2)} MB)
+                      </p>
+                      {uploadModalFile.size > 10 * 1024 * 1024 && (
+                        <p className="text-[10px] text-amber-800 leading-tight">
+                          ⚠️ <strong>Archivo pesado (más de 10 MB):</strong> Por favor utiliza la opción 2 (enlace en la nube de Google Drive o WeTransfer) para adjuntarlo sin limitaciones de servidor.
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
 

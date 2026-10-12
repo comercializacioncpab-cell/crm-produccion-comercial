@@ -72,7 +72,7 @@ export async function GET(req: Request) {
           select: { id: true, orderNumber: true, clientAgency: true, product: true, packageValue: true, createdAt: true },
         },
         files: {
-          select: { id: true, fileName: true, fileType: true, filePath: true, externalUrl: true },
+          select: { id: true, fileName: true, fileType: true, filePath: true, externalUrl: true, version: true },
         },
       },
       orderBy: { createdAt: 'desc' },

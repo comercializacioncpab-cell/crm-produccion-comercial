@@ -38,6 +38,23 @@ export async function GET(
       return NextResponse.json({ error: 'El registro no contiene un archivo físico en el servidor' }, { status: 404 });
     }
 
+    const safeName = (fileRecord.fileName || 'archivo').replace(/[^a-zA-Z0-9._-]/g, '_');
+    const mimeType = fileRecord.fileMime || 'application/octet-stream';
+
+    if (fileRecord.filePath.startsWith('data:')) {
+      const parts = fileRecord.filePath.split(',');
+      const base64Data = parts[1] || '';
+      const fileBuffer = Buffer.from(base64Data, 'base64');
+      return new Response(fileBuffer, {
+        status: 200,
+        headers: {
+          'Content-Type': mimeType,
+          'Content-Disposition': `attachment; filename="${safeName}"`,
+          'Content-Length': String(fileBuffer.length),
+        },
+      });
+    }
+
     const relativePath = fileRecord.filePath.replace(/^\//, '');
     const fullPath = path.join(process.cwd(), 'public', relativePath);
 
@@ -46,8 +63,6 @@ export async function GET(
     }
 
     const fileBuffer = await readFile(fullPath);
-    const mimeType = fileRecord.fileMime || 'application/octet-stream';
-    const safeName = (fileRecord.fileName || path.basename(fullPath)).replace(/[^a-zA-Z0-9._-]/g, '_');
 
     return new Response(fileBuffer, {
       status: 200,
