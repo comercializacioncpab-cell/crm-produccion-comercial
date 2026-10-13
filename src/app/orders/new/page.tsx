@@ -65,7 +65,7 @@ function NewOrderForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const isCoordinator = user?.role === 'COORDINADOR' || Boolean(user?.role?.toUpperCase().includes('COORDINAD'));
+  const isCoordinator = user?.role === 'COORDINADOR' || user?.role === 'COORDINADORA_VENTAS' || Boolean(user?.role?.toUpperCase().includes('COORDINAD'));
   const isCoordinatorOrAdmin = isCoordinator || user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR';
 
   // Load executives and available demos
@@ -80,7 +80,7 @@ function NewOrderForm() {
         if (usersRes.ok) {
           const data = await usersRes.json();
           const allUsers = data.users || [];
-          const salesUsers = allUsers.filter((u: any) => u.status === 'APROBADO' && (u.role === 'SOLICITANTE' || u.role === 'ADMIN' || u.role === 'PRODUCTOR_SENIOR' || u.role === 'COORDINADOR' || u.role === 'COORDINADOR_PRODUCTOR'));
+          const salesUsers = allUsers.filter((u: any) => u.status === 'APROBADO' && (u.role === 'SOLICITANTE' || u.role === 'ADMIN' || u.role === 'PRODUCTOR_SENIOR' || u.role === 'COORDINADOR' || u.role === 'COORDINADOR_PRODUCTOR' || u.role === 'COORDINADORA_VENTAS'));
           setExecutives(salesUsers);
         }
 

@@ -90,6 +90,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     // 1. ACTION: ASSIGN POST-PRODUCER (Coordinator / Admin)
     if (action === 'ASSIGN') {
+      if (user.role === 'COORDINADORA_VENTAS' || user.role === 'SOLICITANTE') {
+        return NextResponse.json({ error: 'Las coordinadoras de ventas y solicitantes no pueden asignar post-productores.' }, { status: 403 });
+      }
+
       const { postProducerId, secondaryPostProducerId, priority } = body;
       const targetPost = await prisma.user.findUnique({ where: { id: postProducerId } });
       if (!targetPost) {

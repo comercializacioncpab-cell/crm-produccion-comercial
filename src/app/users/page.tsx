@@ -541,6 +541,8 @@ export default function UsersPage() {
                           <span className={`text-[11px] px-2.5 py-1 rounded-full font-bold border ${
                             u.role === 'SOLICITANTE'
                               ? 'bg-pink-50 text-pink-700 border-pink-200'
+                              : u.role === 'COORDINADORA_VENTAS'
+                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
                               : u.role === 'COORDINADOR'
                               ? 'bg-purple-50 text-purple-700 border-purple-200'
                               : u.role === 'POST_PRODUCTOR'
@@ -552,6 +554,7 @@ export default function UsersPage() {
                               : 'bg-slate-100 text-slate-800 border-slate-300'
                           }`}>
                             {u.role === 'SOLICITANTE' && '👩‍💼 Ejecutiva'}
+                            {u.role === 'COORDINADORA_VENTAS' && '💼 Coord. de Ventas'}
                             {u.role === 'COORDINADOR' && '📋 Coordinadora'}
                             {u.role === 'POST_PRODUCTOR' && '🎬 Post-Productor'}
                             {u.role === 'PRODUCTOR_SENIOR' && '👑 Productor Senior'}
@@ -799,7 +802,8 @@ export default function UsersPage() {
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
                     >
                       <option value="SOLICITANTE">👩‍💼 Solicitante (Ejecutiva)</option>
-                      <option value="COORDINADOR">📋 Coordinadora</option>
+                      <option value="COORDINADORA_VENTAS">💼 Coordinadora de Ventas</option>
+                      <option value="COORDINADOR">📋 Coordinadora de Producción</option>
                       <option value="COORDINADOR_PRODUCTOR">🎯 Coordinador/a - Productor</option>
                       <option value="POST_PRODUCTOR">🎬 Post-Productor</option>
                       <option value="PRODUCTOR_SENIOR">👑 Productor Senior</option>

@@ -260,8 +260,9 @@ export async function POST(req: Request) {
     }
 
     // Log activity
+    const coordinatorRoleTitle = user.role === 'COORDINADORA_VENTAS' ? 'Coordinación de Ventas' : 'Coordinación';
     const activityLogDetails = targetExecutive && targetExecutive.id !== user.id
-      ? `Solicitud de producción ${orderNumber} ingresada por Coordinación (${user.name}) para la Ejecutiva ${targetExecutive.name}`
+      ? `Solicitud de producción ${orderNumber} ingresada por ${coordinatorRoleTitle} (${user.name}) para la Ejecutiva ${targetExecutive.name}`
       : `Solicitud de producción ${orderNumber} creada por ${user.name} (${user.email})`;
 
     await prisma.activityLog.create({

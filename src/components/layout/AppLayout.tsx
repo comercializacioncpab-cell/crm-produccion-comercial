@@ -49,7 +49,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       name: 'Dashboard General',
       href: '/dashboard',
       icon: LayoutDashboard,
-      roles: ['SOLICITANTE', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
+      roles: ['SOLICITANTE', 'COORDINADORA_VENTAS', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
     },
     {
       name: 'Mesa de Trabajo (Hoy)',
@@ -67,14 +67,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       name: 'Nueva Solicitud (SP)',
       href: '/orders/new',
       icon: FilePlus2,
-      roles: ['SOLICITANTE', 'COORDINADOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
+      roles: ['SOLICITANTE', 'COORDINADORA_VENTAS', 'COORDINADOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
       highlight: true,
     },
     {
       name: 'Todas las Órdenes',
       href: '/orders',
       icon: Layers,
-      roles: ['SOLICITANTE', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
+      roles: ['SOLICITANTE', 'COORDINADORA_VENTAS', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
     },
     {
       name: 'Bandeja Coordinación',
@@ -98,7 +98,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       name: 'Mi Perfil / Celular',
       href: '/profile',
       icon: User,
-      roles: ['SOLICITANTE', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
+      roles: ['SOLICITANTE', 'COORDINADORA_VENTAS', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
     },
     {
       name: 'Ingresos Totales ($)',
@@ -135,6 +135,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <h3 className="font-bold text-sm text-white leading-tight">{user.name}</h3>
                     <span className="text-[11px] text-cyan-300 font-medium">
                       {user.role === 'SOLICITANTE' && '👩‍💼 Ejecutiva de Ventas'}
+                      {user.role === 'COORDINADORA_VENTAS' && '💼 Coordinadora de Ventas'}
                       {user.role === 'COORDINADOR' && '📋 Coordinadora de Producción'}
                       {user.role === 'POST_PRODUCTOR' && '🎬 Post-Productor'}
                       {user.role === 'PRODUCTOR_SENIOR' && '👑 Productor Senior'}

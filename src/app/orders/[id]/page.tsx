@@ -702,13 +702,15 @@ export default function OrderDetailPage() {
   );
 
   const isCoordinator = Boolean(
-    user && (user.role === 'COORDINADOR' || user.role === 'COORDINADOR_PRODUCTOR' || user.role === 'ADMIN' || user.role === 'PRODUCTOR_SENIOR' || user.role?.toUpperCase().includes('COORDINAD'))
+    user &&
+    user.role !== 'COORDINADORA_VENTAS' &&
+    (user.role === 'COORDINADOR' || user.role === 'COORDINADOR_PRODUCTOR' || user.role === 'ADMIN' || user.role === 'PRODUCTOR_SENIOR' || (user.role?.toUpperCase().includes('COORDINAD') && !user.role?.toUpperCase().includes('VENTAS')))
   );
   const isPostProducerUser = Boolean(
     user && (user.role === 'POST_PRODUCTOR' || user.role === 'PRODUCTOR_SENIOR' || user.role === 'COORDINADOR_PRODUCTOR' || user.role === 'ADMIN')
   );
   const canEditOrder = Boolean(
-    user && ['ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR', 'COORDINADORA', 'COORDINADOR_PRODUCTOR', 'SOLICITANTE', 'EJECUTIVA'].includes(user.role)
+    user && ['ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR', 'COORDINADORA', 'COORDINADOR_PRODUCTOR', 'SOLICITANTE', 'EJECUTIVA', 'COORDINADORA_VENTAS'].includes(user.role)
   );
 
   return (
