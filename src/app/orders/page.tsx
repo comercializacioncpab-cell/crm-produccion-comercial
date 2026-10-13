@@ -35,12 +35,32 @@ function OrdersContent() {
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [scopeFilter, setScopeFilter] = useState(searchParams.get('scope') || 'all');
+  const [executiveFilter, setExecutiveFilter] = useState('ALL');
+  const [executives, setExecutives] = useState<any[]>([]);
 
   // Checkboxes for bulk SP deletion
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<any>(null);
+
+  useEffect(() => {
+    async function loadExecutives() {
+      try {
+        const res = await fetch('/api/users');
+        if (res.ok) {
+          const data = await res.json();
+          const sales = (data.users || []).filter(
+            (u: any) => u.status === 'APROBADO' && ['SOLICITANTE', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR', 'COORDINADOR_PRODUCTOR', 'COORDINADORA_VENTAS'].includes(u.role)
+          );
+          setExecutives(sales);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadExecutives();
+  }, []);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -50,6 +70,7 @@ function OrdersContent() {
       if (priorityFilter !== 'ALL') params.append('priority', priorityFilter);
       if (searchTerm) params.append('search', searchTerm);
       if (scopeFilter !== 'all') params.append('scope', scopeFilter);
+      if (executiveFilter !== 'ALL') params.append('executiveId', executiveFilter);
 
       const res = await fetch(`/api/orders?${params.toString()}`);
       if (res.ok) {
@@ -65,7 +86,7 @@ function OrdersContent() {
 
   useEffect(() => {
     fetchOrders();
-  }, [statusFilter, priorityFilter, scopeFilter]);
+  }, [statusFilter, priorityFilter, scopeFilter, executiveFilter]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -235,6 +256,33 @@ function OrdersContent() {
               <Filter className="w-3.5 h-3.5" /> Filtrar por:
             </span>
 
+            {/* Selector de Alcance (Global / Todas vs Mis Órdenes) */}
+            <select
+              value={scopeFilter}
+              onChange={(e) => setScopeFilter(e.target.value)}
+              className="px-2.5 py-1.5 bg-blue-50/80 border border-blue-200 rounded-lg text-blue-900 font-bold text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="all">🌐 Todas las Órdenes (Global)</option>
+              <option value="my_orders">👤 Solo Mis Órdenes Ingresadas</option>
+              {(user?.role === 'POST_PRODUCTOR' || user?.role === 'COORDINADOR_PRODUCTOR' || user?.role === 'PRODUCTOR_SENIOR' || user?.role === 'ADMIN') && (
+                <option value="assigned_to_me">🎬 Mis Asignaciones</option>
+              )}
+            </select>
+
+            {/* Selector de Ejecutiva de Ventas Titular */}
+            <select
+              value={executiveFilter}
+              onChange={(e) => setExecutiveFilter(e.target.value)}
+              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="ALL">👩‍💼 Todas las Ejecutivas</option>
+              {executives.map((ex) => (
+                <option key={ex.id} value={ex.id}>
+                  👩‍💼 {ex.name} {ex.initials ? `(${ex.initials})` : ''}
+                </option>
+              ))}
+            </select>
+
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -370,6 +418,11 @@ function OrdersContent() {
                           <span className="text-slate-900 font-bold block">
                             👩‍💼 {order.executive?.name || order.creator?.name}
                           </span>
+                          {order.creator && order.creator.name !== order.executive?.name && (
+                            <span className="text-[10px] text-indigo-600 block font-medium">
+                              ✍️ Por: {order.creator.name}
+                            </span>
+                          )}
                           <span className="text-slate-400 block text-[10px]">
                             🎬 Post: {order.postProducer?.name || '—'}
                           </span>
@@ -467,6 +520,17 @@ function OrdersContent() {
                               📺 {order.program}
                             </p>
                           )}
+
+                          <div className="mt-2 text-[10px] text-slate-500 flex items-center justify-between">
+                            <span className="font-semibold text-slate-700 truncate">
+                              👩‍💼 {order.executive?.name || order.creator?.name}
+                            </span>
+                            {order.creator && order.creator.name !== order.executive?.name && (
+                              <span className="text-indigo-600 truncate ml-1 font-medium text-[9px]">
+                                (por: {order.creator.name.split(' ')[0]})
+                              </span>
+                            )}
+                          </div>
 
                           <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
                             <span>Post: {order.postProducer?.name.split(' ')[0] || 'Sin asignar'}</span>

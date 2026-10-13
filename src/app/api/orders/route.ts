@@ -16,19 +16,37 @@ export async function GET(req: Request) {
     const priority = searchParams.get('priority');
     const search = searchParams.get('search');
     const scope = searchParams.get('scope'); // 'my_orders', 'assigned_to_me', 'all'
+    const executiveId = searchParams.get('executiveId');
 
     const where: any = {};
 
-    if (scope === 'my_orders' || user.role === 'SOLICITANTE') {
+    if (scope === 'my_orders') {
       where.OR = [
         { creatorId: user.id },
         { executiveId: user.id },
       ];
-    } else if (scope === 'assigned_to_me' || user.role === 'POST_PRODUCTOR') {
+    } else if (scope === 'assigned_to_me') {
       where.OR = [
         { postProducerId: user.id },
         { secondaryPostProducerId: user.id },
       ];
+    } else if (scope !== 'all') {
+      // Default fallback when scope is omitted:
+      if (user.role === 'SOLICITANTE') {
+        where.OR = [
+          { creatorId: user.id },
+          { executiveId: user.id },
+        ];
+      } else if (user.role === 'POST_PRODUCTOR') {
+        where.OR = [
+          { postProducerId: user.id },
+          { secondaryPostProducerId: user.id },
+        ];
+      }
+    }
+
+    if (executiveId && executiveId !== 'ALL') {
+      where.executiveId = executiveId;
     }
 
     if (status && status !== 'ALL') {
