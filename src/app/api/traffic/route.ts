@@ -90,6 +90,7 @@ export async function GET(req: Request) {
       return {
         ...prod,
         activeCount,
+        activeOrders: activeCount,
         workload,
         orders: assigned,
       };
@@ -118,6 +119,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       producers: producersGrid,
+      editors: producersGrid,
       unassignedOrders,
       allUpcomingOrders: upcomingOrders,
       totalActiveOrders: activeOrders.length,

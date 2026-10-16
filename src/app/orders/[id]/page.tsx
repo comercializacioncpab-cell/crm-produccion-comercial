@@ -146,16 +146,29 @@ export default function OrderDetailPage() {
       const res = await fetch('/api/traffic');
       if (res.ok) {
         const data = await res.json();
-        setPostProducers(data.editors || []);
-      } else {
-        const res2 = await fetch('/api/users?role=POST_PRODUCTOR');
-        if (res2.ok) {
-          const data2 = await res2.json();
-          setPostProducers(data2.users || []);
+        const list = data.producers || data.editors || [];
+        if (Array.isArray(list) && list.length > 0) {
+          setPostProducers(
+            list.map((p: any) => ({
+              ...p,
+              activeOrders: p.activeOrders ?? p.activeCount ?? 0,
+            }))
+          );
+          return;
         }
       }
     } catch (e) {
-      console.error(e);
+      console.error('Error al consultar /api/traffic para editores:', e);
+    }
+
+    try {
+      const res2 = await fetch('/api/users?role=POST_PRODUCTOR&status=APROBADO');
+      if (res2.ok) {
+        const data2 = await res2.json();
+        setPostProducers(data2.users || []);
+      }
+    } catch (e2) {
+      console.error('Error al consultar fallback /api/users para editores:', e2);
     }
   };
 
@@ -1481,6 +1494,9 @@ export default function OrderDetailPage() {
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500"
                     >
                       <option value="">-- Seleccionar Editor Principal --</option>
+                      {postProducers.length === 0 && (
+                        <option disabled value="">⏳ Cargando post-productores...</option>
+                      )}
                       {postProducers.map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.workload?.dot ? `${p.workload.dot} ` : ''}{p.role === 'PRODUCTOR_SENIOR' ? '👑 ' : p.role === 'COORDINADOR_PRODUCTOR' ? '🎯 ' : '🎬 '}{p.name} {p.activeOrders !== undefined ? `[${p.activeOrders} activas]` : ''} {p.role === 'PRODUCTOR_SENIOR' ? '(Senior)' : p.role === 'COORDINADOR_PRODUCTOR' ? '(Coord-Prod)' : ''}
@@ -1500,6 +1516,9 @@ export default function OrderDetailPage() {
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500"
                     >
                       <option value="">-- Ninguno (Sin Editor Adicional) --</option>
+                      {postProducers.length === 0 && (
+                        <option disabled value="">⏳ Cargando post-productores...</option>
+                      )}
                       {postProducers
                         .filter((p) => p.id !== selectedPostId)
                         .map((p) => (
@@ -2519,6 +2538,9 @@ export default function OrderDetailPage() {
                           className="w-full p-2.5 bg-white border border-purple-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-purple-500 focus:outline-none"
                         >
                           <option value="">-- Sin Asignar --</option>
+                          {postProducers.length === 0 && (
+                            <option disabled value="">⏳ Cargando post-productores...</option>
+                          )}
                           {postProducers.map((p) => (
                             <option key={p.id} value={p.id}>
                               {p.workload?.dot ? `${p.workload.dot} ` : ''}{p.role === 'PRODUCTOR_SENIOR' ? '👑 ' : p.role === 'COORDINADOR_PRODUCTOR' ? '🎯 ' : '🎬 '}{p.name} {p.activeOrders !== undefined ? `[${p.activeOrders} activas]` : ''}
@@ -2537,6 +2559,9 @@ export default function OrderDetailPage() {
                           className="w-full p-2.5 bg-white border border-purple-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-purple-500 focus:outline-none"
                         >
                           <option value="">-- Ninguno --</option>
+                          {postProducers.length === 0 && (
+                            <option disabled value="">⏳ Cargando post-productores...</option>
+                          )}
                           {postProducers
                             .filter((p) => p.id !== editFormData.postProducerId)
                             .map((p) => (
