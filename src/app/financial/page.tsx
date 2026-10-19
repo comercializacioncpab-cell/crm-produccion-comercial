@@ -37,6 +37,7 @@ export default function FinancialDashboardPage() {
 
   // Table filters
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<'ALL' | 'TV' | 'DIGITAL'>('ALL');
   const [selectedExecutive, setSelectedExecutive] = useState('ALL');
   const [selectedStatus, setSelectedStatus] = useState('ALL');
   const [selectedMonth, setSelectedMonth] = useState('ALL');
@@ -128,7 +129,15 @@ export default function FinancialDashboardPage() {
       matchesType = Boolean(ord.isDemo);
     }
 
-    return matchesSearch && matchesExec && matchesStatus && matchesMonth && matchesType;
+    let matchesCategory = true;
+    const isDigital = ord.orderCategory === 'DIGITAL';
+    if (selectedCategory === 'TV') {
+      matchesCategory = !isDigital;
+    } else if (selectedCategory === 'DIGITAL') {
+      matchesCategory = isDigital;
+    }
+
+    return matchesSearch && matchesExec && matchesStatus && matchesMonth && matchesType && matchesCategory;
   });
 
   const filteredTotalValue = filteredOrders.reduce((acc: number, curr: any) => acc + (curr.packageValue || 0), 0);
@@ -162,72 +171,171 @@ export default function FinancialDashboardPage() {
             </p>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/20 text-right min-w-[200px]">
+          <div className="bg-white/10 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/20 text-right min-w-[260px] space-y-1.5">
             <span className="text-[11px] text-emerald-200 block font-bold uppercase tracking-wider">
-              Facturación Bruta Total
+              Facturación Total Consolidada
             </span>
-            <span className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono">
+            <span className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono block">
               ${data.totalRevenue.toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
-            <span className="text-[10px] text-slate-300 block mt-0.5">
-              En {data.totalCommercialOrders || data.totalOrders} órdenes comerciales
+            <div className="flex items-center justify-end gap-2 text-[10px] text-slate-200 font-bold">
+              <span className="bg-blue-500/25 text-blue-200 px-2.5 py-0.5 rounded-full border border-blue-400/30">
+                📺 TV: ${(data.tvRevenue || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+              <span className="bg-emerald-500/25 text-emerald-200 px-2.5 py-0.5 rounded-full border border-emerald-400/30">
+                📱 Digital: ${(data.digitalRevenue || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+            <span className="text-[10px] text-slate-300 block">
+              En {data.totalCommercialOrders || data.totalOrders} órdenes comerciales activas
             </span>
           </div>
         </div>
 
-        {/* 🌟 4 KPI TOP CARDS (FACTURACIÓN GENERAL) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Total Recaudado (Aprobado)</p>
-              <h3 className="text-xl font-black text-emerald-600 font-mono mt-1">
-                ${approvedRevenue.toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </h3>
-              <p className="text-[10px] text-slate-400 mt-1">SPs Aprobadas / Entregadas</p>
+        {/* 📺 1. BLOQUE SUPERIOR: INGRESOS & FACTURACIÓN TELEVISIÓN (TRADICIONAL) */}
+        <div className="space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
+            <div className="flex items-center gap-2.5">
+              <span className="text-xl">📺</span>
+              <h2 className="text-sm font-black uppercase tracking-wider text-slate-900">
+                Facturación & Métricas Televisión (Tradicional)
+              </h2>
+              <span className="text-[10px] bg-blue-100 text-blue-800 font-black px-2.5 py-0.5 rounded-full border border-blue-200">
+                Subtotal TV: ${(data.tvRevenue || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-              <CheckCircle2 className="w-6 h-6" />
-            </div>
+            <span className="text-[11px] text-slate-500 font-semibold">
+              {data.totalTvCommercialOrders || 0} Comerciales TV • {data.totalTvDemos || 0} DEMOs TV
+            </span>
           </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">En Proceso / Producción</p>
-              <h3 className="text-xl font-black text-cyan-600 font-mono mt-1">
-                ${inProgressRevenue.toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </h3>
-              <p className="text-[10px] text-slate-400 mt-1">En curso en salas de edición</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white p-5 rounded-2xl border border-blue-100 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Recaudado TV (Aprobado)</p>
+                <h3 className="text-xl font-black text-blue-700 font-mono mt-1">
+                  ${(data.approvedTvRevenue || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </h3>
+                <p className="text-[10px] text-slate-400 mt-1">SPs TV Aprobadas / Emitidas</p>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-cyan-50 text-cyan-600 flex items-center justify-center font-bold">
-              <Clock className="w-6 h-6" />
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">En Proceso TV</p>
+                <h3 className="text-xl font-black text-cyan-600 font-mono mt-1">
+                  ${(data.inProgressTvRevenue || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </h3>
+                <p className="text-[10px] text-slate-400 mt-1">En curso en salas de edición</p>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-cyan-50 text-cyan-600 flex items-center justify-center font-bold">
+                <Clock className="w-6 h-6" />
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Ticket Promedio TV</p>
+                <h3 className="text-xl font-black text-slate-900 font-mono mt-1">
+                  ${(data.averageTicketTv || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </h3>
+                <p className="text-[10px] text-slate-400 mt-1">Valor medio por paquete TV</p>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                <TrendingUp className="w-6 h-6" />
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Total Solicitudes TV</p>
+                <h3 className="text-xl font-black text-slate-900 font-mono mt-1">
+                  {data.totalTvOrders || 0}
+                </h3>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  {data.totalTvCommercialOrders || 0} Comerciales • {data.totalTvDemos || 0} DEMOs
+                </p>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                <Layers className="w-6 h-6" />
+              </div>
             </div>
           </div>
+        </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Ticket Promedio por Venta</p>
-              <h3 className="text-xl font-black text-slate-900 font-mono mt-1">
-                ${data.averageTicket.toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </h3>
-              <p className="text-[10px] text-slate-400 mt-1">Valor medio por paquete</p>
+        {/* 📱 2. BLOQUE INFERIOR: INGRESOS & FACTURACIÓN DIGITAL (REDES & WEB) */}
+        <div className="space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
+            <div className="flex items-center gap-2.5">
+              <span className="text-xl">📱</span>
+              <h2 className="text-sm font-black uppercase tracking-wider text-slate-900">
+                Facturación & Métricas Digital (Redes & Web)
+              </h2>
+              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-black px-2.5 py-0.5 rounded-full border border-emerald-200">
+                Subtotal Digital: ${(data.digitalRevenue || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-              <TrendingUp className="w-6 h-6" />
-            </div>
+            <span className="text-[11px] text-slate-500 font-semibold">
+              {data.totalDigitalCommercialOrders || 0} Comerciales Digitales • {data.totalDigitalDemos || 0} DEMOs Digitales
+            </span>
           </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Total Solicitudes (SPs)</p>
-              <h3 className="text-xl font-black text-slate-900 font-mono mt-1">
-                {data.totalOrders}
-              </h3>
-              <p className="text-[10px] text-slate-400 mt-1">
-                {data.totalCommercialOrders || 0} Comerciales • {data.totalDemos || 0} DEMOs
-              </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white p-5 rounded-2xl border border-emerald-100 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Recaudado Digital (Aprobado)</p>
+                <h3 className="text-xl font-black text-emerald-600 font-mono mt-1">
+                  ${(data.approvedDigitalRevenue || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </h3>
+                <p className="text-[10px] text-slate-400 mt-1">SPs Digitales Aprobadas / Publicadas</p>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
-              <Layers className="w-6 h-6" />
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">En Proceso Digital</p>
+                <h3 className="text-xl font-black text-teal-600 font-mono mt-1">
+                  ${(data.inProgressDigitalRevenue || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </h3>
+                <p className="text-[10px] text-slate-400 mt-1">En redacción / post digital</p>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold">
+                <Clock className="w-6 h-6" />
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Ticket Promedio Digital</p>
+                <h3 className="text-xl font-black text-slate-900 font-mono mt-1">
+                  ${(data.averageTicketDigital || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </h3>
+                <p className="text-[10px] text-slate-400 mt-1">Valor medio por paquete digital</p>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
+                <TrendingUp className="w-6 h-6" />
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Total Solicitudes Digitales</p>
+                <h3 className="text-xl font-black text-slate-900 font-mono mt-1">
+                  {data.totalDigitalOrders || 0}
+                </h3>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  {data.totalDigitalCommercialOrders || 0} Comerciales • {data.totalDigitalDemos || 0} DEMOs
+                </p>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                <Layers className="w-6 h-6" />
+              </div>
             </div>
           </div>
         </div>
@@ -343,7 +451,10 @@ export default function FinancialDashboardPage() {
                             <div>
                               <h4 className="font-bold text-xs text-slate-900">{exec.name}</h4>
                               <p className="text-[10px] text-slate-400">
-                                {exec.count} SPs Comerciales ({percent.toFixed(1)}%) • {exec.demosSoldCount || 0}/{exec.demosCount || 0} DEMOs vendidos
+                                {exec.count} SPs ({percent.toFixed(1)}%)
+                                {exec.tvCount > 0 && <span className="text-blue-700 font-semibold"> • 📺 {exec.tvCount} TV</span>}
+                                {exec.digitalCount > 0 && <span className="text-emerald-700 font-semibold"> • 📱 {exec.digitalCount} Digital</span>}
+                                {` • ${exec.demosSoldCount || 0}/${exec.demosCount || 0} DEMOs`}
                               </p>
                             </div>
                           </div>
@@ -463,7 +574,7 @@ export default function FinancialDashboardPage() {
               </div>
 
               {/* Filters Bar */}
-              <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 <div className="relative">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                   <input
@@ -473,6 +584,18 @@ export default function FinancialDashboardPage() {
                     placeholder="Buscar SP, cliente, producto..."
                     className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
+                </div>
+
+                <div>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e: any) => setSelectedCategory(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="ALL">🌐 Canal: Todos</option>
+                    <option value="TV">📺 Canal: Solo TV</option>
+                    <option value="DIGITAL">📱 Canal: Solo Digital</option>
+                  </select>
                 </div>
 
                 <div>
@@ -563,9 +686,20 @@ export default function FinancialDashboardPage() {
                         return (
                           <tr key={ord.id} className="hover:bg-slate-50/80 transition-colors">
                             <td className="p-3 font-mono font-bold text-slate-900 whitespace-nowrap">
-                              <Link href={`/orders/${ord.id}`} className="hover:text-blue-600 hover:underline">
-                                {ord.orderNumber}
-                              </Link>
+                              <div className="flex items-center gap-1.5">
+                                <Link href={`/orders/${ord.id}`} className="hover:text-blue-600 hover:underline">
+                                  {ord.orderNumber}
+                                </Link>
+                                {ord.orderCategory === 'DIGITAL' ? (
+                                  <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-1.5 py-0.5 rounded border border-emerald-300">
+                                    📱 DIGITAL
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] bg-blue-100 text-blue-800 font-extrabold px-1.5 py-0.5 rounded border border-blue-200">
+                                    📺 TV
+                                  </span>
+                                )}
+                              </div>
                             </td>
 
                             <td className="p-3 whitespace-nowrap">
@@ -685,8 +819,17 @@ export default function FinancialDashboardPage() {
                       return (
                         <tr key={demo.id} className="hover:bg-slate-50/80 transition-colors">
                           <td className="p-3 font-mono font-bold text-purple-900 whitespace-nowrap">
-                            <Link href={`/orders/${demo.id}`} className="hover:underline flex items-center gap-1">
+                            <Link href={`/orders/${demo.id}`} className="hover:underline flex items-center gap-1.5">
                               <span>🧪 {demo.orderNumber}</span>
+                              {demo.orderCategory === 'DIGITAL' ? (
+                                <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-1.5 py-0.5 rounded border border-emerald-300">
+                                  📱 DIGITAL
+                                </span>
+                              ) : (
+                                <span className="text-[9px] bg-blue-100 text-blue-800 font-extrabold px-1.5 py-0.5 rounded border border-blue-200">
+                                  📺 TV
+                                </span>
+                              )}
                             </Link>
                           </td>
                           <td className="p-3 text-slate-400 text-[11px] whitespace-nowrap">
