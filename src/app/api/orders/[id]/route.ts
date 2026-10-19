@@ -679,6 +679,49 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       return NextResponse.json({ success: true, token, order: updatedOrder });
     }
 
+    // 10. ACTION: SAVE_FINANCIAL_COSTS (Coordinator / Admin / Productor Senior)
+    if (action === 'SAVE_FINANCIAL_COSTS') {
+      const { financialCosts, packageValue } = body;
+      let currentDigital: any = {};
+      try {
+        currentDigital = order.digitalData ? JSON.parse(order.digitalData) : {};
+      } catch (e) {
+        currentDigital = {};
+      }
+      const updatedDigital = {
+        ...currentDigital,
+        financialCosts,
+      };
+
+      const parsedPackageValue = packageValue !== undefined && packageValue !== null && packageValue !== ''
+        ? parseFloat(String(packageValue).replace(/[^0-9.]/g, ''))
+        : undefined;
+
+      updatedOrder = await prisma.productionOrder.update({
+        where: { id },
+        data: {
+          digitalData: JSON.stringify(updatedDigital),
+          ...(parsedPackageValue !== undefined && !isNaN(parsedPackageValue) && { packageValue: parsedPackageValue }),
+        },
+        include: { creator: true, executive: true, postProducer: true, secondaryPostProducer: true },
+      });
+
+      const rentabilityAlert = (financialCosts?.profitabilityPercent ?? 0) < 70
+        ? ` (⚠️ Advertencia: Rentabilidad ${financialCosts?.profitabilityPercent}% < 70%)`
+        : ` (✅ Rentabilidad Óptima: ${financialCosts?.profitabilityPercent}%)`;
+
+      await prisma.activityLog.create({
+        data: {
+          orderId: id,
+          userId: user.id,
+          action: 'COSTOS_REGISTRADOS',
+          details: `Hoja de Costos y Rentabilidad registrada por ${user.name}: Gastos $${financialCosts?.totalExpenses || 0}, Comisión Agencia $${financialCosts?.agencyCommissionAmount || 0}${rentabilityAlert}.`,
+        },
+      });
+
+      return NextResponse.json({ success: true, order: updatedOrder });
+    }
+
     // Generic update
     const {
       clientAgency,

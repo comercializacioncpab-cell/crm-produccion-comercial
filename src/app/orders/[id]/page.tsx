@@ -40,7 +40,8 @@ import {
   Plus,
   Trash2,
   Copy,
-  Smartphone
+  Smartphone,
+  Save
 } from 'lucide-react';
 import { 
   STATUS_CONFIG, 
@@ -120,6 +121,18 @@ export default function OrderDetailPage() {
     executiveId: '',
   });
 
+  // Financial Costs & Profitability States (Digital Project Cost Sheet)
+  const [digitalCosts, setDigitalCosts] = useState({
+    packageValue: 0,
+    producerCost: 0,
+    reporterCost: 0,
+    mobilizationCost: 0,
+    otherCost: 0,
+    agencyCommissionApplies: false,
+  });
+  const [savingCosts, setSavingCosts] = useState(false);
+  const [costsSuccessMsg, setCostsSuccessMsg] = useState('');
+
   const fetchOrder = async () => {
     try {
       const res = await fetch(`/api/orders/${orderId}`);
@@ -136,6 +149,25 @@ export default function OrderDetailPage() {
         }
         if (data.order.priority) {
           setAssignPriority(data.order.priority);
+        }
+
+        // Initialize digital financial costs
+        try {
+          const dData = typeof data.order.digitalData === 'string' ? JSON.parse(data.order.digitalData) : (data.order.digitalData || {});
+          if (dData.financialCosts) {
+            setDigitalCosts({
+              packageValue: data.order.packageValue || 0,
+              producerCost: dData.financialCosts.producerCost || 0,
+              reporterCost: dData.financialCosts.reporterCost || 0,
+              mobilizationCost: dData.financialCosts.mobilizationCost || 0,
+              otherCost: dData.financialCosts.otherCost || 0,
+              agencyCommissionApplies: Boolean(dData.financialCosts.agencyCommissionApplies),
+            });
+          } else {
+            setDigitalCosts((prev: any) => ({ ...prev, packageValue: data.order.packageValue || 0 }));
+          }
+        } catch {
+          setDigitalCosts((prev: any) => ({ ...prev, packageValue: data.order.packageValue || 0 }));
         }
       }
     } catch (e) {
@@ -568,6 +600,190 @@ export default function OrderDetailPage() {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  // Calculations for Digital Costs and Profitability
+  const packageVal = Number(digitalCosts.packageValue || order?.packageValue || 0);
+  const producerCost = Number(digitalCosts.producerCost || 0);
+  const reporterCost = Number(digitalCosts.reporterCost || 0);
+  const mobilizationCost = Number(digitalCosts.mobilizationCost || 0);
+  const otherCost = Number(digitalCosts.otherCost || 0);
+  const totalExpenses = producerCost + reporterCost + mobilizationCost + otherCost;
+  const agencyCommissionAmount = digitalCosts.agencyCommissionApplies ? packageVal * 0.15 : 0;
+  const netMargin = packageVal - agencyCommissionAmount - totalExpenses;
+  const profitabilityPercent = packageVal > 0 ? (netMargin / packageVal) * 100 : 0;
+  const isOptimalProfitability = profitabilityPercent >= 70;
+
+  const handleSaveFinancialCosts = async () => {
+    if (!order) return;
+    setSavingCosts(true);
+    setCostsSuccessMsg('');
+    try {
+      const payload = {
+        producerCost,
+        reporterCost,
+        mobilizationCost,
+        otherCost,
+        agencyCommissionApplies: digitalCosts.agencyCommissionApplies,
+        agencyCommissionRate: 15,
+        agencyCommissionAmount,
+        totalExpenses,
+        netMargin,
+        profitabilityPercent: Number(profitabilityPercent.toFixed(1)),
+        updatedAt: new Date().toISOString(),
+        updatedBy: user?.name,
+      };
+
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'SAVE_FINANCIAL_COSTS',
+          financialCosts: payload,
+          packageValue: packageVal,
+        }),
+      });
+
+      if (res.ok) {
+        setCostsSuccessMsg('✓ Costos y rentabilidad guardados exitosamente');
+        fetchOrder();
+        setTimeout(() => setCostsSuccessMsg(''), 4000);
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Error al guardar los costos del proyecto');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error de conexión al guardar los costos');
+    } finally {
+      setSavingCosts(false);
+    }
+  };
+
+  const downloadWordDoc = () => {
+    if (!order) return;
+    const docHtml = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset='utf-8'>
+        <title>Ficha de Rentabilidad - ${order.orderNumber}</title>
+        <style>
+          body { font-family: Arial, sans-serif; font-size: 11pt; color: #1e293b; margin: 20px; }
+          .header-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          .header-table td { padding: 8px; border: 1px solid #0f172a; }
+          .title { font-size: 16pt; font-weight: bold; text-align: center; color: #0f172a; }
+          .section-title { background-color: #0f172a; color: #ffffff; padding: 6px 10px; font-weight: bold; font-size: 11pt; margin-top: 15px; margin-bottom: 8px; text-transform: uppercase; }
+          .data-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+          .data-table td, .data-table th { padding: 6px 10px; border: 1px solid #cbd5e1; font-size: 10pt; }
+          .data-table th { background-color: #f1f5f9; text-align: left; font-weight: bold; }
+          .label { font-weight: bold; width: 30%; background-color: #f8fafc; }
+          .val { width: 70%; }
+          .alert-optimal { background-color: #dcfce7; border: 2px solid #16a34a; color: #166534; padding: 12px; font-weight: bold; text-align: center; font-size: 12pt; margin: 15px 0; }
+          .alert-warning { background-color: #fee2e2; border: 2px solid #dc2626; color: #991b1b; padding: 12px; font-weight: bold; text-align: center; font-size: 12pt; margin: 15px 0; }
+          .signatures { width: 100%; margin-top: 50px; border-collapse: collapse; }
+          .signatures td { width: 50%; text-align: center; padding-top: 40px; font-size: 10pt; }
+          .sign-line { border-top: 1px solid #475569; width: 75%; margin: 0 auto 5px auto; }
+        </style>
+      </head>
+      <body>
+        <table class="header-table">
+          <tr>
+            <td style="width: 25%; background-color: #00a3ad; color: #ffffff; font-weight: bold; text-align: center;">
+              ECUAVISA DIGITAL<br><span style="font-size: 9pt;">PRODUCCIÓN COMERCIAL</span>
+            </td>
+            <td class="title">
+              INFORME DE COSTOS Y RENTABILIDAD DEL PROYECTO
+            </td>
+            <td style="width: 25%; text-align: center; font-weight: bold; background-color: #fef08a;">
+              CÓDIGO SP:<br><span style="font-size: 14pt; color: #000;">${order.orderNumber}</span>
+            </td>
+          </tr>
+        </table>
+
+        <div class="section-title">1. Información General del Proyecto</div>
+        <table class="data-table">
+          <tr><td class="label">Cliente / Marca:</td><td class="val">${order.clientAgency || ''}</td></tr>
+          <tr><td class="label">Producto / Servicio:</td><td class="val">${order.product || ''}</td></tr>
+          <tr><td class="label">Campaña / Tagline:</td><td class="val">${order.campaign || 'N/A'}</td></tr>
+          <tr><td class="label">Objetivo de Contenido / KPI:</td><td class="val">${order.contentObjective || 'N/A'}</td></tr>
+          <tr><td class="label">Ejecutiva Digital Asignada:</td><td class="val">${order.executive?.name || order.creator?.name || ''}</td></tr>
+          <tr><td class="label">Editor / Post-Productor:</td><td class="val">${order.postProducer?.name || 'Por asignar'}</td></tr>
+          <tr><td class="label">Cronograma Editorial:</td><td class="val">Recepción: ${order.receptionDate || 'N/A'} | Entrega Insumos: ${order.materialDeliveryDate || 'N/A'} | Publicación: ${order.publishDate || order.airDate || 'N/A'}</td></tr>
+        </table>
+
+        <div class="section-title">2. Desglose Financiero & Gastos del Proyecto</div>
+        <table class="data-table">
+          <tr><th>Concepto</th><th>Condición / Detalle</th><th style="text-align: right;">Monto USD</th></tr>
+          <tr>
+            <td style="font-weight: bold;">Valor del Paquete Comercial</td>
+            <td>Tarifa acordada del proyecto publicitario</td>
+            <td style="text-align: right; font-weight: bold; color: #0f172a;">$${packageVal.toFixed(2)} USD</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold;">Comisión de Agencia (15%)</td>
+            <td>${digitalCosts.agencyCommissionApplies ? 'APLICA DESCUENTO (15%)' : 'NO APLICA COMISIÓN'}</td>
+            <td style="text-align: right; font-weight: bold; color: ${digitalCosts.agencyCommissionApplies ? '#dc2626' : '#64748b'};">
+              ${digitalCosts.agencyCommissionApplies ? `-$${agencyCommissionAmount.toFixed(2)} USD` : '$0.00 USD'}
+            </td>
+          </tr>
+          <tr style="background-color: #f8fafc;">
+            <td colspan="3" style="font-weight: bold; font-size: 9pt; text-transform: uppercase;">Gastos Directos de Producción:</td>
+          </tr>
+          <tr><td>• Gasto Productor:</td><td>Honorarios de producción en campo</td><td style="text-align: right;">$${producerCost.toFixed(2)} USD</td></tr>
+          <tr><td>• Gasto Reportero:</td><td>Honorarios de talento periodístico digital</td><td style="text-align: right;">$${reporterCost.toFixed(2)} USD</td></tr>
+          <tr><td>• Gasto Movilización:</td><td>Transporte, viáticos y combustible</td><td style="text-align: right;">$${mobilizationCost.toFixed(2)} USD</td></tr>
+          <tr><td>• Otros Gastos:</td><td>Imprevistos, utilería, licencias o compras</td><td style="text-align: right;">$${otherCost.toFixed(2)} USD</td></tr>
+          <tr style="background-color: #f1f5f9; font-weight: bold;">
+            <td colspan="2">TOTAL GASTOS DIRECTOS:</td>
+            <td style="text-align: right; color: #dc2626;">-$${totalExpenses.toFixed(2)} USD</td>
+          </tr>
+          <tr style="background-color: #e2e8f0; font-weight: bold; font-size: 11pt;">
+            <td colspan="2">MARGEN NETO / UTILIDAD BRUTA:</td>
+            <td style="text-align: right; color: #0f172a;">$${netMargin.toFixed(2)} USD</td>
+          </tr>
+          <tr style="background-color: ${isOptimalProfitability ? '#dcfce7' : '#fee2e2'}; font-weight: bold; font-size: 12pt;">
+            <td colspan="2">PORCENTAJE DE RENTABILIDAD:</td>
+            <td style="text-align: right; color: ${isOptimalProfitability ? '#166534' : '#991b1b'};">${profitabilityPercent.toFixed(1)}%</td>
+          </tr>
+        </table>
+
+        ${isOptimalProfitability ? `
+          <div class="alert-optimal">
+            ✅ PROYECTO RENTABLE: Cumple con el objetivo de margen (Rentabilidad: ${profitabilityPercent.toFixed(1)}% &gt;= 70%)
+          </div>
+        ` : `
+          <div class="alert-warning">
+            ⚠️ ADVERTENCIA: RENTABILIDAD INSUFICIENTE (Rentabilidad: ${profitabilityPercent.toFixed(1)}% menor al 70% requerido). Requiere autorización de Gerencia.
+          </div>
+        `}
+
+        <table class="signatures">
+          <tr>
+            <td>
+              <div class="sign-line"></div>
+              <strong>Coordinación de Producción</strong><br>
+              Ecuavisa Digital
+            </td>
+            <td>
+              <div class="sign-line"></div>
+              <strong>Productor Senior / Gerencia</strong><br>
+              Aprobación Financiera
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob(['\ufeff', docHtml], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Ficha_Rentabilidad_${order.orderNumber}.doc`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   // Full Edit Modal Handlers (Executive / Coordinator / Admin)
@@ -1817,6 +2033,197 @@ export default function OrderDetailPage() {
                     <UserCheck className="w-4 h-4" />
                     {actionLoading ? 'Asignando...' : 'Asignar y Notificar a Editores'}
                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* PANEL DE GASTOS & RENTABILIDAD DEL PROYECTO (SP DIGITAL) */}
+            {order.orderCategory === 'DIGITAL' && (
+              <div className="bg-white rounded-3xl border border-emerald-200 p-5 shadow-sm space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm">
+                      💰
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-xs text-slate-900">Gastos & Rentabilidad (Proyecto Digital)</h3>
+                      <p className="text-[10px] text-slate-500">Hoja de costos • Meta mínima: &gt;= 70%</p>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${isOptimalProfitability ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-rose-100 text-rose-800 border-rose-300'}`}>
+                    {profitabilityPercent.toFixed(1)}%
+                  </span>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  {/* Valor del Paquete */}
+                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
+                      <span>Valor del Paquete Comercial:</span>
+                      <span className="font-mono font-black text-slate-900">${packageVal.toFixed(2)} USD</span>
+                    </label>
+                    {isCoordinator ? (
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={digitalCosts.packageValue || ''}
+                        onChange={(e) => setDigitalCosts({ ...digitalCosts, packageValue: parseFloat(e.target.value) || 0 })}
+                        className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        placeholder="0.00"
+                      />
+                    ) : (
+                      <p className="font-mono font-bold text-slate-800">${packageVal.toFixed(2)} USD</p>
+                    )}
+                  </div>
+
+                  {/* Comisión de Agencia (15%) Checkbox */}
+                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center justify-between">
+                    <label className="flex items-center gap-2 text-[11px] font-bold text-slate-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        disabled={!isCoordinator}
+                        checked={digitalCosts.agencyCommissionApplies}
+                        onChange={(e) => setDigitalCosts({ ...digitalCosts, agencyCommissionApplies: e.target.checked })}
+                        className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                      />
+                      <span>Descontar Comisión de Agencia (15%)</span>
+                    </label>
+                    <span className={`font-mono text-xs font-bold ${digitalCosts.agencyCommissionApplies ? 'text-rose-600' : 'text-slate-400'}`}>
+                      {digitalCosts.agencyCommissionApplies ? `-$${agencyCommissionAmount.toFixed(2)}` : '$0.00'}
+                    </span>
+                  </div>
+
+                  {/* Gastos del Proyecto */}
+                  <div className="space-y-2 border-t border-slate-200 pt-3">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-700 block">
+                      Gastos Directos de Producción:
+                    </span>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Productor ($):</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          disabled={!isCoordinator}
+                          value={digitalCosts.producerCost || ''}
+                          onChange={(e) => setDigitalCosts({ ...digitalCosts, producerCost: parseFloat(e.target.value) || 0 })}
+                          className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50 disabled:opacity-60"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Reportero ($):</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          disabled={!isCoordinator}
+                          value={digitalCosts.reporterCost || ''}
+                          onChange={(e) => setDigitalCosts({ ...digitalCosts, reporterCost: parseFloat(e.target.value) || 0 })}
+                          className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50 disabled:opacity-60"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Movilización ($):</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          disabled={!isCoordinator}
+                          value={digitalCosts.mobilizationCost || ''}
+                          onChange={(e) => setDigitalCosts({ ...digitalCosts, mobilizationCost: parseFloat(e.target.value) || 0 })}
+                          className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50 disabled:opacity-60"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Otros ($):</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          disabled={!isCoordinator}
+                          value={digitalCosts.otherCost || ''}
+                          onChange={(e) => setDigitalCosts({ ...digitalCosts, otherCost: parseFloat(e.target.value) || 0 })}
+                          className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50 disabled:opacity-60"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 bg-slate-100 p-2 rounded-lg">
+                      <span>Total Gastos:</span>
+                      <span className="font-mono text-rose-700 font-black">-${totalExpenses.toFixed(2)} USD</span>
+                    </div>
+                  </div>
+
+                  {/* Resumen de Margen & Rentabilidad con Alerta */}
+                  <div className={`p-3 rounded-2xl border-2 space-y-1.5 transition-all ${isOptimalProfitability ? 'bg-emerald-50 border-emerald-400 text-emerald-950' : 'bg-rose-50 border-rose-500 text-rose-950'}`}>
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span>Margen Neto (Utilidad):</span>
+                      <span className="font-mono font-black text-sm">${netMargin.toFixed(2)} USD</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs font-black pt-1 border-t border-black/10">
+                      <span>Rentabilidad:</span>
+                      <span className="font-mono text-base">{profitabilityPercent.toFixed(1)}%</span>
+                    </div>
+                    <div className="text-[10px] font-bold pt-1">
+                      {isOptimalProfitability ? (
+                        <p className="text-emerald-800 flex items-center gap-1">
+                          <span>✅</span> <span>Rentabilidad óptima (Mayor o igual al 70% requerido).</span>
+                        </p>
+                      ) : (
+                        <p className="text-rose-700 font-black flex items-center gap-1">
+                          <span>⚠️</span> <span>ADVERTENCIA: Rentabilidad menor al 70% requerido.</span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {costsSuccessMsg && (
+                    <div className="p-2 bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-xl text-[11px] font-bold text-center">
+                      {costsSuccessMsg}
+                    </div>
+                  )}
+
+                  {/* Botones de Acción */}
+                  <div className="space-y-2 pt-1">
+                    {isCoordinator && (
+                      <button
+                        type="button"
+                        onClick={handleSaveFinancialCosts}
+                        disabled={savingCosts}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        <Save className="w-4 h-4" />
+                        {savingCosts ? 'Guardando Costos...' : 'Guardar Costos y Rentabilidad'}
+                      </button>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <Link
+                        href={`/orders/${order.id}/cost-sheet`}
+                        target="_blank"
+                        className="flex items-center justify-center gap-1 px-2.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold shadow-xs text-center transition-colors"
+                      >
+                        <Printer className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>Ficha PDF</span>
+                      </Link>
+
+                      <button
+                        type="button"
+                        onClick={downloadWordDoc}
+                        className="flex items-center justify-center gap-1 px-2.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold shadow-xs text-center transition-colors cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Descargar .doc</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
