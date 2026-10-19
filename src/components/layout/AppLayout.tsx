@@ -160,32 +160,41 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     return (
                       <div key={item.name} className="space-y-1">
                         <div
-                          className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                          className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold select-none cursor-default transition-all ${
                             isNewOrderActive
-                              ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md'
-                              : 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-sm hover:opacity-95'
+                              ? 'bg-slate-900 text-white shadow-md border border-slate-700'
+                              : 'bg-slate-800 text-slate-100 shadow-sm border border-slate-700/60'
                           }`}
                         >
-                          <Link href="/orders/new" className="flex items-center gap-3 flex-1 text-white">
-                            <Icon className="w-4 h-4 text-white" />
-                            <span>{item.name}</span>
-                          </Link>
+                          <div className="flex items-center gap-2.5 text-white">
+                            <Icon className="w-4 h-4 text-cyan-400" />
+                            <span className="tracking-wide uppercase text-[11px] font-black">{item.name}</span>
+                          </div>
+                          <span className="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-white/10 text-cyan-200">
+                            Elegir 👇
+                          </span>
                         </div>
                         {/* Submenu for TV or DIGITAL */}
-                        <div className="pl-2 pr-1 py-1 space-y-1 bg-slate-50/90 rounded-xl border border-slate-200">
+                        <div className="pl-1.5 pr-1 py-1 space-y-1 bg-slate-50/90 rounded-xl border border-slate-200 shadow-xs">
                           <Link
                             href="/orders/new?type=TV"
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-800 transition-colors"
+                            className="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold text-slate-700 hover:bg-blue-600 hover:text-white transition-all group"
                           >
-                            <span className="text-xs">📺</span>
-                            <span>SP Televisión (Tradicional)</span>
+                            <span className="flex items-center gap-2.5">
+                              <span className="text-sm">📺</span>
+                              <span>SP Televisión (Tradicional)</span>
+                            </span>
+                            <span className="text-slate-400 group-hover:text-white font-black text-xs transition-colors">➔</span>
                           </Link>
                           <Link
                             href="/orders/new?type=DIGITAL"
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 transition-colors"
+                            className="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold text-slate-700 hover:bg-emerald-600 hover:text-white transition-all group"
                           >
-                            <span className="text-xs">📱</span>
-                            <span>SP Digital (Redes & Web)</span>
+                            <span className="flex items-center gap-2.5">
+                              <span className="text-sm">📱</span>
+                              <span>SP Digital (Redes & Web)</span>
+                            </span>
+                            <span className="text-slate-400 group-hover:text-white font-black text-xs transition-colors">➔</span>
                           </Link>
                         </div>
                       </div>

@@ -47,6 +47,14 @@ function NewOrderForm() {
       : (user?.role === 'EJECUTIVA_DIGITAL' ? 'DIGITAL' : 'TV')
   );
 
+  useEffect(() => {
+    if (typeParam === 'DIGITAL') {
+      setOrderCategory('DIGITAL');
+    } else if (typeParam === 'TV') {
+      setOrderCategory('TV');
+    }
+  }, [typeParam]);
+
   // Modalidad para TV: COMMERCIAL o DEMO
   const [orderType, setOrderType] = useState<'COMMERCIAL' | 'DEMO'>('COMMERCIAL');
   const [appliedTemplateName, setAppliedTemplateName] = useState<string | null>(null);
