@@ -38,9 +38,11 @@ export async function GET(req: Request) {
       select: {
         id: true,
         orderNumber: true,
+        orderCategory: true,
         clientAgency: true,
         product: true,
         program: true,
+        campaign: true,
         airDate: true,
         materialDeliveryDate: true,
         status: true,
@@ -63,9 +65,11 @@ export async function GET(req: Request) {
       select: {
         id: true,
         orderNumber: true,
+        orderCategory: true,
         clientAgency: true,
         product: true,
         program: true,
+        campaign: true,
         airDate: true,
         materialDeliveryDate: true,
         status: true,
@@ -85,12 +89,16 @@ export async function GET(req: Request) {
         (o) => o.postProducerId === prod.id || o.secondaryPostProducerId === prod.id
       );
       const activeCount = assigned.length;
+      const tvCount = assigned.filter((o) => (o.orderCategory || 'TV') === 'TV').length;
+      const digitalCount = assigned.filter((o) => o.orderCategory === 'DIGITAL').length;
       const workload = getWorkloadStatus(activeCount);
 
       return {
         ...prod,
         activeCount,
         activeOrders: activeCount,
+        tvCount,
+        digitalCount,
         workload,
         orders: assigned,
       };
@@ -104,9 +112,11 @@ export async function GET(req: Request) {
       select: {
         id: true,
         orderNumber: true,
+        orderCategory: true,
         clientAgency: true,
         product: true,
         program: true,
+        campaign: true,
         airDate: true,
         materialDeliveryDate: true,
         status: true,
@@ -117,12 +127,17 @@ export async function GET(req: Request) {
       orderBy: { createdAt: 'desc' },
     });
 
+    const totalTvActiveOrders = activeOrders.filter((o) => (o.orderCategory || 'TV') === 'TV').length;
+    const totalDigitalActiveOrders = activeOrders.filter((o) => o.orderCategory === 'DIGITAL').length;
+
     return NextResponse.json({
       producers: producersGrid,
       editors: producersGrid,
       unassignedOrders,
       allUpcomingOrders: upcomingOrders,
       totalActiveOrders: activeOrders.length,
+      totalTvActiveOrders,
+      totalDigitalActiveOrders,
     });
   } catch (error: any) {
     console.error('Error fetching traffic grid:', error);

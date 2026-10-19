@@ -62,6 +62,8 @@ export default function Navbar() {
     switch (role) {
       case 'SOLICITANTE':
         return { text: 'Ejecutiva / Solicitante', bg: 'bg-pink-100 text-pink-700 border-pink-200' };
+      case 'EJECUTIVA_DIGITAL':
+        return { text: '📱 Ejecutiva Digital', bg: 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold' };
       case 'COORDINADORA_VENTAS':
         return { text: '💼 Coordinadora de Ventas', bg: 'bg-indigo-100 text-indigo-700 border-indigo-200' };
       case 'COORDINADOR':

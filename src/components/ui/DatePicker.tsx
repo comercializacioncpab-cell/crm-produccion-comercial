@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 
 interface DatePickerProps {
-  label: string;
+  label?: string;
   value: string; // "DD/MM/YYYY" or "YYYY-MM-DD"
   onChange: (formattedDate: string) => void;
   required?: boolean;
@@ -124,10 +124,12 @@ export default function DatePicker({
 
   return (
     <div className="relative" ref={containerRef}>
-      <label className={`block text-xs font-bold mb-1.5 flex items-center gap-1.5 ${isUrgent ? 'text-red-900' : 'text-slate-800'}`}>
-        <CalendarIcon className={`w-4 h-4 ${isUrgent ? 'text-red-600' : 'text-cyan-600'}`} />
-        {label} {required && <span className="text-red-600">*</span>}
-      </label>
+      {label && (
+        <label className={`block text-xs font-bold mb-1.5 flex items-center gap-1.5 ${isUrgent ? 'text-red-900' : 'text-slate-800'}`}>
+          <CalendarIcon className={`w-4 h-4 ${isUrgent ? 'text-red-600' : 'text-cyan-600'}`} />
+          {label} {required && <span className="text-red-600">*</span>}
+        </label>
+      )}
 
       {/* Clickable Input Trigger */}
       <div

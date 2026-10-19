@@ -152,7 +152,8 @@ export default function RegisterPage() {
                 onChange={handleChange}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
               >
-                <option value="SOLICITANTE">👩‍💼 Ejecutiva de Ventas (Crea SPs y aprueba)</option>
+                <option value="SOLICITANTE">👩‍💼 Ejecutiva de Ventas TV (Crea SPs TV y aprueba)</option>
+                <option value="EJECUTIVA_DIGITAL">📱 Ejecutiva Digital (Crea SPs Digitales Redes & Web)</option>
                 <option value="COORDINADORA_VENTAS">💼 Coordinadora de Ventas (Ingresa SPs para Ejecutivas)</option>
                 <option value="COORDINADOR">📋 Coordinadora de Producción (Asigna y supervisa)</option>
                 <option value="COORDINADOR_PRODUCTOR">🎯 Coordinador/a - Productor (Coordina, autoasigna y edita)</option>

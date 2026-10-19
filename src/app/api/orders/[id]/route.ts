@@ -526,6 +526,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         priority,
         executiveId,
         secondaryPostProducerId,
+        campaign,
+        contentObjective,
+        orderDescription,
+        receptionDate,
+        publishDate,
+        digitalData,
       } = body;
 
       const parsedPackageValue = packageValue !== undefined && packageValue !== null && packageValue !== ''
@@ -536,12 +542,22 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         ? (Array.isArray(sponsorshipTypes) ? JSON.stringify(sponsorshipTypes) : typeof sponsorshipTypes === 'string' ? sponsorshipTypes : JSON.stringify([]))
         : undefined;
 
+      const updatedDigitalData = digitalData !== undefined
+        ? (typeof digitalData === 'object' ? JSON.stringify(digitalData) : digitalData)
+        : undefined;
+
       updatedOrder = await prisma.productionOrder.update({
         where: { id },
         data: {
           ...(clientAgency !== undefined && { clientAgency: clientAgency.trim() }),
           ...(product !== undefined && { product: product.trim() }),
-          ...(program !== undefined && { program: program.trim() }),
+          ...(campaign !== undefined && { campaign: campaign ? campaign.trim() : null }),
+          ...(contentObjective !== undefined && { contentObjective: contentObjective ? contentObjective.trim() : null }),
+          ...(orderDescription !== undefined && { orderDescription: orderDescription ? orderDescription.trim() : null }),
+          ...(receptionDate !== undefined && { receptionDate }),
+          ...(publishDate !== undefined && { publishDate }),
+          ...(updatedDigitalData !== undefined && { digitalData: updatedDigitalData }),
+          ...(program !== undefined && { program: program ? program.trim() : '' }),
           ...(materialDeliveryDate !== undefined && { materialDeliveryDate }),
           ...(airDate !== undefined && { airDate }),
           ...(downloadUrl !== undefined && { downloadUrl: downloadUrl ? downloadUrl.trim() : null }),

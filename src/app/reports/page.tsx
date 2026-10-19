@@ -22,7 +22,9 @@ import {
   RotateCcw,
   ChevronRight,
   ShieldCheck,
-  Award
+  Award,
+  Tv,
+  Smartphone
 } from 'lucide-react';
 import { STATUS_CONFIG, formatDateTime, formatDate } from '@/lib/order-utils';
 
@@ -33,6 +35,7 @@ export default function MonthlyReportPage() {
   const [error, setError] = useState('');
 
   // Filters
+  const [selectedCategory, setSelectedCategory] = useState<'ALL' | 'TV' | 'DIGITAL'>('ALL');
   const [selectedMonth, setSelectedMonth] = useState('ALL');
   const [selectedPost, setSelectedPost] = useState('ALL');
   const [selectedExecutive, setSelectedExecutive] = useState('ALL');
@@ -45,6 +48,7 @@ export default function MonthlyReportPage() {
     setError('');
     try {
       const params = new URLSearchParams();
+      if (selectedCategory !== 'ALL') params.append('category', selectedCategory);
       if (selectedMonth !== 'ALL') params.append('month', selectedMonth);
       if (selectedPost !== 'ALL') params.append('postProducerId', selectedPost);
       if (selectedExecutive !== 'ALL') params.append('executiveId', selectedExecutive);
@@ -75,7 +79,7 @@ export default function MonthlyReportPage() {
       setError('Acceso restringido: Este reporte está disponible para Coordinadoras, Productores Senior y Administradores.');
       setLoading(false);
     }
-  }, [user, selectedMonth, selectedPost, selectedExecutive, selectedClient, selectedOrderType]);
+  }, [user, selectedCategory, selectedMonth, selectedPost, selectedExecutive, selectedClient, selectedOrderType]);
 
   if (loading && !data) {
     return (
@@ -124,9 +128,10 @@ export default function MonthlyReportPage() {
     ? 'Reporte General Acumulado' 
     : (data.availableMonths?.find((m: any) => m.key === selectedMonth)?.label || selectedMonth);
 
-  const isFiltered = selectedMonth !== 'ALL' || selectedPost !== 'ALL' || selectedExecutive !== 'ALL' || selectedClient !== 'ALL' || selectedOrderType !== 'ALL';
+  const isFiltered = selectedCategory !== 'ALL' || selectedMonth !== 'ALL' || selectedPost !== 'ALL' || selectedExecutive !== 'ALL' || selectedClient !== 'ALL' || selectedOrderType !== 'ALL';
 
   const resetFilters = () => {
+    setSelectedCategory('ALL');
     setSelectedMonth('ALL');
     setSelectedPost('ALL');
     setSelectedExecutive('ALL');
@@ -151,7 +156,7 @@ export default function MonthlyReportPage() {
               Reporte Mensual y Rendimiento de Producción
             </h1>
             <p className="text-xs text-slate-300 max-w-xl">
-              Filtra por Tipo de SP (Comercial o DEMO), Cliente, Ejecutiva, Periodo y Post-Productor para obtener reportes específicos y conversión de ventas.
+              Filtra por Canal (Consolidado, TV o Digital), Tipo de SP (Comercial o DEMO), Cliente, Ejecutiva, Periodo y Post-Productor.
             </p>
           </div>
 
@@ -165,12 +170,52 @@ export default function MonthlyReportPage() {
           </div>
         </div>
 
-        {/* Filter Toolbar with Period, Executive, Client, Post-Producer, and Order Type */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-3">
+        {/* Filter Toolbar with Category, Period, Executive, Client, Post-Producer, and Order Type */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <span className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-              <Filter className="w-4 h-4 text-indigo-600" /> Filtros de Reporte Específico:
-            </span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                <Filter className="w-4 h-4 text-indigo-600" /> Filtrar Canal / Tipo:
+              </span>
+
+              {/* Selector de Canal / Categoría */}
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory('ALL')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    selectedCategory === 'ALL'
+                      ? 'bg-slate-900 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  🌐 Consolidado (TV + Digital)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory('TV')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    selectedCategory === 'TV'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Tv className="w-3.5 h-3.5" /> Solo TV
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory('DIGITAL')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    selectedCategory === 'DIGITAL'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Smartphone className="w-3.5 h-3.5" /> Solo Digital
+                </button>
+              </div>
+            </div>
+
             {isFiltered && (
               <button
                 onClick={resetFilters}
@@ -299,9 +344,14 @@ export default function MonthlyReportPage() {
               <h3 className="text-2xl font-black text-slate-900 font-mono mt-1">
                 {data.totalReceived}
               </h3>
-              <p className="text-[10px] text-slate-400 mt-1">
-                {data.totalPending} en proceso o asignación
-              </p>
+              <div className="flex items-center gap-1.5 mt-2 text-[10px] font-bold flex-wrap">
+                <span className="text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                  📺 {data.totalTvOrders || 0} TV
+                </span>
+                <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                  📱 {data.totalDigitalOrders || 0} Digital
+                </span>
+              </div>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
               <Layers className="w-6 h-6" />
@@ -534,6 +584,16 @@ export default function MonthlyReportPage() {
                     </div>
                   </div>
 
+                  {/* TV vs Digital breakdown */}
+                  <div className="flex items-center justify-between text-[11px] px-1 font-bold">
+                    <span className="text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                      📺 {post.tvCount || 0} TV
+                    </span>
+                    <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      📱 {post.digitalCount || 0} Digital
+                    </span>
+                  </div>
+
                   {/* Resolution Time Badge */}
                   <div className="bg-cyan-50/70 border border-cyan-200/80 rounded-xl p-2.5 flex items-center justify-between text-xs">
                     <span className="text-[11px] font-bold text-cyan-950 flex items-center gap-1.5">
@@ -546,6 +606,96 @@ export default function MonthlyReportPage() {
                 </div>
               ))
             )}
+          </div>
+        </div>
+
+        {/* Executive Individual Performance Table */}
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden space-y-4 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                <Users className="w-5 h-5 text-indigo-600" /> Rendimiento y Reportería Individual por Ejecutiva
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                Comparativa de gestión comercial, desglose por canal (TV vs Digital) y facturación en {monthTitle}
+              </p>
+            </div>
+            <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+              {data.executivesSummary?.length || 0} Ejecutivas
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]">
+                  <th className="px-4 py-3">Ejecutiva de Ventas</th>
+                  <th className="px-4 py-3">Perfil / Canal</th>
+                  <th className="px-4 py-3 text-center">Total SPs</th>
+                  <th className="px-4 py-3 text-center">📺 TV</th>
+                  <th className="px-4 py-3 text-center">📱 Digital</th>
+                  <th className="px-4 py-3 text-center">🧪 DEMOs (Vendidos)</th>
+                  <th className="px-4 py-3 text-right">Facturación Estimada ($ USD)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                {(!data.executivesSummary || data.executivesSummary.length === 0) ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-slate-400">
+                      No hay registros de ejecutivas en este periodo.
+                    </td>
+                  </tr>
+                ) : (
+                  data.executivesSummary.map((exec: any) => (
+                    <tr key={exec.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-xl bg-purple-600 text-white font-bold text-xs flex items-center justify-center">
+                            {exec.initials || 'EJ'}
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-900 block">{exec.name}</span>
+                            <span className="text-[10px] text-slate-400">{exec.email}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        {exec.role === 'EJECUTIVA_DIGITAL' ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            📱 Digital
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
+                            📺 Tradicional (TV)
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 text-center font-bold text-slate-900 font-mono">
+                        {exec.totalOrders}
+                      </td>
+                      <td className="px-4 py-3.5 text-center font-mono">
+                        <span className="bg-blue-50 text-blue-800 px-2 py-0.5 rounded font-bold">
+                          {exec.tvOrders}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-center font-mono">
+                        <span className="bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded font-bold">
+                          {exec.digitalOrders}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-center">
+                        <span className="text-[11px] font-semibold text-purple-900 bg-purple-50 px-2 py-0.5 rounded">
+                          {exec.demosCount} ({exec.demosSoldCount} 💰)
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-right font-black font-mono text-emerald-600">
+                        ${Number(exec.totalRevenue || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -603,6 +753,15 @@ export default function MonthlyReportPage() {
                         <td className="p-3 whitespace-nowrap">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-mono font-bold text-slate-900">{ord.orderNumber}</span>
+                            {ord.orderCategory === 'DIGITAL' ? (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                📱 DIGITAL
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-blue-50 text-blue-800 border border-blue-200">
+                                📺 TV
+                              </span>
+                            )}
                             {ord.isDemo && (
                               <span className={`px-1.5 py-0.2 rounded text-[9px] font-black border ${
                                 ord.demoStatus === 'VENDIDO'

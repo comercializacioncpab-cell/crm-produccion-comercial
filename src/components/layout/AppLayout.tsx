@@ -49,7 +49,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       name: 'Dashboard General',
       href: '/dashboard',
       icon: LayoutDashboard,
-      roles: ['SOLICITANTE', 'COORDINADORA_VENTAS', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
+      roles: ['SOLICITANTE', 'EJECUTIVA_DIGITAL', 'COORDINADORA_VENTAS', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
     },
     {
       name: 'Mesa de Trabajo (Hoy)',
@@ -67,14 +67,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       name: 'Nueva Solicitud (SP)',
       href: '/orders/new',
       icon: FilePlus2,
-      roles: ['SOLICITANTE', 'COORDINADORA_VENTAS', 'COORDINADOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
+      roles: ['SOLICITANTE', 'EJECUTIVA_DIGITAL', 'COORDINADORA_VENTAS', 'COORDINADOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
       highlight: true,
+      hasSubmenu: true,
     },
     {
       name: 'Todas las Órdenes',
       href: '/orders',
       icon: Layers,
-      roles: ['SOLICITANTE', 'COORDINADORA_VENTAS', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
+      roles: ['SOLICITANTE', 'EJECUTIVA_DIGITAL', 'COORDINADORA_VENTAS', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
     },
     {
       name: 'Bandeja Coordinación',
@@ -98,7 +99,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       name: 'Mi Perfil / Celular',
       href: '/profile',
       icon: User,
-      roles: ['SOLICITANTE', 'COORDINADORA_VENTAS', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
+      roles: ['SOLICITANTE', 'EJECUTIVA_DIGITAL', 'COORDINADORA_VENTAS', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
     },
     {
       name: 'Ingresos Totales ($)',
@@ -135,6 +136,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <h3 className="font-bold text-sm text-white leading-tight">{user.name}</h3>
                     <span className="text-[11px] text-cyan-300 font-medium">
                       {user.role === 'SOLICITANTE' && '👩‍💼 Ejecutiva de Ventas'}
+                      {user.role === 'EJECUTIVA_DIGITAL' && '📱 Ejecutiva Digital'}
                       {user.role === 'COORDINADORA_VENTAS' && '💼 Coordinadora de Ventas'}
                       {user.role === 'COORDINADOR' && '📋 Coordinadora de Producción'}
                       {user.role === 'POST_PRODUCTOR' && '🎬 Post-Productor'}
@@ -152,6 +154,44 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 {filteredNavItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = pathname === item.href;
+
+                  if (item.hasSubmenu) {
+                    const isNewOrderActive = pathname.startsWith('/orders/new');
+                    return (
+                      <div key={item.name} className="space-y-1">
+                        <div
+                          className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                            isNewOrderActive
+                              ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md'
+                              : 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-sm hover:opacity-95'
+                          }`}
+                        >
+                          <Link href="/orders/new" className="flex items-center gap-3 flex-1 text-white">
+                            <Icon className="w-4 h-4 text-white" />
+                            <span>{item.name}</span>
+                          </Link>
+                        </div>
+                        {/* Submenu for TV or DIGITAL */}
+                        <div className="pl-2 pr-1 py-1 space-y-1 bg-slate-50/90 rounded-xl border border-slate-200">
+                          <Link
+                            href="/orders/new?type=TV"
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-800 transition-colors"
+                          >
+                            <span className="text-xs">📺</span>
+                            <span>SP Televisión (Tradicional)</span>
+                          </Link>
+                          <Link
+                            href="/orders/new?type=DIGITAL"
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 transition-colors"
+                          >
+                            <span className="text-xs">📱</span>
+                            <span>SP Digital (Redes & Web)</span>
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
                     <Link
                       key={item.name}

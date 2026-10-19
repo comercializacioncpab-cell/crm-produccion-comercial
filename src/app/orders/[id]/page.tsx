@@ -39,7 +39,8 @@ import {
   Square,
   Plus,
   Trash2,
-  Copy
+  Copy,
+  Smartphone
 } from 'lucide-react';
 import { 
   STATUS_CONFIG, 
@@ -52,7 +53,10 @@ import {
   hasCobertura,
   formatDateTime,
   formatDate,
-  getWorkflowStageIndex
+  getWorkflowStageIndex,
+  DIGITAL_NETWORKS,
+  DIGITAL_FORMATS,
+  DIGITAL_RESOURCES_LIST
 } from '@/lib/order-utils';
 
 export default function OrderDetailPage() {
@@ -665,6 +669,15 @@ export default function OrderDetailPage() {
     );
   }
 
+  const isDigital = order.orderCategory === 'DIGITAL';
+  const digitalParsed = (() => {
+    try {
+      return typeof order.digitalData === 'string' ? JSON.parse(order.digitalData) : (order.digitalData || {});
+    } catch {
+      return {};
+    }
+  })();
+
   const statusInfo = STATUS_CONFIG[order.status] || STATUS_CONFIG.NUEVA;
   const priorityInfo = PRIORITY_CONFIG[order.priority] || PRIORITY_CONFIG.MEDIA;
   const sponsorshipParsed = (() => {
@@ -705,11 +718,11 @@ export default function OrderDetailPage() {
   // WhatsApp direct text generator
   const effectiveExecutiveName = order.executive?.name || order.creator?.name || 'Ejecutiva';
   const waShareText = encodeURIComponent(
-    `📋 *Solicitud de Producción Comercial*\n` +
+    `📋 *Solicitud de Producción ${isDigital ? 'Digital' : 'Comercial'}*\n` +
     `*Código:* ${order.orderNumber}\n` +
     `*Cliente:* ${order.clientAgency}\n` +
     `*Producto:* ${order.product}\n` +
-    `*Fecha al aire:* ${order.airDate || 'Por definir'}\n` +
+    (isDigital ? `*Campaña:* ${order.campaign || 'N/A'}\n*Fecha publicación:* ${order.publishDate || 'Por definir'}\n` : `*Fecha al aire:* ${order.airDate || 'Por definir'}\n`) +
     `*Estado:* ${statusInfo.label}\n` +
     `*Ejecutiva:* ${effectiveExecutiveName}`
   );
@@ -723,7 +736,7 @@ export default function OrderDetailPage() {
     user && (user.role === 'POST_PRODUCTOR' || user.role === 'PRODUCTOR_SENIOR' || user.role === 'COORDINADOR_PRODUCTOR' || user.role === 'ADMIN')
   );
   const canEditOrder = Boolean(
-    user && ['ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR', 'COORDINADORA', 'COORDINADOR_PRODUCTOR', 'SOLICITANTE', 'EJECUTIVA', 'COORDINADORA_VENTAS'].includes(user.role)
+    user && ['ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR', 'COORDINADORA', 'COORDINADOR_PRODUCTOR', 'SOLICITANTE', 'EJECUTIVA', 'EJECUTIVA_DIGITAL', 'COORDINADORA_VENTAS'].includes(user.role)
   );
 
   return (
@@ -743,6 +756,15 @@ export default function OrderDetailPage() {
                 <h1 className="text-2xl font-black text-slate-900 font-mono">
                   {order.orderNumber}
                 </h1>
+                {isDigital ? (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-600 text-white border border-emerald-500 shadow-2xs flex items-center gap-1">
+                    📱 SP Digital (Redes & Web)
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-blue-100 text-blue-800 border border-blue-200 flex items-center gap-1">
+                    📺 SP TV (Tradicional)
+                  </span>
+                )}
                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${statusInfo.bg} ${statusInfo.color} ${statusInfo.border}`}>
                   {statusInfo.label}
                 </span>
@@ -924,7 +946,247 @@ export default function OrderDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Info Column (2 cols) */}
           <div className="lg:col-span-2 space-y-6">
-            {/* SECCIÓN 1: INFORMACIÓN GENERAL */}
+            {isDigital ? (
+              <>
+                {/* SECCIÓN 1: INFORMACIÓN EDITORIAL DIGITAL */}
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="bg-gradient-to-r from-emerald-700 via-teal-800 to-slate-900 px-6 py-2.5 border-b border-emerald-600 flex items-center justify-between text-white">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
+                        <Smartphone className="w-4 h-4 text-emerald-400" /> INFORMACIÓN EDITORIAL DIGITAL & COMERCIAL
+                      </span>
+                      {canEditOrder && (
+                        <button
+                          type="button"
+                          onClick={openEditModal}
+                          className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[11px] rounded-lg shadow-sm transition-all cursor-pointer"
+                        >
+                          <Edit className="w-3 h-3" /> Editar SP
+                        </button>
+                      )}
+                    </div>
+                    <span className="text-xs font-mono font-black text-emerald-300">
+                      {order.orderNumber}
+                    </span>
+                  </div>
+                  <div className="p-6 grid grid-cols-2 sm:grid-cols-6 gap-4 text-xs">
+                    <div>
+                      <span className="text-slate-400 block text-[11px] font-semibold">Ejecutiva Digital:</span>
+                      <strong className="text-slate-900 font-bold">{order.executive?.name || order.creator?.name}</strong>
+                      {order.executiveId && order.creatorId !== order.executiveId && (
+                        <span className="text-[10px] text-emerald-600 font-medium block mt-0.5">
+                          (Ingresada por: {order.creator?.name})
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[11px] font-semibold">Cliente / Marca:</span>
+                      <strong className="text-slate-900 font-bold">{order.clientAgency}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[11px] font-semibold">Producto / Servicio:</span>
+                      <strong className="text-slate-900 font-bold">{order.product}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[11px] font-semibold">Campaña:</span>
+                      <strong className="text-slate-900 font-bold">{order.campaign || 'N/A'}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[11px] font-semibold">Objetivo / KPI:</span>
+                      <span className="bg-emerald-50 text-emerald-900 border border-emerald-200 px-2 py-0.5 rounded font-black text-[11px] inline-block">
+                        🎯 {order.contentObjective || 'N/A'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-emerald-700 block text-[11px] font-bold">Valor Paquete Digital:</span>
+                      <strong className="text-emerald-900 font-black text-sm">
+                        ${Number(order.packageValue || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </strong>
+                    </div>
+                    {order.orderDescription && (
+                      <div className="col-span-2 sm:col-span-6 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                        <span className="text-slate-500 block text-[11px] font-bold mb-1 uppercase tracking-wider">
+                          📝 Descripción del Pedido / Requerimiento:
+                        </span>
+                        <p className="text-slate-800 font-medium whitespace-pre-wrap">{order.orderDescription}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* SECCIÓN 2: CRONOGRAMA & FECHAS DIGITALES */}
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="bg-teal-50 px-6 py-2.5 border-b border-teal-200 flex items-center justify-between">
+                    <span className="text-xs font-black uppercase text-teal-950 flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-teal-700" /> CRONOGRAMA & FECHAS DE ENTREGA DIGITAL
+                    </span>
+                    <span className="text-xs font-bold text-teal-800">
+                      Brief: {order.hasBrief ? 'SI [✓]' : 'NO [ ]'}
+                    </span>
+                  </div>
+                  <div className="p-6 space-y-4 text-xs">
+                    {/* Cloud Download URL */}
+                    {order.downloadUrl && (
+                      <div className="p-4 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                        <div className="flex items-start gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                            <ExternalLink className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 block">
+                              Link de Insumos / Recursos (Drive / WeTransfer / Dropbox)
+                            </span>
+                            <a
+                              href={order.downloadUrl.startsWith('http') ? order.downloadUrl : `https://${order.downloadUrl}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs font-bold text-emerald-950 hover:text-emerald-700 underline break-all inline-block mt-0.5"
+                            >
+                              {order.downloadUrl}
+                            </a>
+                          </div>
+                        </div>
+                        <a
+                          href={order.downloadUrl.startsWith('http') ? order.downloadUrl : `https://${order.downloadUrl}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all shrink-0 inline-flex items-center justify-center gap-1.5"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" /> Abrir Link en la Nube
+                        </a>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <span className="text-slate-400 text-[10px] block font-bold uppercase">1. Recepción Solicitud:</span>
+                        <strong className="text-slate-800 font-bold text-xs">{order.receptionDate || formatDate(order.createdAt)}</strong>
+                      </div>
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <span className="text-slate-400 text-[10px] block font-bold uppercase">2. Entrega Material:</span>
+                        <strong className="text-slate-800 font-bold text-xs">{order.materialDeliveryDate || 'N/A'}</strong>
+                      </div>
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <span className="text-slate-400 text-[10px] block font-bold uppercase">3. Entrega Producto Final:</span>
+                        <strong className="text-slate-800 font-bold text-xs">{digitalParsed.finishedProductDeliveryDate || 'N/A'}</strong>
+                      </div>
+                      <div className="bg-red-50/70 p-3 rounded-xl border border-red-200">
+                        <span className="text-red-600 text-[10px] block font-black uppercase">4. Publicación en Redes:</span>
+                        <strong className="text-red-700 font-black text-xs">{order.publishDate || order.airDate || 'Por definir'}</strong>
+                      </div>
+                    </div>
+
+                    {digitalParsed.publicationAccount && (
+                      <div className="bg-indigo-50/60 p-3 rounded-xl border border-indigo-100 flex items-center justify-between">
+                        <span className="text-indigo-900 font-bold text-xs">
+                          📢 Cuenta de Ecuavisa para publicar / colaboración:
+                        </span>
+                        <span className="font-black text-indigo-950 bg-white px-3 py-1 rounded-lg border border-indigo-200 shadow-2xs">
+                          {digitalParsed.publicationAccount}
+                        </span>
+                      </div>
+                    )}
+
+                    {order.materialNotes && (
+                      <div>
+                        <span className="text-slate-400 text-[11px] block font-semibold mb-1">Instrucciones Especiales / Copys:</span>
+                        <p className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-slate-700 whitespace-pre-wrap">
+                          {order.materialNotes}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* SECCIÓN 3: MATRIZ DE PLATAFORMAS & FORMATOS DIGITALES */}
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-6 space-y-4">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-emerald-600" /> Plataformas y Formatos Digitales Solicitados
+                  </h3>
+
+                  {digitalParsed.platformsAndFormats && Object.keys(digitalParsed.platformsAndFormats).some((k) => (digitalParsed.platformsAndFormats[k] || []).length > 0) ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {Object.entries(digitalParsed.platformsAndFormats).map(([format, networks]: [string, any]) => {
+                        if (!networks || networks.length === 0) return null;
+                        return (
+                          <div key={format} className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col justify-between gap-2">
+                            <span className="font-black text-xs text-slate-900 block">{format}</span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {networks.map((netId: string) => {
+                                const net = DIGITAL_NETWORKS.find((n) => n.id === netId);
+                                return (
+                                  <span key={netId} className="bg-white text-emerald-950 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-lg shadow-2xs">
+                                    {net?.icon || '🌐'} {net?.name || netId}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 bg-slate-50 p-3 rounded-xl">No se especificaron formatos en la matriz.</p>
+                  )}
+
+                  {/* Cobertura de redacción si aplica */}
+                  {digitalParsed.isNewsroomSegment && (
+                    <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2">
+                      <span className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                        📰 Cobertura / Segmento de Redacción
+                      </span>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                        <div>
+                          <span className="text-[10px] text-amber-700 font-bold block">Tipo:</span>
+                          <strong className="text-amber-950 font-black">{digitalParsed.newsroomDetails?.segmentType || 'N/A'}</strong>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-amber-700 font-bold block">Fecha:</span>
+                          <strong className="text-amber-950 font-black">{digitalParsed.newsroomDetails?.date || 'N/A'}</strong>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-amber-700 font-bold block">Hora:</span>
+                          <strong className="text-amber-950 font-black">{digitalParsed.newsroomDetails?.time || 'N/A'}</strong>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-amber-700 font-bold block">Lugar:</span>
+                          <strong className="text-amber-950 font-black">{digitalParsed.newsroomDetails?.location || 'N/A'}</strong>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Checklist Recursos */}
+                  {digitalParsed.resources && (
+                    <div className="pt-2 border-t border-slate-100">
+                      <span className="text-[11px] font-black uppercase text-slate-500 block mb-2">
+                        Checklist de Recursos y Materiales Entregados:
+                      </span>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {DIGITAL_RESOURCES_LIST.map((res) => {
+                          const val = digitalParsed.resources?.[res.id] || 'NO';
+                          const isYes = val === 'SI';
+                          return (
+                            <div key={res.id} className={`p-2 rounded-xl border text-xs flex items-center justify-between ${
+                              isYes ? 'bg-emerald-50 border-emerald-200 text-emerald-950 font-bold' : 'bg-slate-50 border-slate-200 text-slate-500'
+                            }`}>
+                              <span>{res.label}</span>
+                              <span className={`text-[10px] px-1.5 py-0.2 rounded font-black ${
+                                isYes ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'
+                              }`}>
+                                {isYes ? 'SI ✓' : 'NO'}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                {/* SECCIÓN 1: INFORMACIÓN GENERAL */}
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="bg-[#fef08a] px-6 py-2.5 border-b border-yellow-300 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -1228,6 +1490,8 @@ export default function OrderDetailPage() {
                 </div>
               </div>
             </div>
+              </>
+            )}
 
             {/* ARCHIVOS Y MATERIALES ADJUNTOS */}
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">

@@ -374,3 +374,69 @@ export const SP_TEMPLATES: SpTemplate[] = [
   },
 ];
 
+// ==========================================
+// 📱 CONSTANTES PARA MÓDULO DIGITAL (EV DIGITAL + COMERCIAL)
+// Basado en el Formulario Editorial Oficial Ecuavisa Digital
+// ==========================================
+
+export interface DigitalNetworkOption {
+  id: string;
+  name: string;
+  shortLabel: string;
+  short?: string;
+  badge: string;
+  icon?: string;
+}
+
+export const DIGITAL_NETWORKS: DigitalNetworkOption[] = [
+  { id: 'IG', name: 'Instagram', shortLabel: 'IG', short: 'IG', badge: 'bg-pink-100 text-pink-700 border-pink-200', icon: '📸' },
+  { id: 'FB', name: 'Facebook', shortLabel: 'FB', short: 'FB', badge: 'bg-blue-100 text-blue-700 border-blue-200', icon: '👤' },
+  { id: 'TikTok', name: 'TikTok', shortLabel: 'TikTok', short: 'TikTok', badge: 'bg-neutral-900 text-white border-neutral-700', icon: '🎵' },
+  { id: 'X', name: 'X (Twitter)', shortLabel: 'X', short: 'X', badge: 'bg-slate-800 text-white border-slate-700', icon: '🐦' },
+  { id: 'Youtube', name: 'YouTube', shortLabel: 'YouTube', short: 'YouTube', badge: 'bg-red-100 text-red-700 border-red-200', icon: '▶️' },
+  { id: 'Ecuavisa.com', name: 'Ecuavisa.com', shortLabel: 'Ecuavisa.com', short: 'Ecuavisa.com', badge: 'bg-cyan-100 text-cyan-800 border-cyan-200', icon: '🌐' },
+  { id: 'Ecuavisa PLAY', name: 'Ecuavisa PLAY', shortLabel: 'EV Play', short: 'EV Play', badge: 'bg-purple-100 text-purple-800 border-purple-200', icon: '📺' },
+  { id: 'Otros', name: 'Otros (LinkedIn / WhatsApp)', shortLabel: 'Otros', short: 'Otros', badge: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: '💬' },
+];
+
+export const DIGITAL_FORMATS: string[] = [
+  'Nota de contenido',
+  'Nota de contenido y video',
+  'Reel con Reportero Digital',
+  'Post',
+  'Branded Post',
+  'Video Post',
+  'Video',
+  'Carrusel',
+  'Galería de Fotos',
+  'Story',
+  'En Vivo',
+  'Cobertura',
+  'Entrevistas',
+  'Newsletter',
+  'Push Notification',
+  'Canales de WhatsApp',
+  'Otro',
+];
+
+export const DIGITAL_KPIS = [
+  'AWARENESS',
+  'ALCANCE (REACH)',
+  'ENGAGEMENT / INTERACCIÓN',
+  'REPRODUCCIONES DE VIDEO (VIEWS)',
+  'TRÁFICO AL SITIO WEB (CLICKS)',
+  'LEADS / CONVERSIÓN',
+  'BRANDING & REPUTACIÓN',
+];
+
+export const DIGITAL_RESOURCES_LIST = [
+  { id: 'brief', label: 'Brief' },
+  { id: 'guion', label: 'Guión' },
+  { id: 'logo', label: 'Logo Vectorial / PNG' },
+  { id: 'imagenes', label: 'Imágenes / Fotos en Alta' },
+  { id: 'video', label: 'Video / Tomas de Insumo' },
+  { id: 'hashtagsAndCopys', label: 'Hashtags oficiales y Copys' },
+  { id: 'piezasGraficas', label: 'Piezas gráficas de apoyo' },
+  { id: 'otros', label: 'Otros recursos' },
+];
+

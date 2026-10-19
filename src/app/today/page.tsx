@@ -309,13 +309,22 @@ export default function TodayWorkboardPage() {
                     {/* Header: Order Number, Badges */}
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Link
                             href={`/orders/${order.id}`}
                             className="font-black text-slate-900 hover:text-cyan-600 text-base"
                           >
                             {order.orderNumber}
                           </Link>
+                          {order.orderCategory === 'DIGITAL' ? (
+                            <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 font-black px-2 py-0.5 rounded-full">
+                              📱 DIGITAL
+                            </span>
+                          ) : (
+                            <span className="text-[10px] bg-blue-50 text-blue-800 border border-blue-200 font-black px-2 py-0.5 rounded-full">
+                              📺 TV
+                            </span>
+                          )}
                           {order.isDemo && (
                             <span className="text-[10px] bg-purple-100 text-purple-700 font-black px-2 py-0.5 rounded-full">
                               DEMO
@@ -342,8 +351,14 @@ export default function TodayWorkboardPage() {
                         <span className="font-bold text-slate-900">{order.product}</span>
                       </div>
                       <div className="flex justify-between text-slate-600">
-                        <span className="font-semibold text-slate-700">Programa:</span>
-                        <span>{order.program}</span>
+                        <span className="font-semibold text-slate-700">
+                          {order.orderCategory === 'DIGITAL' ? 'Campaña / Plataforma:' : 'Programa:'}
+                        </span>
+                        <span className="font-medium text-slate-900">
+                          {order.orderCategory === 'DIGITAL'
+                            ? (order.campaign ? `📱 ${order.campaign}` : '📱 Redes & Web')
+                            : (order.program || 'Sin programa')}
+                        </span>
                       </div>
                       <div className="flex justify-between text-slate-600">
                         <span className="font-semibold text-slate-700">Fecha de Entrega:</span>

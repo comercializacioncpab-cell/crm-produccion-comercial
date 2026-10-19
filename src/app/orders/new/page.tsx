@@ -23,23 +23,68 @@ import {
   BadgePercent,
   Link as LinkIcon,
   Link2,
-  ExternalLink
+  ExternalLink,
+  Tv,
+  Smartphone,
+  Share2
 } from 'lucide-react';
 import { SPONSORSHIP_OPTIONS, SPONSORSHIP_CATEGORIES, hasStrategicPnt, hasCobertura, formatInitials, SP_TEMPLATES } from '@/lib/order-utils';
+import DigitalOrderForm from '@/components/orders/DigitalOrderForm';
 
 function NewOrderForm() {
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromDemoId = searchParams.get('fromDemoId');
+  const typeParam = searchParams.get('type')?.toUpperCase();
 
-  // Modalidad: COMMERCIAL o DEMO
+  // Categoría principal: TV (Tradicional) vs DIGITAL (Redes & Web)
+  const [orderCategory, setOrderCategory] = useState<'TV' | 'DIGITAL'>(
+    typeParam === 'DIGITAL' 
+      ? 'DIGITAL' 
+      : typeParam === 'TV' 
+      ? 'TV' 
+      : (user?.role === 'EJECUTIVA_DIGITAL' ? 'DIGITAL' : 'TV')
+  );
+
+  // Modalidad para TV: COMMERCIAL o DEMO
   const [orderType, setOrderType] = useState<'COMMERCIAL' | 'DEMO'>('COMMERCIAL');
   const [appliedTemplateName, setAppliedTemplateName] = useState<string | null>(null);
   const [isFromDemo, setIsFromDemo] = useState(false);
   const [sourceDemoId, setSourceDemoId] = useState(fromDemoId || '');
   const [sourceDemoInfo, setSourceDemoInfo] = useState<any>(null);
   const [availableDemos, setAvailableDemos] = useState<any[]>([]);
+
+  // Datos específicos para SP Digital (Formulario Editorial EV Digital + Comercial)
+  const [digitalData, setDigitalData] = useState({
+    campaign: '',
+    contentObjective: 'AWARENESS',
+    customKpi: '',
+    orderDescription: '',
+    receptionDate: new Date().toLocaleDateString('es-EC', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+    publishDate: '',
+    materialDeliveryDate: '',
+    finishedProductDeliveryDate: '',
+    publicationAccount: '',
+    isNewsroomSegment: false,
+    newsroomSegmentType: 'COBERTURA EVENTO',
+    newsroomDate: '',
+    newsroomTime: '',
+    newsroomLocation: '',
+    resources: {
+      brief: 'NO',
+      guion: 'NO',
+      logo: 'NO',
+      imagenes: 'NO',
+      video: 'NO',
+      hashtagsAndCopys: 'Enviado por la agencia',
+      piezasGraficas: '',
+      otros: '',
+    } as Record<string, string>,
+    specialInstructions: '',
+  });
+
+  const [digitalMatrix, setDigitalMatrix] = useState<Record<string, string[]>>({});
 
   const [formData, setFormData] = useState({
     clientAgency: '',
@@ -80,7 +125,7 @@ function NewOrderForm() {
         if (usersRes.ok) {
           const data = await usersRes.json();
           const allUsers = data.users || [];
-          const salesUsers = allUsers.filter((u: any) => u.status === 'APROBADO' && (u.role === 'SOLICITANTE' || u.role === 'ADMIN' || u.role === 'PRODUCTOR_SENIOR' || u.role === 'COORDINADOR' || u.role === 'COORDINADOR_PRODUCTOR' || u.role === 'COORDINADORA_VENTAS'));
+          const salesUsers = allUsers.filter((u: any) => u.status === 'APROBADO' && (u.role === 'SOLICITANTE' || u.role === 'EJECUTIVA_DIGITAL' || u.role === 'ADMIN' || u.role === 'PRODUCTOR_SENIOR' || u.role === 'COORDINADOR' || u.role === 'COORDINADOR_PRODUCTOR' || u.role === 'COORDINADORA_VENTAS'));
           setExecutives(salesUsers);
         }
 
@@ -189,15 +234,19 @@ function NewOrderForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isCoordinatorOrAdmin && !selectedExecutiveId) {
-      setError('Por favor selecciona de qué Ejecutiva de Ventas es la cuenta antes de ingresar la SP.');
+      setError('Por favor selecciona de qué Ejecutiva es la cuenta antes de ingresar la SP.');
       return;
     }
     if (!formData.clientAgency || !formData.product) {
-      setError('Por favor completa el Cliente/Agencia y el Producto.');
+      setError('Por favor completa el Cliente / Marca y el Producto.');
       return;
     }
-    if (!formData.airDate) {
+    if (orderCategory === 'TV' && !formData.airDate) {
       setError('Por favor selecciona la Fecha al Aire en el calendario.');
+      return;
+    }
+    if (orderCategory === 'DIGITAL' && !digitalData.publishDate) {
+      setError('Por favor selecciona la Fecha de Publicación en redes en el calendario.');
       return;
     }
 
@@ -206,19 +255,63 @@ function NewOrderForm() {
 
     try {
       const resolvedExecutiveId = selectedExecutiveId || user?.id || null;
-      const payload = {
-        ...formData,
-        executiveId: resolvedExecutiveId,
-        isDemo: orderType === 'DEMO',
-        packageValue: orderType === 'DEMO' ? 0 : formData.packageValue,
-        sourceDemoId: (orderType === 'COMMERCIAL' && isFromDemo && sourceDemoId) ? sourceDemoId : null,
-        files: files.map((f) => ({
-          fileName: f.name,
-          fileSize: f.size,
-          fileType: 'INPUT_BRIEF',
-          filePath: `/uploads/pending/${f.name}`,
-        })),
-      };
+      const isDigital = orderCategory === 'DIGITAL';
+
+      const payload = isDigital
+        ? {
+            orderCategory: 'DIGITAL',
+            clientAgency: formData.clientAgency,
+            product: formData.product,
+            campaign: digitalData.campaign,
+            contentObjective: digitalData.contentObjective === 'OTRO' ? digitalData.customKpi : digitalData.contentObjective,
+            orderDescription: digitalData.orderDescription,
+            receptionDate: digitalData.receptionDate,
+            publishDate: digitalData.publishDate,
+            materialDeliveryDate: digitalData.materialDeliveryDate,
+            airDate: digitalData.publishDate,
+            downloadUrl: formData.downloadUrl ? formData.downloadUrl.trim() : null,
+            materialNotes: digitalData.specialInstructions,
+            hasBrief: digitalData.resources?.brief === 'SI',
+            sponsorshipTypes: [],
+            voiceoverType: 'GENERICA',
+            priority: formData.priority,
+            packageValue: formData.packageValue,
+            executiveId: resolvedExecutiveId,
+            digitalData: {
+              platformsAndFormats: digitalMatrix,
+              publicationAccount: digitalData.publicationAccount,
+              isNewsroomSegment: digitalData.isNewsroomSegment,
+              newsroomDetails: {
+                segmentType: digitalData.newsroomSegmentType,
+                date: digitalData.newsroomDate,
+                time: digitalData.newsroomTime,
+                location: digitalData.newsroomLocation,
+              },
+              resources: digitalData.resources,
+              specialInstructions: digitalData.specialInstructions,
+              finishedProductDeliveryDate: digitalData.finishedProductDeliveryDate,
+            },
+            files: files.map((f) => ({
+              fileName: f.name,
+              fileSize: f.size,
+              fileType: 'INPUT_BRIEF',
+              filePath: `/uploads/pending/${f.name}`,
+            })),
+          }
+        : {
+            ...formData,
+            orderCategory: 'TV',
+            executiveId: resolvedExecutiveId,
+            isDemo: orderType === 'DEMO',
+            packageValue: orderType === 'DEMO' ? 0 : formData.packageValue,
+            sourceDemoId: (orderType === 'COMMERCIAL' && isFromDemo && sourceDemoId) ? sourceDemoId : null,
+            files: files.map((f) => ({
+              fileName: f.name,
+              fileSize: f.size,
+              fileType: 'INPUT_BRIEF',
+              filePath: `/uploads/pending/${f.name}`,
+            })),
+          };
 
       const res = await fetch('/api/orders', {
         method: 'POST',
@@ -286,197 +379,262 @@ function NewOrderForm() {
   return (
     <AppLayout>
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Banner Header replicating the Excel Title */}
-        <div className={`rounded-3xl p-6 text-white shadow-lg border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all ${
-          orderType === 'DEMO'
-            ? 'bg-gradient-to-r from-purple-950 via-indigo-900 to-slate-900 border-purple-800/50'
-            : 'bg-gradient-to-r from-slate-900 to-slate-800 border-slate-700'
-        }`}>
-          <div className="flex items-center gap-3">
-            <div className={`font-black text-xl px-3 py-1.5 rounded-xl shadow ${
-              orderType === 'DEMO' ? 'bg-purple-400 text-slate-950' : 'bg-cyan-500 text-slate-950'
-            }`}>
-              {orderType === 'DEMO' ? '🧪' : 'EV'}
-            </div>
-            <div>
-              <span className={`text-xs uppercase tracking-widest font-bold ${
-                orderType === 'DEMO' ? 'text-purple-300' : 'text-cyan-300'
-              }`}>
-                {orderType === 'DEMO' ? 'Muestra Comercial / Piloto ($0 USD)' : 'Producción Comercial'}
-              </span>
-              <h1 className="text-xl sm:text-2xl font-black">
-                {orderType === 'DEMO' ? 'Nueva Solicitud de DEMO ($0 USD)' : 'Nueva Solicitud de Producción (SP)'}
-              </h1>
-            </div>
-          </div>
-
-          <div className="bg-white/10 px-4 py-2 rounded-2xl border border-white/20 text-right">
-            <span className="text-[10px] text-slate-300 block font-semibold">Formato de Nomenclatura:</span>
-            {isCoordinatorOrAdmin && !selectedExec ? (
-              <span className="font-mono font-black text-amber-300 text-xs">
-                SP-[EJECUTIVA]-001...
-              </span>
-            ) : (
-              <span className="font-mono font-black text-amber-400 text-sm">
-                SP-{activeInitials}-001...
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* 🌟 SELECTOR DE MODALIDAD: SP COMERCIAL vs DEMO ($0) */}
+        {/* 🧭 SELECTOR DE CANAL PRINCIPAL: TV (TRADICIONAL) VS DIGITAL (REDES & WEB) */}
         <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center gap-2">
           <button
             type="button"
-            onClick={() => {
-              setOrderType('COMMERCIAL');
-            }}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-black transition-all ${
-              orderType === 'COMMERCIAL'
-                ? 'bg-gradient-to-r from-slate-900 to-indigo-950 text-white shadow-md'
+            onClick={() => setOrderCategory('TV')}
+            className={`flex-1 flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl text-xs font-black transition-all ${
+              orderCategory === 'TV'
+                ? 'bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white shadow-md ring-2 ring-blue-500/30'
                 : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
             }`}
           >
-            <DollarSign className="w-4 h-4 text-emerald-400" />
-            <span>💰 Solicitud Comercial Estándar (Venta)</span>
+            <Tv className={`w-4 h-4 ${orderCategory === 'TV' ? 'text-cyan-400' : 'text-slate-400'}`} />
+            <span>📺 SP Televisión (Tradicional)</span>
           </button>
 
           <button
             type="button"
-            onClick={() => {
-              setOrderType('DEMO');
-              setIsFromDemo(false);
-              setSourceDemoId('');
-            }}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-black transition-all ${
-              orderType === 'DEMO'
-                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md'
+            onClick={() => setOrderCategory('DIGITAL')}
+            className={`flex-1 flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl text-xs font-black transition-all ${
+              orderCategory === 'DIGITAL'
+                ? 'bg-gradient-to-r from-emerald-700 via-teal-800 to-slate-900 text-white shadow-md ring-2 ring-emerald-500/30'
                 : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
             }`}
           >
-            <FlaskConical className="w-4 h-4 text-purple-300" />
-            <span>🧪 Solicitud de DEMO / Piloto (Costo $0 USD)</span>
+            <Smartphone className={`w-4 h-4 ${orderCategory === 'DIGITAL' ? 'text-emerald-400' : 'text-slate-400'}`} />
+            <span>📱 SP Digital (Redes Sociales & Web)</span>
           </button>
         </div>
 
-        {/* ⚡ JOB TEMPLATES / PLANTILLAS RÁPIDAS DE PRODUCCIÓN (Workamajig Feature) */}
-        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 p-4 sm:p-5 rounded-3xl border border-slate-700 text-white space-y-3 shadow-md">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> Plantillas Rápidas de Producción (Job Templates)
-            </span>
-            {appliedTemplateName && (
-              <span className="text-[10px] font-bold bg-cyan-500/20 text-cyan-300 px-2.5 py-0.5 rounded-full border border-cyan-500/40 animate-pulse">
-                ✨ Aplicada: {appliedTemplateName}
-              </span>
-            )}
-          </div>
-          <p className="text-[11px] text-slate-300">
-            Haz clic en un formato típico para auto-completar requerimientos de pauta, especificaciones técnicas y tipo de locución:
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1">
-            {SP_TEMPLATES.map((tpl) => {
-              const isSelected = appliedTemplateName === tpl.title;
-              return (
-                <button
-                  key={tpl.id}
-                  type="button"
-                  onClick={() => handleApplyTemplate(tpl)}
-                  className={`p-3 rounded-2xl text-left transition-all cursor-pointer border ${
-                    isSelected
-                      ? 'bg-cyan-500/20 border-cyan-400 ring-1 ring-cyan-400/50'
-                      : 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-slate-500'
-                  }`}
-                >
-                  <span className="text-xs font-black block text-white truncate">
-                    {tpl.title}
-                  </span>
-                  <span className="text-[10px] text-slate-400 block line-clamp-2 mt-1 leading-tight">
-                    {tpl.description}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* BANNER SI ESTÁ CONVIRTIENDO UN DEMO EN VENTA */}
-        {orderType === 'COMMERCIAL' && sourceDemoInfo && (
-          <div className="bg-emerald-50 border-2 border-emerald-400 p-4 rounded-2xl flex items-start gap-3 animate-pulse">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-black text-base shrink-0 shadow">
-              💰
+        {/* Banner Header: DIGITAL vs TV */}
+        {orderCategory === 'DIGITAL' ? (
+          <div className="rounded-3xl p-6 text-white shadow-lg border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all bg-gradient-to-r from-emerald-950 via-teal-900 to-slate-900 border-emerald-800/50">
+            <div className="flex items-center gap-3">
+              <div className="font-black text-xl px-3 py-1.5 rounded-xl shadow bg-emerald-400 text-slate-950">
+                📱
+              </div>
+              <div>
+                <span className="text-xs uppercase tracking-widest font-bold text-emerald-300">
+                  Ecuavisa Digital • Redes Sociales & Web
+                </span>
+                <h1 className="text-xl sm:text-2xl font-black">
+                  Solicitud Editorial EV Digital + Comercial
+                </h1>
+              </div>
             </div>
-            <div className="text-xs">
-              <h4 className="font-black text-emerald-950 text-sm">
-                ¡Comercializando DEMO {sourceDemoInfo.orderNumber}!
-              </h4>
-              <p className="text-emerald-800 font-medium mt-0.5">
-                Esta nueva SP se registrará como la <strong>Venta Comercial oficial</strong> originada del demo <strong>{sourceDemoInfo.orderNumber}</strong> ({sourceDemoInfo.clientAgency} - {sourceDemoInfo.product}). 
-                Ingresa el valor del paquete comercial acordado con el cliente.
-              </p>
+
+            <div className="bg-white/10 px-4 py-2 rounded-2xl border border-white/20 text-right">
+              <span className="text-[10px] text-slate-300 block font-semibold">Formato de Nomenclatura:</span>
+              {isCoordinatorOrAdmin && !selectedExec ? (
+                <span className="font-mono font-black text-emerald-300 text-xs">
+                  SPD-[EJECUTIVA]-001...
+                </span>
+              ) : (
+                <span className="font-mono font-black text-emerald-400 text-sm">
+                  SPD-{activeInitials}-001...
+                </span>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className={`rounded-3xl p-6 text-white shadow-lg border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all ${
+            orderType === 'DEMO'
+              ? 'bg-gradient-to-r from-purple-950 via-indigo-900 to-slate-900 border-purple-800/50'
+              : 'bg-gradient-to-r from-slate-900 to-slate-800 border-slate-700'
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className={`font-black text-xl px-3 py-1.5 rounded-xl shadow ${
+                orderType === 'DEMO' ? 'bg-purple-400 text-slate-950' : 'bg-cyan-500 text-slate-950'
+              }`}>
+                {orderType === 'DEMO' ? '🧪' : 'EV'}
+              </div>
+              <div>
+                <span className={`text-xs uppercase tracking-widest font-bold ${
+                  orderType === 'DEMO' ? 'text-purple-300' : 'text-cyan-300'
+                }`}>
+                  {orderType === 'DEMO' ? 'Muestra Comercial / Piloto ($0 USD)' : 'Producción Comercial'}
+                </span>
+                <h1 className="text-xl sm:text-2xl font-black">
+                  {orderType === 'DEMO' ? 'Nueva Solicitud de DEMO ($0 USD)' : 'Nueva Solicitud de Producción (SP)'}
+                </h1>
+              </div>
+            </div>
+
+            <div className="bg-white/10 px-4 py-2 rounded-2xl border border-white/20 text-right">
+              <span className="text-[10px] text-slate-300 block font-semibold">Formato de Nomenclatura:</span>
+              {isCoordinatorOrAdmin && !selectedExec ? (
+                <span className="font-mono font-black text-amber-300 text-xs">
+                  SP-[EJECUTIVA]-001...
+                </span>
+              ) : (
+                <span className="font-mono font-black text-amber-400 text-sm">
+                  SP-{activeInitials}-001...
+                </span>
+              )}
             </div>
           </div>
         )}
 
-        {/* SELECTOR DE VINCULACIÓN A DEMO PREVIO (EN MODO COMERCIAL) */}
-        {orderType === 'COMMERCIAL' && !fromDemoId && (
-          <div className={`p-4 rounded-2xl border transition-all text-xs ${
-            isFromDemo 
-              ? 'bg-emerald-50/90 border-emerald-300 ring-2 ring-emerald-500/20' 
-              : 'bg-indigo-50/70 border-indigo-200'
-          }`}>
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 font-bold text-slate-900 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isFromDemo}
-                  onChange={(e) => {
-                    setIsFromDemo(e.target.checked);
-                    if (!e.target.checked) {
-                      setSourceDemoId('');
-                      setSourceDemoInfo(null);
-                    }
-                  }}
-                  className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
-                />
-                <span className="flex items-center gap-1.5">
-                  🧪 <strong>¿Esta nueva SP proviene de un DEMO previo que se logró comercializar / vender?</strong>
-                </span>
-              </label>
-              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-200 px-2.5 py-0.5 rounded-full">
-                Conversión de DEMO
-              </span>
+        {/* 🌟 BLOQUES ESPECÍFICOS DE TV (SELECTOR MODALIDAD, PLANTILLAS, CONVERSIÓN DEMO) */}
+        {orderCategory === 'TV' && (
+          <>
+            {/* SELECTOR DE MODALIDAD: SP COMERCIAL vs DEMO ($0) */}
+            <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setOrderType('COMMERCIAL');
+                }}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-black transition-all ${
+                  orderType === 'COMMERCIAL'
+                    ? 'bg-gradient-to-r from-slate-900 to-indigo-950 text-white shadow-md'
+                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <DollarSign className="w-4 h-4 text-emerald-400" />
+                <span>💰 Solicitud Comercial Estándar (Venta)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setOrderType('DEMO');
+                  setIsFromDemo(false);
+                  setSourceDemoId('');
+                }}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-black transition-all ${
+                  orderType === 'DEMO'
+                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md'
+                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <FlaskConical className="w-4 h-4 text-purple-300" />
+                <span>🧪 Solicitud de DEMO / Piloto (Costo $0 USD)</span>
+              </button>
             </div>
 
-            {isFromDemo && (
-              <div className="pt-3 space-y-2">
-                <label className="block text-[11px] font-bold text-slate-800">
-                  Selecciona el DEMO original que cerró esta venta:
-                </label>
-                {availableDemos.length === 0 ? (
-                  <div className="p-3 bg-white rounded-xl border border-amber-200 text-amber-800 text-[11px]">
-                    ⚠️ No hay solicitudes de DEMO pendientes de venta registradas actualmente en el sistema.
-                  </div>
-                ) : (
-                  <select
-                    value={sourceDemoId}
-                    onChange={(e) => handleSelectDemoToConvert(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-white border border-emerald-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
-                  >
-                    <option value="">-- Seleccionar DEMO disponible --</option>
-                    {availableDemos.map((demo) => (
-                      <option key={demo.id} value={demo.id}>
-                        🧪 {demo.orderNumber} • {demo.clientAgency} - {demo.product} ({demo.program || 'Sin programa'})
-                      </option>
-                    ))}
-                  </select>
+            {/* ⚡ JOB TEMPLATES / PLANTILLAS RÁPIDAS DE PRODUCCIÓN */}
+            <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 p-4 sm:p-5 rounded-3xl border border-slate-700 text-white space-y-3 shadow-md">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> Plantillas Rápidas de Producción (Job Templates)
+                </span>
+                {appliedTemplateName && (
+                  <span className="text-[10px] font-bold bg-cyan-500/20 text-cyan-300 px-2.5 py-0.5 rounded-full border border-cyan-500/40 animate-pulse">
+                    ✨ Aplicada: {appliedTemplateName}
+                  </span>
                 )}
-                <p className="text-[11px] text-slate-600">
-                  Al asociarlo, los datos del cliente se autocompletarán, el DEMO original quedará registrado como <strong>VENDIDO</strong> y se sumará a los reportes de ingresos y efectividad comercial.
-                </p>
+              </div>
+              <p className="text-[11px] text-slate-300">
+                Haz clic en un formato típico para auto-completar requerimientos de pauta, especificaciones técnicas y tipo de locución:
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1">
+                {SP_TEMPLATES.map((tpl) => {
+                  const isSelected = appliedTemplateName === tpl.title;
+                  return (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      onClick={() => handleApplyTemplate(tpl)}
+                      className={`p-3 rounded-2xl text-left transition-all cursor-pointer border ${
+                        isSelected
+                          ? 'bg-cyan-500/20 border-cyan-400 ring-1 ring-cyan-400/50'
+                          : 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-slate-500'
+                      }`}
+                    >
+                      <span className="text-xs font-black block text-white truncate">
+                        {tpl.title}
+                      </span>
+                      <span className="text-[10px] text-slate-400 block line-clamp-2 mt-1 leading-tight">
+                        {tpl.description}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* BANNER SI ESTÁ CONVIRTIENDO UN DEMO EN VENTA */}
+            {orderType === 'COMMERCIAL' && sourceDemoInfo && (
+              <div className="bg-emerald-50 border-2 border-emerald-400 p-4 rounded-2xl flex items-start gap-3 animate-pulse">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-black text-base shrink-0 shadow">
+                  💰
+                </div>
+                <div className="text-xs">
+                  <h4 className="font-black text-emerald-950 text-sm">
+                    ¡Comercializando DEMO {sourceDemoInfo.orderNumber}!
+                  </h4>
+                  <p className="text-emerald-800 font-medium mt-0.5">
+                    Esta nueva SP se registrará como la <strong>Venta Comercial oficial</strong> originada del demo <strong>{sourceDemoInfo.orderNumber}</strong> ({sourceDemoInfo.clientAgency} - {sourceDemoInfo.product}). 
+                    Ingresa el valor del paquete comercial acordado con el cliente.
+                  </p>
+                </div>
               </div>
             )}
-          </div>
+
+            {/* SELECTOR DE VINCULACIÓN A DEMO PREVIO (EN MODO COMERCIAL) */}
+            {orderType === 'COMMERCIAL' && !fromDemoId && (
+              <div className={`p-4 rounded-2xl border transition-all text-xs ${
+                isFromDemo 
+                  ? 'bg-emerald-50/90 border-emerald-300 ring-2 ring-emerald-500/20' 
+                  : 'bg-indigo-50/70 border-indigo-200'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 font-bold text-slate-900 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isFromDemo}
+                      onChange={(e) => {
+                        setIsFromDemo(e.target.checked);
+                        if (!e.target.checked) {
+                          setSourceDemoId('');
+                          setSourceDemoInfo(null);
+                        }
+                      }}
+                      className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <span className="flex items-center gap-1.5">
+                      🧪 <strong>¿Esta nueva SP proviene de un DEMO previo que se logró comercializar / vender?</strong>
+                    </span>
+                  </label>
+                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                    Conversión de DEMO
+                  </span>
+                </div>
+
+                {isFromDemo && (
+                  <div className="pt-3 space-y-2">
+                    <label className="block text-[11px] font-bold text-slate-800">
+                      Selecciona el DEMO original que cerró esta venta:
+                    </label>
+                    {availableDemos.length === 0 ? (
+                      <div className="p-3 bg-white rounded-xl border border-amber-200 text-amber-800 text-[11px]">
+                        ⚠️ No hay solicitudes de DEMO pendientes de venta registradas actualmente en el sistema.
+                      </div>
+                    ) : (
+                      <select
+                        value={sourceDemoId}
+                        onChange={(e) => handleSelectDemoToConvert(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-white border border-emerald-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+                      >
+                        <option value="">-- Seleccionar DEMO disponible --</option>
+                        {availableDemos.map((demo) => (
+                          <option key={demo.id} value={demo.id}>
+                            🧪 {demo.orderNumber} • {demo.clientAgency} - {demo.product} ({demo.program || 'Sin programa'})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <p className="text-[11px] text-slate-600">
+                      Al asociarlo, los datos del cliente se autocompletarán, el DEMO original quedará registrado como <strong>VENDIDO</strong> y se sumará a los reportes de ingresos y efectividad comercial.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         )}
 
         {error && (
@@ -487,7 +645,48 @@ function NewOrderForm() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* SECCIÓN 1: INFORMACIÓN GENERAL */}
+          {orderCategory === 'DIGITAL' ? (
+            <>
+              <DigitalOrderForm
+                formData={formData}
+                setFormData={setFormData}
+                digitalData={digitalData}
+                setDigitalData={setDigitalData}
+                digitalMatrix={digitalMatrix}
+                setDigitalMatrix={setDigitalMatrix}
+                executives={executives}
+                selectedExecutiveId={selectedExecutiveId}
+                setSelectedExecutiveId={setSelectedExecutiveId}
+                isCoordinatorOrAdmin={isCoordinatorOrAdmin}
+                user={user}
+                files={files}
+                handleFileChange={handleFileChange}
+                removeFile={removeFile}
+                activeInitials={activeInitials}
+              />
+
+              {/* Submit Action Bar for DIGITAL */}
+              <div className="flex items-center justify-end gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => router.back()}
+                  className="px-5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black px-7 py-3.5 rounded-xl text-xs shadow-lg transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {loading ? 'Guardando...' : '📱 Guardar e Ingresar SP Digital (SPD)'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* SECCIÓN 1: INFORMACIÓN GENERAL */}
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm">
             <div className={`px-6 py-3 border-b flex items-center justify-between rounded-t-3xl ${
               orderType === 'DEMO' ? 'bg-purple-100 border-purple-200' : 'bg-[#fef08a] border-yellow-300'
@@ -1027,6 +1226,8 @@ function NewOrderForm() {
                 : 'Crear Solicitud de Producción (SP)'}
             </button>
           </div>
+            </>
+          )}
         </form>
       </div>
     </AppLayout>

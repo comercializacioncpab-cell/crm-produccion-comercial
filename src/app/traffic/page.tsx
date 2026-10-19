@@ -140,6 +140,14 @@ export default function TrafficPage() {
               <span className="text-2xl font-black text-slate-900">{totalActive}</span>
               <span className="text-[11px] font-semibold text-slate-500">en edición</span>
             </div>
+            <div className="flex items-center gap-1.5 mt-2 text-[10px] font-bold flex-wrap">
+              <span className="text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                📺 {data?.totalTvActiveOrders || 0} TV
+              </span>
+              <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                📱 {data?.totalDigitalActiveOrders || 0} Digital
+              </span>
+            </div>
           </div>
 
           <div className="bg-emerald-50/70 p-4 rounded-2xl border border-emerald-200 shadow-2xs">
@@ -307,6 +315,14 @@ export default function TrafficPage() {
                           style={{ width: `${capPercent}%` }}
                         ></div>
                       </div>
+                      <div className="flex items-center justify-between text-[10px] pt-1 font-bold">
+                        <span className="text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                          📺 {prod.tvCount || 0} TV
+                        </span>
+                        <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          📱 {prod.digitalCount || 0} Digital
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -334,10 +350,19 @@ export default function TrafficPage() {
                               className="p-2.5 rounded-xl bg-slate-50 hover:bg-blue-50/60 border border-slate-200 hover:border-blue-200 transition-all flex items-center justify-between gap-2 block group"
                             >
                               <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex items-center gap-1.5 flex-wrap">
                                   <span className="font-mono font-bold text-[11px] text-blue-700 group-hover:underline">
                                     {ord.orderNumber}
                                   </span>
+                                  {ord.orderCategory === 'DIGITAL' ? (
+                                    <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 px-1 rounded">
+                                      📱 DIGITAL
+                                    </span>
+                                  ) : (
+                                    <span className="text-[9px] font-black bg-blue-50 text-blue-800 border border-blue-200 px-1 rounded">
+                                      📺 TV
+                                    </span>
+                                  )}
                                   {ord.priority === 'URGENTE' && (
                                     <span className="text-[9px] font-black uppercase bg-red-100 text-red-700 px-1 rounded">
                                       🚨 Urgente

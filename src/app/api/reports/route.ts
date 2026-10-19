@@ -31,6 +31,7 @@ export async function GET(req: Request) {
     const executiveParam = searchParams.get('executiveId'); // specific ID or 'ALL'
     const clientParam = searchParams.get('clientAgency'); // specific client name or 'ALL'
     const orderTypeParam = searchParams.get('orderType') || 'ALL'; // 'ALL', 'COMMERCIAL', 'DEMO', 'DEMO_SOLD', 'DEMO_CONVERTED_SALES'
+    const categoryParam = searchParams.get('category') || 'ALL'; // 'ALL', 'TV', 'DIGITAL'
 
     const postProducersList = await prisma.user.findMany({
       where: { role: { in: ['POST_PRODUCTOR', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'] } },
@@ -138,7 +139,12 @@ export async function GET(req: Request) {
         matchesType = !ord.isDemo && Boolean(ord.sourceDemoId);
       }
 
-      return matchesMonth && matchesPost && matchesExecutive && matchesClient && matchesType;
+      let matchesCategory = true;
+      if (categoryParam !== 'ALL') {
+        matchesCategory = (ord.orderCategory || 'TV') === categoryParam;
+      }
+
+      return matchesMonth && matchesPost && matchesExecutive && matchesClient && matchesType && matchesCategory;
     });
 
     // Compute metrics
@@ -172,6 +178,8 @@ export async function GET(req: Request) {
       phone?: string | null;
       initials: string;
       assignedCount: number;
+      tvCount: number;
+      digitalCount: number;
       deliveredCount: number;
       approvedCount: number;
       inProgressCount: number;
@@ -190,6 +198,8 @@ export async function GET(req: Request) {
         phone: p.phone,
         initials: p.initials,
         assignedCount: 0,
+        tvCount: 0,
+        digitalCount: 0,
         deliveredCount: 0,
         approvedCount: 0,
         inProgressCount: 0,
@@ -199,6 +209,18 @@ export async function GET(req: Request) {
         resolutionCount: 0,
       };
     }
+
+    const executiveStatsMap: Record<string, {
+      id: string;
+      name: string;
+      initials: string;
+      totalCount: number;
+      tvCount: number;
+      digitalCount: number;
+      deliveredCount: number;
+      approvedCount: number;
+      commercialRevenue: number;
+    }> = {};
 
     const detailedOrders = filteredOrders.map((ord) => {
       const isDelivered = ord.status === 'RESUELTA' || ord.status === 'ENTREGADO' || ord.status === 'APROBADA' || ord.status === 'AL_AIRE' || Boolean(ord.deliveredAt);
@@ -276,10 +298,15 @@ export async function GET(req: Request) {
       }
 
       // Post-Producer grouping
+      const isTv = (ord.orderCategory || 'TV') === 'TV';
+      const isDig = ord.orderCategory === 'DIGITAL';
+
       if (ord.postProducerId) {
         const postStat = postProducerStatsMap[ord.postProducerId];
         if (postStat) {
           postStat.assignedCount += 1;
+          if (isTv) postStat.tvCount += 1;
+          if (isDig) postStat.digitalCount += 1;
           if (isDelivered) postStat.deliveredCount += 1;
           if (isApproved) postStat.approvedCount += 1;
           if (ord.status === 'EN_PROCESO' || ord.status === 'ASIGNADA' || ord.status === 'CON_CAMBIOS') {
@@ -296,13 +323,42 @@ export async function GET(req: Request) {
         }
       }
 
+      // Executive grouping
+      const execKey = ord.executive?.id || ord.creator?.id || 'UNKNOWN';
+      const execName = ord.executive?.name || ord.creator?.name || 'Ventas';
+      const execInitials = ord.executive?.initials || ord.creator?.initials || 'SP';
+      if (!executiveStatsMap[execKey]) {
+        executiveStatsMap[execKey] = {
+          id: execKey,
+          name: execName,
+          initials: execInitials,
+          totalCount: 0,
+          tvCount: 0,
+          digitalCount: 0,
+          deliveredCount: 0,
+          approvedCount: 0,
+          commercialRevenue: 0,
+        };
+      }
+      executiveStatsMap[execKey].totalCount += 1;
+      if (isTv) executiveStatsMap[execKey].tvCount += 1;
+      if (isDig) executiveStatsMap[execKey].digitalCount += 1;
+      if (isDelivered) executiveStatsMap[execKey].deliveredCount += 1;
+      if (isApproved) executiveStatsMap[execKey].approvedCount += 1;
+      if (!ord.isDemo) executiveStatsMap[execKey].commercialRevenue += (ord.packageValue || 0);
+
       return {
         id: ord.id,
         orderNumber: ord.orderNumber,
+        orderCategory: ord.orderCategory || 'TV',
         clientAgency: ord.clientAgency,
         product: ord.product,
         program: ord.program,
+        campaign: ord.campaign,
+        contentObjective: ord.contentObjective,
+        orderDescription: ord.orderDescription,
         airDate: ord.airDate,
+        publishDate: ord.publishDate,
         packageValue: ord.packageValue || 0,
         status: ord.status,
         creatorName: ord.creator?.name || 'Ventas',
@@ -326,6 +382,9 @@ export async function GET(req: Request) {
         extraCostAccepted: Boolean(ord.extraCostAccepted),
       };
     });
+
+    const totalTvOrders = filteredOrders.filter((o) => (o.orderCategory || 'TV') === 'TV').length;
+    const totalDigitalOrders = filteredOrders.filter((o) => o.orderCategory === 'DIGITAL').length;
 
     const avgResolutionHours = deliveredWithTimeCount > 0 ? (totalResolutionHoursSum / deliveredWithTimeCount) : 0;
     const avgResolutionTimeFormatted = formatHoursToReadable(avgResolutionHours);
@@ -354,6 +413,8 @@ export async function GET(req: Request) {
           phone: p.phone,
           initials: p.initials,
           assignedCount: p.assignedCount,
+          tvCount: p.tvCount,
+          digitalCount: p.digitalCount,
           deliveredCount: p.deliveredCount,
           approvedCount: p.approvedCount,
           inProgressCount: p.inProgressCount,
@@ -366,16 +427,22 @@ export async function GET(req: Request) {
       })
       .sort((a, b) => b.deliveredCount - a.deliveredCount || b.assignedCount - a.assignedCount);
 
+    const executivesSummary = Object.values(executiveStatsMap)
+      .sort((a, b) => b.totalCount - a.totalCount);
+
     return NextResponse.json({
       success: true,
       selectedMonth: monthParam || 'ALL',
       selectedExecutive: executiveParam || 'ALL',
       selectedClient: clientParam || 'ALL',
       selectedOrderType: orderTypeParam,
+      selectedCategory: categoryParam,
       availableMonths,
       availableExecutives,
       availableClients,
       totalReceived,
+      totalTvOrders,
+      totalDigitalOrders,
       totalDelivered,
       totalApproved,
       totalWithChanges,
@@ -399,6 +466,7 @@ export async function GET(req: Request) {
       firstPassApprovalRate,
       completionRate: totalReceived > 0 ? Math.round((totalDelivered / totalReceived) * 100) : 0,
       postProducersSummary,
+      executivesSummary,
       orders: detailedOrders,
     });
   } catch (error) {

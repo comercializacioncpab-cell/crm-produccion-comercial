@@ -541,6 +541,8 @@ export default function UsersPage() {
                           <span className={`text-[11px] px-2.5 py-1 rounded-full font-bold border ${
                             u.role === 'SOLICITANTE'
                               ? 'bg-pink-50 text-pink-700 border-pink-200'
+                              : u.role === 'EJECUTIVA_DIGITAL'
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300 font-extrabold'
                               : u.role === 'COORDINADORA_VENTAS'
                               ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
                               : u.role === 'COORDINADOR'
@@ -553,7 +555,8 @@ export default function UsersPage() {
                               ? 'bg-teal-50 text-teal-800 border-teal-300'
                               : 'bg-slate-100 text-slate-800 border-slate-300'
                           }`}>
-                            {u.role === 'SOLICITANTE' && '👩‍💼 Ejecutiva'}
+                            {u.role === 'SOLICITANTE' && '👩‍💼 Ejecutiva TV'}
+                            {u.role === 'EJECUTIVA_DIGITAL' && '📱 Ejecutiva Digital'}
                             {u.role === 'COORDINADORA_VENTAS' && '💼 Coord. de Ventas'}
                             {u.role === 'COORDINADOR' && '📋 Coordinadora'}
                             {u.role === 'POST_PRODUCTOR' && '🎬 Post-Productor'}
@@ -801,7 +804,8 @@ export default function UsersPage() {
                       onChange={(e) => setEditRole(e.target.value)}
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
                     >
-                      <option value="SOLICITANTE">👩‍💼 Solicitante (Ejecutiva)</option>
+                      <option value="SOLICITANTE">👩‍💼 Solicitante (Ejecutiva TV)</option>
+                      <option value="EJECUTIVA_DIGITAL">📱 Ejecutiva Digital</option>
                       <option value="COORDINADORA_VENTAS">💼 Coordinadora de Ventas</option>
                       <option value="COORDINADOR">📋 Coordinadora de Producción</option>
                       <option value="COORDINADOR_PRODUCTOR">🎯 Coordinador/a - Productor</option>

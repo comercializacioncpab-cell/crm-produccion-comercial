@@ -17,8 +17,13 @@ export async function GET(req: Request) {
     const search = searchParams.get('search');
     const scope = searchParams.get('scope'); // 'my_orders', 'assigned_to_me', 'all'
     const executiveId = searchParams.get('executiveId');
+    const category = searchParams.get('category'); // 'ALL', 'TV', 'DIGITAL'
 
     const where: any = {};
+
+    if (category && category !== 'ALL') {
+      where.orderCategory = category;
+    }
 
     if (scope === 'my_orders') {
       where.OR = [
@@ -32,7 +37,7 @@ export async function GET(req: Request) {
       ];
     } else if (scope !== 'all') {
       // Default fallback when scope is omitted:
-      if (user.role === 'SOLICITANTE') {
+      if (user.role === 'SOLICITANTE' || user.role === 'EJECUTIVA_DIGITAL') {
         where.OR = [
           { creatorId: user.id },
           { executiveId: user.id },
@@ -63,6 +68,8 @@ export async function GET(req: Request) {
         { clientAgency: { contains: search, mode: 'insensitive' } },
         { product: { contains: search, mode: 'insensitive' } },
         { program: { contains: search, mode: 'insensitive' } },
+        { campaign: { contains: search, mode: 'insensitive' } },
+        { orderDescription: { contains: search, mode: 'insensitive' } },
         { executive: { name: { contains: search, mode: 'insensitive' } } },
         { creator: { name: { contains: search, mode: 'insensitive' } } },
       ];
@@ -112,6 +119,13 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const {
+      orderCategory = 'TV',
+      campaign,
+      contentObjective,
+      orderDescription,
+      receptionDate,
+      publishDate,
+      digitalData,
       clientAgency,
       product,
       program,
@@ -133,9 +147,10 @@ export async function POST(req: Request) {
     } = body;
 
     if (!clientAgency || !product) {
-      return NextResponse.json({ error: 'Cliente/Agencia y Producto son obligatorios' }, { status: 400 });
+      return NextResponse.json({ error: 'Cliente/Marca y Producto son obligatorios' }, { status: 400 });
     }
 
+    const isDigital = orderCategory === 'DIGITAL';
     const isDemoOrder = Boolean(isDemo);
     const parsedPackageValue = isDemoOrder 
       ? 0 
@@ -151,8 +166,8 @@ export async function POST(req: Request) {
       });
     }
 
-    // Default to creator if they are SOLICITANTE and no executive is explicitly set
-    if (!targetExecutive && user.role === 'SOLICITANTE') {
+    // Default to creator if they are SOLICITANTE or EJECUTIVA_DIGITAL and no executive is explicitly set
+    if (!targetExecutive && (user.role === 'SOLICITANTE' || user.role === 'EJECUTIVA_DIGITAL')) {
       targetExecutive = user;
     }
 
@@ -160,7 +175,7 @@ export async function POST(req: Request) {
     const isUserCoordinator = user.role === 'COORDINADOR' || user.role?.toUpperCase().includes('COORDINAD');
     if ((isUserCoordinator || user.role === 'ADMIN' || user.role === 'PRODUCTOR_SENIOR') && !targetExecutive) {
       return NextResponse.json(
-        { error: 'Como perfil de Coordinación o Administración, debes seleccionar a qué Ejecutiva de Ventas pertenece la cuenta.' },
+        { error: 'Como perfil de Coordinación o Administración, debes seleccionar a qué Ejecutiva pertenece la cuenta.' },
         { status: 400 }
       );
     }
@@ -175,14 +190,17 @@ export async function POST(req: Request) {
     }
     userInitials = userInitials.toUpperCase().trim();
 
-    // 🔢 Consecutive logic per executive prefix (e.g. SP-AR-001, SP-SI-001)
+    // 🔢 Prefix: SPD for Digital, SP for TV
+    const orderPrefix = isDigital ? 'SPD' : 'SP';
+
+    // 🔢 Consecutive logic per executive prefix (e.g. SP-AR-001 or SPD-GR-001)
     const lastOrderForExecutive = await prisma.productionOrder.findFirst({
       where: {
         OR: [
           effectiveExecutiveId
             ? { OR: [{ executiveId: effectiveExecutiveId }, { creatorId: effectiveExecutiveId }] }
             : { creatorId: user.id },
-          { orderNumber: { startsWith: `SP-${userInitials}-` } },
+          { orderNumber: { startsWith: `${orderPrefix}-${userInitials}-` } },
         ],
       },
       orderBy: { consecutive: 'desc' },
@@ -190,25 +208,36 @@ export async function POST(req: Request) {
 
     let nextConsecutive = (lastOrderForExecutive?.consecutive || 0) + 1;
     let paddedNumber = String(nextConsecutive).padStart(3, '0');
-    let orderNumber = `SP-${userInitials}-${paddedNumber}`;
+    let orderNumber = `${orderPrefix}-${userInitials}-${paddedNumber}`;
 
     // Ensure uniqueness across database
     while (await prisma.productionOrder.findUnique({ where: { orderNumber } })) {
       nextConsecutive++;
       paddedNumber = String(nextConsecutive).padStart(3, '0');
-      orderNumber = `SP-${userInitials}-${paddedNumber}`;
+      orderNumber = `${orderPrefix}-${userInitials}-${paddedNumber}`;
     }
+
+    const serializedDigitalData = typeof digitalData === 'object' && digitalData !== null
+      ? JSON.stringify(digitalData)
+      : (digitalData || null);
 
     // Create the order in PostgreSQL database
     const newOrder = await prisma.productionOrder.create({
       data: {
         orderNumber,
         consecutive: nextConsecutive,
+        orderCategory: isDigital ? 'DIGITAL' : 'TV',
         clientAgency: clientAgency.trim(),
         product: product.trim(),
-        program: program ? program.trim() : '',
+        campaign: campaign ? campaign.trim() : null,
+        contentObjective: contentObjective ? contentObjective.trim() : null,
+        orderDescription: orderDescription ? orderDescription.trim() : null,
+        receptionDate: receptionDate || null,
+        publishDate: publishDate || null,
+        digitalData: serializedDigitalData,
+        program: program ? program.trim() : (isDigital ? 'Digital / Redes Sociales' : ''),
         materialDeliveryDate: materialDeliveryDate || null,
-        airDate: airDate || null,
+        airDate: airDate || publishDate || null,
         downloadUrl: downloadUrl ? downloadUrl.trim() : null,
         materialNotes: materialNotes || null,
         hasBrief: Boolean(hasBrief),
@@ -279,9 +308,10 @@ export async function POST(req: Request) {
 
     // Log activity
     const coordinatorRoleTitle = user.role === 'COORDINADORA_VENTAS' ? 'Coordinación de Ventas' : 'Coordinación';
+    const categoryTag = isDigital ? '📱 SP Digital (Redes & Web)' : '📺 SP Televisión';
     const activityLogDetails = targetExecutive && targetExecutive.id !== user.id
-      ? `Solicitud de producción ${orderNumber} ingresada por ${coordinatorRoleTitle} (${user.name}) para la Ejecutiva ${targetExecutive.name}`
-      : `Solicitud de producción ${orderNumber} creada por ${user.name} (${user.email})`;
+      ? `Solicitud de producción ${categoryTag} ${orderNumber} ingresada por ${coordinatorRoleTitle} (${user.name}) para la Ejecutiva ${targetExecutive.name}`
+      : `Solicitud de producción ${categoryTag} ${orderNumber} creada por ${user.name} (${user.email})`;
 
     await prisma.activityLog.create({
       data: {
@@ -298,14 +328,18 @@ export async function POST(req: Request) {
     });
 
     const executiveDisplayName = targetExecutive ? targetExecutive.name : user.name;
+    const notifTitle = isDigital 
+      ? `📱 ¡Nueva SP Digital Recibida! ${orderNumber}`
+      : `📥 ¡Nueva SP Recibida! ${orderNumber}`;
+    const dateLabel = isDigital ? (publishDate ? `Fecha publicación: ${publishDate}` : 'Fecha publicación: Por definir') : `Fecha al aire: ${airDate || 'Por definir'}`;
 
     for (const coord of coordinators) {
       await sendNotification({
         userId: coord.id,
         orderId: newOrder.id,
         type: 'NEW_SP',
-        title: `📥 ¡Nueva SP Recibida! ${orderNumber}`,
-        message: `${executiveDisplayName} ha emitido la orden ${orderNumber} para ${clientAgency} (${product}). Fecha al aire: ${airDate || 'Por definir'}. Entra al CRM para asignarla a un post-productor.`,
+        title: notifTitle,
+        message: `${executiveDisplayName} ha emitido la orden ${categoryTag} ${orderNumber} para ${clientAgency} (${product}). ${dateLabel}. Entra al CRM para asignarla a un post-productor.`,
         userPhone: coord.phone,
         userEmail: coord.email,
         orderNumber,
@@ -319,7 +353,7 @@ export async function POST(req: Request) {
         orderId: newOrder.id,
         type: 'NEW_SP',
         title: `📥 SP ${orderNumber} ingresada por Coordinación`,
-        message: `Coordinación (${user.name}) ha registrado la orden ${orderNumber} para tu cliente ${clientAgency} (${product}).`,
+        message: `Coordinación (${user.name}) ha registrado la orden ${categoryTag} ${orderNumber} para tu cliente ${clientAgency} (${product}).`,
         userPhone: targetExecutive.phone,
         userEmail: targetExecutive.email,
         orderNumber,
