@@ -51,6 +51,7 @@ export interface DigitalOrderFormProps {
     newsroomLocation: string;
     resources: Record<string, string>;
     specialInstructions: string;
+    agencyCommissionApplies?: boolean;
     informProfiles?: {
       creativeDigital?: boolean;
       communityManager?: boolean;
@@ -844,6 +845,36 @@ export default function DigitalOrderForm({
               Ingresa el valor facturado para el desglose financiero y reportes.
             </p>
           </div>
+        </div>
+
+        {/* Descontar Comisión de Agencia (15%) */}
+        <div className="mt-4 pt-4 border-t border-slate-200">
+          <label className={`flex items-center justify-between p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${
+            digitalData.agencyCommissionApplies
+              ? 'bg-emerald-50 border-emerald-400 text-emerald-950 shadow-xs'
+              : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+          }`}>
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={Boolean(digitalData.agencyCommissionApplies)}
+                onChange={(e) => setDigitalData({
+                  ...digitalData,
+                  agencyCommissionApplies: e.target.checked
+                })}
+                className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+              />
+              <div>
+                <span className="font-bold text-xs block">Descontar Comisión de Agencia (15%)</span>
+                <span className="text-[11px] text-slate-500">Marcar si la cuenta viene a través de Agencia de Publicidad para cálculo de rentabilidad.</span>
+              </div>
+            </div>
+            <span className={`font-mono text-xs font-black px-2.5 py-1 rounded-lg ${
+              digitalData.agencyCommissionApplies ? 'bg-emerald-200/80 text-emerald-900' : 'bg-slate-200 text-slate-600'
+            }`}>
+              {digitalData.agencyCommissionApplies ? 'Aplica 15%' : 'No Aplica'}
+            </span>
+          </label>
         </div>
       </div>
     </div>

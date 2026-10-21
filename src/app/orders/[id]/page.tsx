@@ -128,6 +128,16 @@ export default function OrderDetailPage() {
     informCreativeDigital: true,
     informCommunityManager: true,
     informMonetization: true,
+    publicationAccount: '',
+    finishedProductDeliveryDate: '',
+    platformsAndFormats: {} as Record<string, string[]>,
+    isNewsroomSegment: false,
+    newsroomSegmentType: '',
+    newsroomDate: '',
+    newsroomTime: '',
+    newsroomLocation: '',
+    resources: {} as Record<string, string>,
+    agencyCommissionApplies: false,
   });
 
   // Financial Costs & Profitability States (Digital Project Cost Sheet)
@@ -839,6 +849,16 @@ export default function OrderDetailPage() {
       informCreativeDigital: parsedDigital?.informProfiles?.creativeDigital ?? true,
       informCommunityManager: parsedDigital?.informProfiles?.communityManager ?? true,
       informMonetization: parsedDigital?.informProfiles?.monetization ?? true,
+      publicationAccount: parsedDigital?.publicationAccount || '',
+      finishedProductDeliveryDate: parsedDigital?.finishedProductDeliveryDate || '',
+      platformsAndFormats: parsedDigital?.platformsAndFormats || {},
+      isNewsroomSegment: Boolean(parsedDigital?.isNewsroomSegment),
+      newsroomSegmentType: parsedDigital?.newsroomDetails?.segmentType || '',
+      newsroomDate: parsedDigital?.newsroomDetails?.date || '',
+      newsroomTime: parsedDigital?.newsroomDetails?.time || '',
+      newsroomLocation: parsedDigital?.newsroomDetails?.location || '',
+      resources: parsedDigital?.resources || {},
+      agencyCommissionApplies: Boolean(parsedDigital?.financialCosts?.agencyCommissionApplies ?? digitalCosts.agencyCommissionApplies),
     });
     setShowEditModal(true);
   };
@@ -920,13 +940,55 @@ export default function OrderDetailPage() {
     setActionLoading(true);
     setMsg(null);
     try {
+      const isOrderDigital = order.orderCategory === 'DIGITAL';
+      let parsedDigital: any = {};
+      if (order.digitalData) {
+        try {
+          parsedDigital = typeof order.digitalData === 'string' ? JSON.parse(order.digitalData) : order.digitalData;
+        } catch {
+          parsedDigital = {};
+        }
+      }
+
+      const updatedDigitalPayload = isOrderDigital ? {
+        ...parsedDigital,
+        campaign: editFormData.campaign,
+        contentObjective: editFormData.contentObjective,
+        orderDescription: editFormData.orderDescription,
+        receptionDate: editFormData.receptionDate,
+        publishDate: editFormData.publishDate,
+        finishedProductDeliveryDate: editFormData.finishedProductDeliveryDate,
+        publicationAccount: editFormData.publicationAccount,
+        platformsAndFormats: editFormData.platformsAndFormats,
+        isNewsroomSegment: editFormData.isNewsroomSegment,
+        newsroomDetails: editFormData.isNewsroomSegment ? {
+          segmentType: editFormData.newsroomSegmentType,
+          date: editFormData.newsroomDate,
+          time: editFormData.newsroomTime,
+          location: editFormData.newsroomLocation,
+        } : null,
+        resources: editFormData.resources,
+        agencyCommissionApplies: editFormData.agencyCommissionApplies,
+        informProfiles: {
+          creativeDigital: editFormData.informCreativeDigital,
+          communityManager: editFormData.informCommunityManager,
+          monetization: editFormData.informMonetization,
+        },
+        financialCosts: {
+          ...(parsedDigital.financialCosts || {}),
+          agencyCommissionApplies: editFormData.agencyCommissionApplies,
+          packageValue: parseFloat(editFormData.packageValue) || order.packageValue || 0,
+        },
+      } : undefined;
+
       const res = await fetch(`/api/orders/${order.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'EDIT_ORDER',
           ...editFormData,
-          informProfiles: order.orderCategory === 'DIGITAL' ? {
+          digitalData: updatedDigitalPayload,
+          informProfiles: isOrderDigital ? {
             creativeDigital: editFormData.informCreativeDigital,
             communityManager: editFormData.informCommunityManager,
             monetization: editFormData.informMonetization,
@@ -937,6 +999,13 @@ export default function OrderDetailPage() {
       if (res.ok) {
         setMsg({ type: 'success', text: '¡SP modificada exitosamente! Se registró la fecha, hora y usuario en la trazabilidad y se notificó al equipo.' });
         setShowEditModal(false);
+        if (isOrderDigital) {
+          setDigitalCosts((prev) => ({
+            ...prev,
+            agencyCommissionApplies: editFormData.agencyCommissionApplies,
+            packageValue: parseFloat(editFormData.packageValue) || prev.packageValue,
+          }));
+        }
         fetchOrder();
       } else {
         setMsg({ type: 'error', text: data.error || 'Error al modificar la SP.' });
@@ -1042,7 +1111,21 @@ export default function OrderDetailPage() {
     user && ['ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR', 'COORDINADORA', 'COORDINADOR_PRODUCTOR', 'SOLICITANTE', 'EJECUTIVA', 'EJECUTIVA_DIGITAL', 'COORDINADORA_VENTAS', 'CREATIVO_DIGITAL', 'COMMUNITY_MANAGER', 'JEFE_MONETIZACION'].includes(user.role)
   );
   const canManageFinancials = Boolean(
-    user && (isCoordinator || user.role === 'JEFE_MONETIZACION' || user.role === 'ADMIN' || user.role === 'PRODUCTOR_SENIOR')
+    user && (
+      isCoordinator || 
+      user.role === 'JEFE_MONETIZACION' || 
+      user.role === 'ADMIN' || 
+      user.role === 'PRODUCTOR_SENIOR' || 
+      user.role === 'COORDINADORA_VENTAS' ||
+      user.role === 'COORDINADOR_PRODUCTOR' ||
+      user.role === 'COORDINADORA' ||
+      user.role === 'COORDINADOR' ||
+      user.role === 'EJECUTIVA_DIGITAL' || 
+      user.role === 'EJECUTIVA' || 
+      user.role === 'SOLICITANTE' ||
+      order?.creatorId === user?.id ||
+      order?.executiveId === user?.id
+    )
   );
 
   return (
@@ -3225,23 +3308,47 @@ export default function OrderDetailPage() {
                   </h4>
 
                   {isDigital ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">Fecha de Recepción de Material</label>
-                        <input
-                          type="date"
-                          value={editFormData.receptionDate || editFormData.materialDeliveryDate}
-                          onChange={(e) => setEditFormData({ ...editFormData, receptionDate: e.target.value, materialDeliveryDate: e.target.value })}
-                          className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                        />
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">1. Recepción de Material</label>
+                          <input
+                            type="date"
+                            value={editFormData.receptionDate || editFormData.materialDeliveryDate}
+                            onChange={(e) => setEditFormData({ ...editFormData, receptionDate: e.target.value, materialDeliveryDate: e.target.value })}
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">2. Entrega Producto Final</label>
+                          <input
+                            type="date"
+                            value={editFormData.finishedProductDeliveryDate}
+                            onChange={(e) => setEditFormData({ ...editFormData, finishedProductDeliveryDate: e.target.value })}
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-red-700 mb-1">3. Publicación / Salida Redes</label>
+                          <input
+                            type="date"
+                            value={editFormData.publishDate || editFormData.airDate}
+                            onChange={(e) => setEditFormData({ ...editFormData, publishDate: e.target.value, airDate: e.target.value })}
+                            className="w-full p-2.5 bg-white border border-red-200 rounded-xl text-xs font-bold text-red-950 focus:ring-2 focus:ring-red-500 focus:outline-none"
+                          />
+                        </div>
                       </div>
+
                       <div>
-                        <label className="block text-[11px] font-bold text-emerald-800 mb-1">Fecha Estimada de Publicación / Salida</label>
+                        <label className="block text-[11px] font-bold text-indigo-900 mb-1">
+                          📢 Cuenta Oficial de Ecuavisa para Publicar / Colaboración:
+                        </label>
                         <input
-                          type="date"
-                          value={editFormData.publishDate || editFormData.airDate}
-                          onChange={(e) => setEditFormData({ ...editFormData, publishDate: e.target.value, airDate: e.target.value })}
-                          className="w-full p-2.5 bg-white border border-emerald-300 rounded-xl text-xs font-bold text-emerald-950 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                          type="text"
+                          value={editFormData.publicationAccount}
+                          onChange={(e) => setEditFormData({ ...editFormData, publicationAccount: e.target.value })}
+                          placeholder="Ej. Ecuavisa Oficial (@ecuavisa), Estadio, Ecuavisa Deportes..."
+                          className="w-full p-2.5 bg-white border border-indigo-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                         />
                       </div>
                     </div>
@@ -3320,168 +3427,341 @@ export default function OrderDetailPage() {
                   </div>
                 </div>
 
-                {/* 3. OPCIONES COMERCIALES / PNTS & AUSPICIOS */}
-                <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-200 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-black text-xs text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
-                      📺 3. Opciones Comerciales, Auspicios & PNTs (Selección Múltiple)
-                    </h4>
-                    <span className="text-[10px] text-indigo-700 font-bold bg-indigo-100 px-2 py-0.5 rounded-md">
-                      {editFormData.sponsorshipTypes.length} seleccionada(s)
-                    </span>
-                  </div>
+                {!isDigital ? (
+                  <>
+                    {/* 3. OPCIONES COMERCIALES / PNTS & AUSPICIOS (SOLO TV) */}
+                    <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-200 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-black text-xs text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
+                          📺 3. Opciones Comerciales, Auspicios & PNTs (Selección Múltiple)
+                        </h4>
+                        <span className="text-[10px] text-indigo-700 font-bold bg-indigo-100 px-2 py-0.5 rounded-md">
+                          {editFormData.sponsorshipTypes.length} seleccionada(s)
+                        </span>
+                      </div>
 
-                  {/* Render Categories: Gráficos vs Estratégicos */}
-                  <div className="space-y-4 max-h-72 overflow-y-auto pr-1">
-                    {SPONSORSHIP_CATEGORIES.map((cat) => {
-                      const selectedCount = cat.options.filter((o) => editFormData.sponsorshipTypes.includes(o.id)).length;
-                      return (
-                        <div key={cat.id} className="bg-white/80 p-3 rounded-xl border border-indigo-100 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-black uppercase text-slate-800 flex items-center gap-1.5">
-                              {cat.id === 'COBERTURAS' ? '📹' : cat.id === 'ESTRATEGICOS' ? '🚀' : '🎨'} {cat.title}
-                            </span>
-                            {selectedCount > 0 && (
-                              <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.2 rounded-md">
-                                {selectedCount} seleccionada(s)
-                              </span>
-                            )}
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                            {cat.options.map((opt) => {
-                              const isChecked = editFormData.sponsorshipTypes.includes(opt.id);
-                              return (
-                                <label
-                                  key={opt.id}
-                                  className={`flex items-center gap-2 p-2 rounded-xl border text-[11px] font-bold cursor-pointer transition-all ${
-                                    isChecked
-                                      ? cat.id === 'COBERTURAS'
-                                        ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
-                                        : cat.id === 'ESTRATEGICOS'
-                                        ? 'bg-purple-700 text-white border-purple-700 shadow-sm'
-                                        : 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                                  }`}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={isChecked}
-                                    onChange={() => handleEditSponsorshipToggle(opt.id)}
-                                    className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
-                                  />
-                                  <span className="truncate">{opt.label}</span>
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                      <div className="space-y-4 max-h-72 overflow-y-auto pr-1">
+                        {SPONSORSHIP_CATEGORIES.map((cat) => {
+                          const selectedCount = cat.options.filter((o) => editFormData.sponsorshipTypes.includes(o.id)).length;
+                          return (
+                            <div key={cat.id} className="bg-white/80 p-3 rounded-xl border border-indigo-100 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-black uppercase text-slate-800 flex items-center gap-1.5">
+                                  {cat.id === 'COBERTURAS' ? '📹' : cat.id === 'ESTRATEGICOS' ? '🚀' : '🎨'} {cat.title}
+                                </span>
+                                {selectedCount > 0 && (
+                                  <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.2 rounded-md">
+                                    {selectedCount} seleccionada(s)
+                                  </span>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                {cat.options.map((opt) => {
+                                  const isChecked = editFormData.sponsorshipTypes.includes(opt.id);
+                                  return (
+                                    <label
+                                      key={opt.id}
+                                      className={`flex items-center gap-2 p-2 rounded-xl border text-[11px] font-bold cursor-pointer transition-all ${
+                                        isChecked
+                                          ? cat.id === 'COBERTURAS'
+                                            ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                                            : cat.id === 'ESTRATEGICOS'
+                                            ? 'bg-purple-700 text-white border-purple-700 shadow-sm'
+                                            : 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                                      }`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={isChecked}
+                                        onChange={() => handleEditSponsorshipToggle(opt.id)}
+                                        className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                                      />
+                                      <span className="truncate">{opt.label}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
 
-                  <div>
-                    <label className="block text-[11px] font-bold text-indigo-900 mb-1">
-                      Auspicio / PNT Personalizado (Otro):
-                    </label>
-                    <input
-                      type="text"
-                      value={editFormData.customSponsorship}
-                      onChange={(e) => setEditFormData({ ...editFormData, customSponsorship: e.target.value })}
-                      placeholder="Ej. Mención con producto en mesa del presentador..."
-                      className="w-full p-2.5 bg-white border border-indigo-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                {/* 4. LOCUCIÓN */}
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
-                  <h4 className="font-black text-xs text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                    🎙️ 4. Locución
-                  </h4>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Tipo de Locución</label>
-                      <select
-                        value={editFormData.voiceoverType}
-                        onChange={(e) => setEditFormData({ ...editFormData, voiceoverType: e.target.value })}
-                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                      >
-                        <option value="GENERICA">Genérica</option>
-                        <option value="EXCLUSIVA_CLIENTE">Exclusiva del Cliente</option>
-                        <option value="SIN_LOCUCION">Sin Locución</option>
-                      </select>
+                      <div>
+                        <label className="block text-[11px] font-bold text-indigo-900 mb-1">
+                          Auspicio / PNT Personalizado (Otro):
+                        </label>
+                        <input
+                          type="text"
+                          value={editFormData.customSponsorship}
+                          onChange={(e) => setEditFormData({ ...editFormData, customSponsorship: e.target.value })}
+                          placeholder="Ej. Mención con producto en mesa del presentador..."
+                          className="w-full p-2.5 bg-white border border-indigo-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        />
+                      </div>
                     </div>
 
-                    <div className="sm:col-span-2">
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Texto de Locución</label>
-                      <textarea
-                        rows={2}
-                        value={editFormData.voiceoverText}
-                        onChange={(e) => setEditFormData({ ...editFormData, voiceoverText: e.target.value })}
-                        placeholder="Guion o texto que debe leer el locutor..."
-                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* NOTIFICAR A EQUIPO DIGITAL (SOLO INFORMATIVO) */}
-                {isDigital && (
-                  <div className="bg-indigo-50/70 p-4 rounded-2xl border border-indigo-200 space-y-3">
-                    <div>
-                      <h4 className="font-black text-xs text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
-                        🔔 Notificar a Equipo Digital (Solo Informativo)
+                    {/* 4. LOCUCIÓN (SOLO TV) */}
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                      <h4 className="font-black text-xs text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                        🎙️ 4. Locución
                       </h4>
-                      <p className="text-[11px] text-indigo-700 font-medium mt-0.5">
-                        Los usuarios seleccionados recibirán notificaciones para conocimiento del flujo. No intervienen como aprobadores ni editores directos.
-                      </p>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">Tipo de Locución</label>
+                          <select
+                            value={editFormData.voiceoverType}
+                            onChange={(e) => setEditFormData({ ...editFormData, voiceoverType: e.target.value })}
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          >
+                            <option value="GENERICA">Genérica</option>
+                            <option value="EXCLUSIVA_CLIENTE">Exclusiva del Cliente</option>
+                            <option value="SIN_LOCUCION">Sin Locución</option>
+                          </select>
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">Texto de Locución</label>
+                          <textarea
+                            rows={2}
+                            value={editFormData.voiceoverText}
+                            onChange={(e) => setEditFormData({ ...editFormData, voiceoverText: e.target.value })}
+                            placeholder="Guion o texto que debe leer el locutor..."
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* 3. PLATAFORMAS & FORMATOS DIGITALES (SOLO DIGITAL) */}
+                    <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-200 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-black text-xs text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
+                          <Smartphone className="w-4 h-4 text-emerald-600" /> 📱 3. Plataformas & Formatos Digitales Solicitados
+                        </h4>
+                        <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded-md">
+                          Matriz Digital
+                        </span>
+                      </div>
+
+                      <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                        {DIGITAL_FORMATS.map((fmt) => {
+                          const selectedNets: string[] = editFormData.platformsAndFormats?.[fmt] || [];
+                          return (
+                            <div key={fmt} className="bg-white p-3 rounded-xl border border-emerald-100 space-y-1.5 shadow-2xs">
+                              <span className="font-bold text-xs text-slate-900 block">{fmt}</span>
+                              <div className="flex flex-wrap gap-1.5">
+                                {DIGITAL_NETWORKS.map((net) => {
+                                  const isSelected = selectedNets.includes(net.id);
+                                  return (
+                                    <button
+                                      key={net.id}
+                                      type="button"
+                                      onClick={() => {
+                                        const updated = isSelected
+                                          ? selectedNets.filter((id) => id !== net.id)
+                                          : [...selectedNets, net.id];
+                                        setEditFormData({
+                                          ...editFormData,
+                                          platformsAndFormats: {
+                                            ...editFormData.platformsAndFormats,
+                                            [fmt]: updated,
+                                          },
+                                        });
+                                      }}
+                                      className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                                        isSelected
+                                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                                      }`}
+                                    >
+                                      {net.name} {isSelected ? '✓' : ''}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                      <label className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
-                        editFormData.informCreativeDigital
-                          ? 'bg-violet-600 text-white border-violet-600 shadow-sm'
-                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                      }`}>
-                        <input
-                          type="checkbox"
-                          checked={editFormData.informCreativeDigital}
-                          onChange={(e) => setEditFormData({ ...editFormData, informCreativeDigital: e.target.checked })}
-                          className="rounded text-violet-600 focus:ring-violet-500 w-4 h-4"
-                        />
-                        <span>🎨 Creativo Digital</span>
-                      </label>
+                    {/* 4. SEGMENTO NOTICIERO & INSUMOS DIGITALES */}
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                      <h4 className="font-black text-xs text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                        📋 4. Segmento Noticiero & Insumos Digitales
+                      </h4>
 
-                      <label className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
-                        editFormData.informCommunityManager
-                          ? 'bg-sky-600 text-white border-sky-600 shadow-sm'
-                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                      }`}>
-                        <input
-                          type="checkbox"
-                          checked={editFormData.informCommunityManager}
-                          onChange={(e) => setEditFormData({ ...editFormData, informCommunityManager: e.target.checked })}
-                          className="rounded text-sky-600 focus:ring-sky-500 w-4 h-4"
-                        />
-                        <span>📲 Community Manager</span>
-                      </label>
+                      <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2">
+                        <label className="flex items-center gap-2 cursor-pointer font-bold text-xs text-amber-950">
+                          <input
+                            type="checkbox"
+                            checked={editFormData.isNewsroomSegment}
+                            onChange={(e) => setEditFormData({ ...editFormData, isNewsroomSegment: e.target.checked })}
+                            className="rounded text-amber-600 focus:ring-amber-500 w-4 h-4 cursor-pointer"
+                          />
+                          <span>¿Es Segmento de Noticiero Digital?</span>
+                        </label>
 
-                      <label className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
-                        editFormData.informMonetization
-                          ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
-                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                      }`}>
-                        <input
-                          type="checkbox"
-                          checked={editFormData.informMonetization}
-                          onChange={(e) => setEditFormData({ ...editFormData, informMonetization: e.target.checked })}
-                          className="rounded text-amber-600 focus:ring-amber-500 w-4 h-4"
-                        />
-                        <span>💎 Jefe de Monetización</span>
-                      </label>
+                        {editFormData.isNewsroomSegment && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-amber-200/60">
+                            <div>
+                              <label className="block text-[10px] font-bold text-amber-900 mb-0.5">Tipo de Segmento:</label>
+                              <input
+                                type="text"
+                                value={editFormData.newsroomSegmentType}
+                                onChange={(e) => setEditFormData({ ...editFormData, newsroomSegmentType: e.target.value })}
+                                placeholder="Ej. En Vivo, Bloque Deportivo, Cápsula..."
+                                className="w-full p-2 bg-white border border-amber-300 rounded-lg text-xs font-semibold focus:outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-amber-900 mb-0.5">Lugar / Ubicación:</label>
+                              <input
+                                type="text"
+                                value={editFormData.newsroomLocation}
+                                onChange={(e) => setEditFormData({ ...editFormData, newsroomLocation: e.target.value })}
+                                placeholder="Ej. Set Principal, Exteriores..."
+                                className="w-full p-2 bg-white border border-amber-300 rounded-lg text-xs font-semibold focus:outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-amber-900 mb-0.5">Fecha Noticiero:</label>
+                              <input
+                                type="date"
+                                value={editFormData.newsroomDate}
+                                onChange={(e) => setEditFormData({ ...editFormData, newsroomDate: e.target.value })}
+                                className="w-full p-2 bg-white border border-amber-300 rounded-lg text-xs font-semibold focus:outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-amber-900 mb-0.5">Hora Estimada:</label>
+                              <input
+                                type="time"
+                                value={editFormData.newsroomTime}
+                                onChange={(e) => setEditFormData({ ...editFormData, newsroomTime: e.target.value })}
+                                className="w-full p-2 bg-white border border-amber-300 rounded-lg text-xs font-semibold focus:outline-none"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5 pt-1">
+                        <span className="block text-[11px] font-bold text-slate-700">Recursos / Insumos Requeridos:</span>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {DIGITAL_RESOURCES_LIST.map((res) => {
+                            const isYes = editFormData.resources?.[res.id] === 'SI';
+                            return (
+                              <button
+                                key={res.id}
+                                type="button"
+                                onClick={() => {
+                                  setEditFormData({
+                                    ...editFormData,
+                                    resources: {
+                                      ...editFormData.resources,
+                                      [res.id]: isYes ? 'NO' : 'SI',
+                                    },
+                                  });
+                                }}
+                                className={`p-2 rounded-xl border text-xs font-bold text-left transition-all flex items-center justify-between cursor-pointer ${
+                                  isYes
+                                    ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                }`}
+                              >
+                                <span>{res.label}</span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-black ${isYes ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                                  {isYes ? 'SI' : 'NO'}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
-                  </div>
+
+                    {/* 5. COMISIÓN DE AGENCIA (15%) */}
+                    <div className="bg-emerald-50/70 p-3.5 rounded-2xl border-2 border-emerald-300 flex items-center justify-between">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editFormData.agencyCommissionApplies}
+                          onChange={(e) => setEditFormData({ ...editFormData, agencyCommissionApplies: e.target.checked })}
+                          className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                        />
+                        <div>
+                          <span className="font-black text-xs text-emerald-950 block">💼 Descontar Comisión de Agencia (15%)</span>
+                          <span className="text-[11px] text-emerald-700">Marcar si la cuenta viene a través de Agencia de Publicidad.</span>
+                        </div>
+                      </label>
+                      <span className={`font-mono text-xs font-black px-2.5 py-1 rounded-lg ${
+                        editFormData.agencyCommissionApplies ? 'bg-emerald-600 text-white shadow-2xs' : 'bg-slate-200 text-slate-600'
+                      }`}>
+                        {editFormData.agencyCommissionApplies ? 'Aplica 15%' : 'No Aplica'}
+                      </span>
+                    </div>
+
+                    {/* 6. NOTIFICAR A EQUIPO DIGITAL (SOLO INFORMATIVO) */}
+                    <div className="bg-indigo-50/70 p-4 rounded-2xl border border-indigo-200 space-y-3">
+                      <div>
+                        <h4 className="font-black text-xs text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
+                          🔔 6. Notificar a Equipo Digital (Solo Informativo)
+                        </h4>
+                        <p className="text-[11px] text-indigo-700 font-medium mt-0.5">
+                          Los usuarios seleccionados recibirán notificaciones para conocimiento del flujo. No intervienen como aprobadores ni editores directos.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <label className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                          editFormData.informCreativeDigital
+                            ? 'bg-violet-600 text-white border-violet-600 shadow-sm'
+                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                        }`}>
+                          <input
+                            type="checkbox"
+                            checked={editFormData.informCreativeDigital}
+                            onChange={(e) => setEditFormData({ ...editFormData, informCreativeDigital: e.target.checked })}
+                            className="rounded text-violet-600 focus:ring-violet-500 w-4 h-4 cursor-pointer"
+                          />
+                          <span>🎨 Creativo Digital</span>
+                        </label>
+
+                        <label className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                          editFormData.informCommunityManager
+                            ? 'bg-sky-600 text-white border-sky-600 shadow-sm'
+                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                        }`}>
+                          <input
+                            type="checkbox"
+                            checked={editFormData.informCommunityManager}
+                            onChange={(e) => setEditFormData({ ...editFormData, informCommunityManager: e.target.checked })}
+                            className="rounded text-sky-600 focus:ring-sky-500 w-4 h-4 cursor-pointer"
+                          />
+                          <span>📲 Community Manager</span>
+                        </label>
+
+                        <label className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                          editFormData.informMonetization
+                            ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                        }`}>
+                          <input
+                            type="checkbox"
+                            checked={editFormData.informMonetization}
+                            onChange={(e) => setEditFormData({ ...editFormData, informMonetization: e.target.checked })}
+                            className="rounded text-amber-600 focus:ring-amber-500 w-4 h-4 cursor-pointer"
+                          />
+                          <span>💎 Jefe de Monetización</span>
+                        </label>
+                      </div>
+                    </div>
+                  </>
                 )}
 
                 {/* 5. EQUIPO POST-PRODUCCIÓN (Para Coordinadores / Admins) */}

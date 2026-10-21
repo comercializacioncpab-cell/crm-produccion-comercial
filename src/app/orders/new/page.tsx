@@ -95,6 +95,7 @@ function NewOrderForm() {
       otros: '',
     } as Record<string, string>,
     specialInstructions: '',
+    agencyCommissionApplies: false,
     informProfiles: {
       creativeDigital: true,
       communityManager: true,
@@ -268,6 +269,7 @@ function NewOrderForm() {
                 newsroomLocation: dig.newsroomDetails?.location || '',
                 resources: dig.resources || prev.resources,
                 specialInstructions: dig.specialInstructions || '',
+                agencyCommissionApplies: Boolean(dig.financialCosts?.agencyCommissionApplies || dig.agencyCommissionApplies),
                 informProfiles: dig.informProfiles || prev.informProfiles,
               }));
               if (dig.platformsAndFormats) {
@@ -397,7 +399,21 @@ function NewOrderForm() {
               resources: digitalData.resources,
               specialInstructions: digitalData.specialInstructions,
               finishedProductDeliveryDate: digitalData.finishedProductDeliveryDate,
+              agencyCommissionApplies: Boolean(digitalData.agencyCommissionApplies),
               informProfiles: digitalData.informProfiles,
+              financialCosts: {
+                packageValue: parseFloat(formData.packageValue) || 0,
+                producerCost: 0,
+                reporterCost: 0,
+                mobilizationCost: 0,
+                otherCost: 0,
+                agencyCommissionApplies: Boolean(digitalData.agencyCommissionApplies),
+                agencyCommissionRate: 15,
+                agencyCommissionAmount: Boolean(digitalData.agencyCommissionApplies) ? (parseFloat(formData.packageValue) || 0) * 0.15 : 0,
+                totalExpenses: 0,
+                netMargin: (parseFloat(formData.packageValue) || 0) - (Boolean(digitalData.agencyCommissionApplies) ? (parseFloat(formData.packageValue) || 0) * 0.15 : 0),
+                profitabilityPercent: Boolean(digitalData.agencyCommissionApplies) ? 85 : 100,
+              },
             },
             files: files.map((f) => ({
               fileName: f.name,
