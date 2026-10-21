@@ -41,7 +41,8 @@ import {
   Trash2,
   Copy,
   Smartphone,
-  Save
+  Save,
+  Send
 } from 'lucide-react';
 import { 
   STATUS_CONFIG, 
@@ -119,6 +120,11 @@ export default function OrderDetailPage() {
     postProducerId: '',
     secondaryPostProducerId: '',
     executiveId: '',
+    campaign: '',
+    contentObjective: 'AWARENESS',
+    orderDescription: '',
+    publishDate: '',
+    receptionDate: '',
   });
 
   // Financial Costs & Profitability States (Digital Project Cost Sheet)
@@ -813,8 +819,69 @@ export default function OrderDetailPage() {
       postProducerId: order.postProducerId || '',
       secondaryPostProducerId: order.secondaryPostProducerId || '',
       executiveId: order.executiveId || order.creatorId || '',
+      campaign: order.campaign || '',
+      contentObjective: order.contentObjective || 'AWARENESS',
+      orderDescription: order.orderDescription || '',
+      publishDate: order.publishDate || '',
+      receptionDate: order.receptionDate || '',
     });
     setShowEditModal(true);
+  };
+
+  const [duplicating, setDuplicating] = useState(false);
+  const [submittingDraft, setSubmittingDraft] = useState(false);
+
+  const handleDuplicateOrder = async () => {
+    const confirmDup = window.confirm(
+      `¿Deseas duplicar esta SP para crear una nueva orden?\n\nSe creará una nueva SP con un nuevo número correlativo (ej: ${order.orderCategory === 'DIGITAL' ? 'SPD' : 'SP'}-...) manteniendo todos los requerimientos, plataformas y formatos de ${order.orderNumber}.`
+    );
+    if (!confirmDup) return;
+
+    setDuplicating(true);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/duplicate`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (res.ok && data.order) {
+        router.push(`/orders/${data.order.id}`);
+      } else {
+        setMsg({ type: 'error', text: data.error || 'Error al duplicar la SP.' });
+      }
+    } catch (err: any) {
+      setMsg({ type: 'error', text: err.message || 'Error al duplicar la SP.' });
+    } finally {
+      setDuplicating(false);
+    }
+  };
+
+  const handleSubmitDraft = async () => {
+    const confirmSubmit = window.confirm(
+      `¿Confirmas que deseas enviar oficialmente la orden ${order.orderNumber} a Coordinación?\n\nSe notificará inmediatamente a los coordinadores para su asignación a post-producción.`
+    );
+    if (!confirmSubmit) return;
+
+    setSubmittingDraft(true);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'SUBMIT_DRAFT' }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMsg({ type: 'success', text: `🚀 ¡Orden ${order.orderNumber} enviada oficialmente a Coordinación!` });
+        fetchOrder();
+      } else {
+        setMsg({ type: 'error', text: data.error || 'Error al enviar el borrador.' });
+      }
+    } catch (err: any) {
+      setMsg({ type: 'error', text: err.message || 'Error al enviar el borrador.' });
+    } finally {
+      setSubmittingDraft(false);
+    }
   };
 
   const handleEditSponsorshipToggle = (id: string) => {
@@ -1050,6 +1117,18 @@ export default function OrderDetailPage() {
               </button>
             )}
 
+            {/* Duplicate SP Action */}
+            <button
+              type="button"
+              onClick={handleDuplicateOrder}
+              disabled={duplicating}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+              title="Duplica esta orden generando un nuevo correlativo como base para una nueva SP"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              {duplicating ? 'Duplicando...' : '📑 Duplicar SP'}
+            </button>
+
             {/* Direct WhatsApp Share */}
             <a
               href={`https://wa.me/?text=${waShareText}`}
@@ -1070,6 +1149,51 @@ export default function OrderDetailPage() {
             </Link>
           </div>
         </div>
+
+        {/* Banner de Estado BORRADOR */}
+        {order.status === 'BORRADOR' && (
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 p-4 sm:p-5 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm animate-in fade-in">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-amber-400 text-amber-950 flex items-center justify-center font-black text-xl shrink-0 shadow-sm">
+                📝
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-xs font-black text-amber-950 uppercase tracking-wider">
+                    Orden en Estado: BORRADOR (Sin Enviar a Coordinación)
+                  </h3>
+                  <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full border border-amber-300">
+                    Edición Preliminar
+                  </span>
+                </div>
+                <p className="text-[11px] text-amber-900 mt-0.5">
+                  Esta SP está guardada como borrador con el código <strong>{order.orderNumber}</strong>. No ha sido enviada a Coordinación ni notificada a los editores. Puedes modificar los datos y enviarla oficialmente cuando esté lista.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-end md:self-auto shrink-0">
+              {canEditOrder && (
+                <button
+                  type="button"
+                  onClick={openEditModal}
+                  className="px-3.5 py-2 rounded-xl bg-white border border-amber-300 text-amber-900 font-bold text-xs hover:bg-amber-100 transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+                >
+                  <Edit className="w-3.5 h-3.5" /> Editar Borrador
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleSubmitDraft}
+                disabled={submittingDraft}
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs flex items-center gap-1.5 shadow-md transition-all cursor-pointer disabled:opacity-50"
+              >
+                <Send className="w-3.5 h-3.5" />
+                {submittingDraft ? 'Enviando...' : '🚀 Enviar SP a Coordinación'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* DEMO CONVERSION BANNERS */}
         {order.isDemo && (
@@ -2963,7 +3087,35 @@ export default function OrderDetailPage() {
                     </select>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Campos Digital vs TV */}
+                  {isDigital ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">Nombre de la Campaña</label>
+                        <input
+                          type="text"
+                          value={editFormData.campaign}
+                          onChange={(e) => setEditFormData({ ...editFormData, campaign: e.target.value })}
+                          placeholder="Ej. Lanzamiento App 2026..."
+                          className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">Objetivo del Contenido / KPI</label>
+                        <select
+                          value={editFormData.contentObjective}
+                          onChange={(e) => setEditFormData({ ...editFormData, contentObjective: e.target.value })}
+                          className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                        >
+                          <option value="AWARENESS">Awareness / Reconocimiento de Marca</option>
+                          <option value="ENGAGEMENT">Engagement / Interacción & Conversación</option>
+                          <option value="CONVERSION">Conversión / Ventas Directas</option>
+                          <option value="TRAFICO">Tráfico al Sitio Web / App</option>
+                          <option value="FIDELIZACION">Fidelización & Comunidad</option>
+                        </select>
+                      </div>
+                    </div>
+                  ) : (
                     <div>
                       <label className="block text-[11px] font-bold text-slate-700 mb-1">Programa / Espacio</label>
                       <input
@@ -2974,7 +3126,9 @@ export default function OrderDetailPage() {
                         className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none"
                       />
                     </div>
+                  )}
 
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[11px] font-bold text-slate-700 mb-1">Prioridad</label>
                       <select
@@ -3012,26 +3166,49 @@ export default function OrderDetailPage() {
                     📅 2. Material, Fechas & Descarga
                   </h4>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Fecha Entrega de Material</label>
-                      <input
-                        type="date"
-                        value={editFormData.materialDeliveryDate}
-                        onChange={(e) => setEditFormData({ ...editFormData, materialDeliveryDate: e.target.value })}
-                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                      />
+                  {isDigital ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">Fecha de Recepción de Material</label>
+                        <input
+                          type="date"
+                          value={editFormData.receptionDate || editFormData.materialDeliveryDate}
+                          onChange={(e) => setEditFormData({ ...editFormData, receptionDate: e.target.value, materialDeliveryDate: e.target.value })}
+                          className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-emerald-800 mb-1">Fecha Estimada de Publicación / Salida</label>
+                        <input
+                          type="date"
+                          value={editFormData.publishDate || editFormData.airDate}
+                          onChange={(e) => setEditFormData({ ...editFormData, publishDate: e.target.value, airDate: e.target.value })}
+                          className="w-full p-2.5 bg-white border border-emerald-300 rounded-xl text-xs font-bold text-emerald-950 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-red-700 mb-1">Fecha al Aire</label>
-                      <input
-                        type="date"
-                        value={editFormData.airDate}
-                        onChange={(e) => setEditFormData({ ...editFormData, airDate: e.target.value })}
-                        className="w-full p-2.5 bg-white border border-red-200 rounded-xl text-xs font-bold text-red-900 focus:ring-2 focus:ring-red-500 focus:outline-none"
-                      />
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">Fecha Entrega de Material</label>
+                        <input
+                          type="date"
+                          value={editFormData.materialDeliveryDate}
+                          onChange={(e) => setEditFormData({ ...editFormData, materialDeliveryDate: e.target.value })}
+                          className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-red-700 mb-1">Fecha al Aire</label>
+                        <input
+                          type="date"
+                          value={editFormData.airDate}
+                          onChange={(e) => setEditFormData({ ...editFormData, airDate: e.target.value })}
+                          className="w-full p-2.5 bg-white border border-red-200 rounded-xl text-xs font-bold text-red-900 focus:ring-2 focus:ring-red-500 focus:outline-none"
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div>
                     <label className="block text-[11px] font-bold text-blue-900 mb-1 flex items-center gap-1">

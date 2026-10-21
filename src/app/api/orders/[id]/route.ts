@@ -722,6 +722,73 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       return NextResponse.json({ success: true, order: updatedOrder });
     }
 
+    // 11. ACTION: SUBMIT_DRAFT (Transition from BORRADOR to NUEVA and notify coordination)
+    if (action === 'SUBMIT_DRAFT') {
+      if (order.status !== 'BORRADOR') {
+        return NextResponse.json({ error: 'La orden no está en estado borrador' }, { status: 400 });
+      }
+
+      if (!order.clientAgency || order.clientAgency === 'BORRADOR SIN CLIENTE') {
+        return NextResponse.json({ error: 'Por favor asigna el Cliente/Marca antes de enviar la SP.' }, { status: 400 });
+      }
+
+      if (order.orderCategory === 'DIGITAL' && !order.publishDate) {
+        return NextResponse.json({ error: 'Por favor asigna la Fecha de Publicación antes de enviar la SP Digital.' }, { status: 400 });
+      }
+
+      if (order.orderCategory === 'TV' && !order.airDate) {
+        return NextResponse.json({ error: 'Por favor asigna la Fecha al Aire antes de enviar la SP de TV.' }, { status: 400 });
+      }
+
+      updatedOrder = await prisma.productionOrder.update({
+        where: { id },
+        data: {
+          status: 'NUEVA',
+        },
+      });
+
+      const isDigital = order.orderCategory === 'DIGITAL';
+      const categoryTag = isDigital ? '📱 SP Digital (Redes & Web)' : '📺 SP Televisión';
+      const targetExecutive = order.executive;
+      const executiveDisplayName = targetExecutive ? targetExecutive.name : order.creator.name;
+
+      await prisma.activityLog.create({
+        data: {
+          orderId: order.id,
+          userId: user.id,
+          action: 'ENVIADA',
+          details: `🚀 Solicitud ${categoryTag} ${order.orderNumber} enviada oficialmente a Coordinación por ${user.name}`,
+        },
+      });
+
+      // Notify coordinators
+      const coordinators = await prisma.user.findMany({
+        where: { role: { in: ['COORDINADOR', 'COORDINADOR_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR'] } },
+      });
+
+      const notifTitle = isDigital 
+        ? `📱 ¡Nueva SP Digital Recibida! ${order.orderNumber}`
+        : `📥 ¡Nueva SP Recibida! ${order.orderNumber}`;
+      const dateLabel = isDigital 
+        ? (order.publishDate ? `Fecha publicación: ${order.publishDate}` : 'Fecha publicación: Por definir') 
+        : `Fecha al aire: ${order.airDate || 'Por definir'}`;
+
+      for (const coord of coordinators) {
+        await sendNotification({
+          userId: coord.id,
+          orderId: order.id,
+          type: 'NEW_SP',
+          title: notifTitle,
+          message: `${executiveDisplayName} ha emitido la orden ${categoryTag} ${order.orderNumber} para ${order.clientAgency} (${order.product}). ${dateLabel}. Entra al CRM para asignarla a un post-productor.`,
+          userPhone: coord.phone,
+          userEmail: coord.email,
+          orderNumber: order.orderNumber,
+        });
+      }
+
+      return NextResponse.json({ success: true, order: updatedOrder, message: 'SP enviada a Coordinación exitosamente' });
+    }
+
     // Generic update
     const {
       clientAgency,

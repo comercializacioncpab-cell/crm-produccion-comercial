@@ -181,6 +181,12 @@ export const STATUS_CONFIG: Record<string, { label: string; color: string; bg: s
     bg: 'bg-gray-100',
     border: 'border-gray-300',
   },
+  BORRADOR: {
+    label: 'Borrador (Sin Enviar)',
+    color: 'text-amber-800',
+    bg: 'bg-amber-100/90',
+    border: 'border-amber-400',
+  },
 };
 
 export const PRIORITY_CONFIG: Record<string, { label: string; color: string; badge: string }> = {

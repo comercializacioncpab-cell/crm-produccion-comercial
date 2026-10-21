@@ -22,7 +22,8 @@ import {
   Trash2,
   CheckSquare,
   Square,
-  Smartphone
+  Smartphone,
+  Copy
 } from 'lucide-react';
 import { STATUS_CONFIG, PRIORITY_CONFIG } from '@/lib/order-utils';
 
@@ -331,6 +332,7 @@ function OrdersContent() {
               className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="ALL">Todos los Estados</option>
+              <option value="BORRADOR">📝 Borradores (Sin Enviar)</option>
               <option value="NUEVA">📥 Nuevas Solicitudes</option>
               <option value="ASIGNADA">🎯 Asignadas a Post</option>
               <option value="EN_PROCESO">⏳ En Post-Producción</option>
@@ -491,6 +493,14 @@ function OrdersContent() {
                             className="bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-700 font-bold px-2.5 py-1 rounded-lg transition-all inline-flex items-center gap-1 text-[11px]"
                           >
                             Gestionar <ExternalLink className="w-3 h-3" />
+                          </Link>
+
+                          <Link
+                            href={`/orders/new?duplicateFrom=${order.id}`}
+                            className="bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 border border-indigo-200 p-1.5 rounded-lg transition-all inline-flex items-center justify-center text-[11px]"
+                            title="Duplicar como nueva SP"
+                          >
+                            <Copy className="w-3 h-3" />
                           </Link>
 
                           {(user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR') && (

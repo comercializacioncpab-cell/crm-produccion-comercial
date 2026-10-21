@@ -144,9 +144,15 @@ export async function POST(req: Request) {
       executiveId, // ID of the sales executive for the client
       isDemo = false,
       sourceDemoId,
+      status: requestedStatus,
+      isDraft: requestedIsDraft,
     } = body;
 
-    if (!clientAgency || !product) {
+    const isDraft = requestedStatus === 'BORRADOR' || requestedIsDraft === true;
+    const effectiveClientAgency = clientAgency ? clientAgency.trim() : (isDraft ? 'BORRADOR SIN CLIENTE' : '');
+    const effectiveProduct = product ? product.trim() : (isDraft ? 'POR DEFINIR' : '');
+
+    if (!effectiveClientAgency || !effectiveProduct) {
       return NextResponse.json({ error: 'Cliente/Marca y Producto son obligatorios' }, { status: 400 });
     }
 
@@ -227,8 +233,8 @@ export async function POST(req: Request) {
         orderNumber,
         consecutive: nextConsecutive,
         orderCategory: isDigital ? 'DIGITAL' : 'TV',
-        clientAgency: clientAgency.trim(),
-        product: product.trim(),
+        clientAgency: effectiveClientAgency,
+        product: effectiveProduct,
         campaign: campaign ? campaign.trim() : null,
         contentObjective: contentObjective ? contentObjective.trim() : null,
         orderDescription: orderDescription ? orderDescription.trim() : null,
@@ -246,7 +252,7 @@ export async function POST(req: Request) {
         voiceoverType,
         voiceoverText: voiceoverText || null,
         packageValue: isNaN(parsedPackageValue) ? 0 : parsedPackageValue,
-        status: 'NUEVA',
+        status: isDraft ? 'BORRADOR' : 'NUEVA',
         priority,
         creatorId: user.id,
         executiveId: effectiveExecutiveId,
@@ -309,55 +315,59 @@ export async function POST(req: Request) {
     // Log activity
     const coordinatorRoleTitle = user.role === 'COORDINADORA_VENTAS' ? 'Coordinación de Ventas' : 'Coordinación';
     const categoryTag = isDigital ? '📱 SP Digital (Redes & Web)' : '📺 SP Televisión';
-    const activityLogDetails = targetExecutive && targetExecutive.id !== user.id
-      ? `Solicitud de producción ${categoryTag} ${orderNumber} ingresada por ${coordinatorRoleTitle} (${user.name}) para la Ejecutiva ${targetExecutive.name}`
-      : `Solicitud de producción ${categoryTag} ${orderNumber} creada por ${user.name} (${user.email})`;
+    const activityLogDetails = isDraft
+      ? `Borrador de Solicitud de Producción ${categoryTag} ${orderNumber} guardado por ${user.name}`
+      : (targetExecutive && targetExecutive.id !== user.id
+          ? `Solicitud de producción ${categoryTag} ${orderNumber} ingresada por ${coordinatorRoleTitle} (${user.name}) para la Ejecutiva ${targetExecutive.name}`
+          : `Solicitud de producción ${categoryTag} ${orderNumber} creada por ${user.name} (${user.email})`);
 
     await prisma.activityLog.create({
       data: {
         orderId: newOrder.id,
         userId: user.id,
-        action: 'CREADA',
+        action: isDraft ? 'BORRADOR' : 'CREADA',
         details: activityLogDetails,
       },
     });
 
-    // 🔔 OBLIGATORY NOTIFICATION TO ALL COORDINATORS AND ADMINS
-    const coordinators = await prisma.user.findMany({
-      where: { role: { in: ['COORDINADOR', 'COORDINADOR_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR'] } },
-    });
-
-    const executiveDisplayName = targetExecutive ? targetExecutive.name : user.name;
-    const notifTitle = isDigital 
-      ? `📱 ¡Nueva SP Digital Recibida! ${orderNumber}`
-      : `📥 ¡Nueva SP Recibida! ${orderNumber}`;
-    const dateLabel = isDigital ? (publishDate ? `Fecha publicación: ${publishDate}` : 'Fecha publicación: Por definir') : `Fecha al aire: ${airDate || 'Por definir'}`;
-
-    for (const coord of coordinators) {
-      await sendNotification({
-        userId: coord.id,
-        orderId: newOrder.id,
-        type: 'NEW_SP',
-        title: notifTitle,
-        message: `${executiveDisplayName} ha emitido la orden ${categoryTag} ${orderNumber} para ${clientAgency} (${product}). ${dateLabel}. Entra al CRM para asignarla a un post-productor.`,
-        userPhone: coord.phone,
-        userEmail: coord.email,
-        orderNumber,
+    // 🔔 OBLIGATORY NOTIFICATION TO ALL COORDINATORS AND ADMINS (Only when NOT a draft)
+    if (!isDraft) {
+      const coordinators = await prisma.user.findMany({
+        where: { role: { in: ['COORDINADOR', 'COORDINADOR_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR'] } },
       });
-    }
 
-    // Also notify executive if entered by coordinator
-    if (targetExecutive && targetExecutive.id !== user.id) {
-      await sendNotification({
-        userId: targetExecutive.id,
-        orderId: newOrder.id,
-        type: 'NEW_SP',
-        title: `📥 SP ${orderNumber} ingresada por Coordinación`,
-        message: `Coordinación (${user.name}) ha registrado la orden ${categoryTag} ${orderNumber} para tu cliente ${clientAgency} (${product}).`,
-        userPhone: targetExecutive.phone,
-        userEmail: targetExecutive.email,
-        orderNumber,
-      });
+      const executiveDisplayName = targetExecutive ? targetExecutive.name : user.name;
+      const notifTitle = isDigital 
+        ? `📱 ¡Nueva SP Digital Recibida! ${orderNumber}`
+        : `📥 ¡Nueva SP Recibida! ${orderNumber}`;
+      const dateLabel = isDigital ? (publishDate ? `Fecha publicación: ${publishDate}` : 'Fecha publicación: Por definir') : `Fecha al aire: ${airDate || 'Por definir'}`;
+
+      for (const coord of coordinators) {
+        await sendNotification({
+          userId: coord.id,
+          orderId: newOrder.id,
+          type: 'NEW_SP',
+          title: notifTitle,
+          message: `${executiveDisplayName} ha emitido la orden ${categoryTag} ${orderNumber} para ${effectiveClientAgency} (${effectiveProduct}). ${dateLabel}. Entra al CRM para asignarla a un post-productor.`,
+          userPhone: coord.phone,
+          userEmail: coord.email,
+          orderNumber,
+        });
+      }
+
+      // Also notify executive if entered by coordinator
+      if (targetExecutive && targetExecutive.id !== user.id) {
+        await sendNotification({
+          userId: targetExecutive.id,
+          orderId: newOrder.id,
+          type: 'NEW_SP',
+          title: `📥 SP ${orderNumber} ingresada por Coordinación`,
+          message: `Coordinación (${user.name}) ha registrado la orden ${categoryTag} ${orderNumber} para tu cliente ${effectiveClientAgency} (${effectiveProduct}).`,
+          userPhone: targetExecutive.phone,
+          userEmail: targetExecutive.email,
+          orderNumber,
+        });
+      }
     }
 
     return NextResponse.json({ success: true, order: newOrder }, { status: 201 });

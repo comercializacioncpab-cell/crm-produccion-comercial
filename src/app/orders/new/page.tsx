@@ -26,7 +26,9 @@ import {
   ExternalLink,
   Tv,
   Smartphone,
-  Share2
+  Share2,
+  Send,
+  Copy
 } from 'lucide-react';
 import { SPONSORSHIP_OPTIONS, SPONSORSHIP_CATEGORIES, hasStrategicPnt, hasCobertura, formatInitials, SP_TEMPLATES } from '@/lib/order-utils';
 import DigitalOrderForm from '@/components/orders/DigitalOrderForm';
@@ -36,6 +38,7 @@ function NewOrderForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromDemoId = searchParams.get('fromDemoId');
+  const duplicateFromId = searchParams.get('duplicateFrom');
   const typeParam = searchParams.get('type')?.toUpperCase();
 
   // Categoría principal: TV (Tradicional) vs DIGITAL (Redes & Web)
@@ -62,6 +65,7 @@ function NewOrderForm() {
   const [sourceDemoId, setSourceDemoId] = useState(fromDemoId || '');
   const [sourceDemoInfo, setSourceDemoInfo] = useState<any>(null);
   const [availableDemos, setAvailableDemos] = useState<any[]>([]);
+  const [duplicateInfo, setDuplicateInfo] = useState<any>(null);
 
   // Datos específicos para SP Digital (Formulario Editorial EV Digital + Comercial)
   const [digitalData, setDigitalData] = useState({
@@ -195,6 +199,85 @@ function NewOrderForm() {
     loadDemoData();
   }, [fromDemoId]);
 
+  // Pre-fill if duplicating from an existing SP
+  useEffect(() => {
+    if (!duplicateFromId) return;
+
+    const loadDuplicateData = async () => {
+      try {
+        const res = await fetch(`/api/orders/${duplicateFromId}`);
+        if (res.ok) {
+          const data = await res.json();
+          const orig = data.order;
+          setDuplicateInfo(orig);
+          if (orig.orderCategory === 'DIGITAL') {
+            setOrderCategory('DIGITAL');
+          } else {
+            setOrderCategory('TV');
+          }
+
+          if (orig.executiveId) setSelectedExecutiveId(orig.executiveId);
+
+          setFormData((prev) => ({
+            ...prev,
+            clientAgency: orig.clientAgency || '',
+            product: `${orig.product} (Copia)`,
+            program: orig.program || '',
+            materialDeliveryDate: '',
+            airDate: '',
+            downloadUrl: orig.downloadUrl || '',
+            materialNotes: orig.materialNotes || '',
+            hasBrief: Boolean(orig.hasBrief),
+            sponsorshipTypes: (() => {
+              try {
+                return JSON.parse(orig.sponsorshipTypes || '[]');
+              } catch {
+                return [];
+              }
+            })(),
+            customSponsorship: orig.customSponsorship || '',
+            voiceoverType: orig.voiceoverType || 'GENERICA',
+            voiceoverText: orig.voiceoverText || '',
+            priority: orig.priority || 'MEDIA',
+            packageValue: orig.packageValue ? String(orig.packageValue) : '',
+          }));
+
+          if (orig.digitalData) {
+            try {
+              const dig = typeof orig.digitalData === 'string' ? JSON.parse(orig.digitalData) : orig.digitalData;
+              setDigitalData((prev) => ({
+                ...prev,
+                campaign: orig.campaign || dig.campaign || '',
+                contentObjective: orig.contentObjective || dig.contentObjective || 'AWARENESS',
+                orderDescription: orig.orderDescription || dig.orderDescription || '',
+                receptionDate: new Date().toLocaleDateString('es-EC', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+                publishDate: '',
+                materialDeliveryDate: '',
+                finishedProductDeliveryDate: '',
+                publicationAccount: dig.publicationAccount || '',
+                isNewsroomSegment: Boolean(dig.isNewsroomSegment),
+                newsroomSegmentType: dig.newsroomDetails?.segmentType || '',
+                newsroomDate: '',
+                newsroomTime: dig.newsroomDetails?.time || '',
+                newsroomLocation: dig.newsroomDetails?.location || '',
+                resources: dig.resources || prev.resources,
+                specialInstructions: dig.specialInstructions || '',
+              }));
+              if (dig.platformsAndFormats) {
+                setDigitalMatrix(dig.platformsAndFormats);
+              }
+            } catch (e) {
+              console.error('Error parsing digitalData for duplicate:', e);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error loading order to duplicate:', err);
+      }
+    };
+    loadDuplicateData();
+  }, [duplicateFromId]);
+
   const handleSelectDemoToConvert = (demoId: string) => {
     setSourceDemoId(demoId);
     const demo = availableDemos.find((d) => d.id === demoId);
@@ -239,23 +322,30 @@ function NewOrderForm() {
     setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveOrder = async (isDraftMode: boolean = false) => {
     if (isCoordinatorOrAdmin && !selectedExecutiveId) {
       setError('Por favor selecciona de qué Ejecutiva es la cuenta antes de ingresar la SP.');
       return;
     }
-    if (!formData.clientAgency || !formData.product) {
-      setError('Por favor completa el Cliente / Marca y el Producto.');
-      return;
-    }
-    if (orderCategory === 'TV' && !formData.airDate) {
-      setError('Por favor selecciona la Fecha al Aire en el calendario.');
-      return;
-    }
-    if (orderCategory === 'DIGITAL' && !digitalData.publishDate) {
-      setError('Por favor selecciona la Fecha de Publicación en redes en el calendario.');
-      return;
+
+    if (!isDraftMode) {
+      if (!formData.clientAgency || !formData.product) {
+        setError('Por favor completa el Cliente / Marca y el Producto.');
+        return;
+      }
+      if (orderCategory === 'TV' && !formData.airDate) {
+        setError('Por favor selecciona la Fecha al Aire en el calendario.');
+        return;
+      }
+      if (orderCategory === 'DIGITAL' && !digitalData.publishDate) {
+        setError('Por favor selecciona la Fecha de Publicación en redes en el calendario.');
+        return;
+      }
+    } else {
+      if (!formData.clientAgency && !formData.product) {
+        setError('Por favor escribe al menos el Cliente o el Producto para guardar como borrador.');
+        return;
+      }
     }
 
     setLoading(true);
@@ -268,8 +358,10 @@ function NewOrderForm() {
       const payload = isDigital
         ? {
             orderCategory: 'DIGITAL',
-            clientAgency: formData.clientAgency,
-            product: formData.product,
+            status: isDraftMode ? 'BORRADOR' : 'NUEVA',
+            isDraft: isDraftMode,
+            clientAgency: formData.clientAgency || 'BORRADOR SIN CLIENTE',
+            product: formData.product || 'POR DEFINIR',
             campaign: digitalData.campaign,
             contentObjective: digitalData.contentObjective === 'OTRO' ? digitalData.customKpi : digitalData.contentObjective,
             orderDescription: digitalData.orderDescription,
@@ -309,6 +401,10 @@ function NewOrderForm() {
         : {
             ...formData,
             orderCategory: 'TV',
+            status: isDraftMode ? 'BORRADOR' : 'NUEVA',
+            isDraft: isDraftMode,
+            clientAgency: formData.clientAgency || 'BORRADOR SIN CLIENTE',
+            product: formData.product || 'POR DEFINIR',
             executiveId: resolvedExecutiveId,
             isDemo: orderType === 'DEMO',
             packageValue: orderType === 'DEMO' ? 0 : formData.packageValue,
@@ -354,6 +450,11 @@ function NewOrderForm() {
       setError(err.message || 'Error inesperado al crear la SP');
       setLoading(false);
     }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleSaveOrder(false);
   };
 
   const handleApplyTemplate = (tpl: any) => {
@@ -645,6 +746,27 @@ function NewOrderForm() {
           </>
         )}
 
+        {duplicateInfo && (
+          <div className="p-4 bg-indigo-50 border-2 border-indigo-300 text-indigo-950 text-xs rounded-2xl flex items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold">
+                <Copy className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-extrabold text-xs text-indigo-900">
+                  Duplicando desde la orden original {duplicateInfo.orderNumber}
+                </p>
+                <p className="text-[11px] text-indigo-700">
+                  Cliente: <strong>{duplicateInfo.clientAgency}</strong> • Producto: <strong>{duplicateInfo.product}</strong>. Todos los datos, plataformas y formatos han sido precargados. Puedes editar lo que necesites y guardarla como borrador o enviarla.
+                </p>
+              </div>
+            </div>
+            <span className="text-[10px] font-black uppercase bg-indigo-200 text-indigo-900 px-2.5 py-1 rounded-full whitespace-nowrap">
+              Nueva SP
+            </span>
+          </div>
+        )}
+
         {error && (
           <div className="p-4 bg-red-50 border border-red-200 text-red-700 text-xs rounded-2xl font-semibold flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-red-500" />
@@ -674,21 +796,30 @@ function NewOrderForm() {
               />
 
               {/* Submit Action Bar for DIGITAL */}
-              <div className="flex items-center justify-end gap-3 pt-4">
+              <div className="flex items-center justify-end gap-3 pt-4 flex-wrap">
                 <button
                   type="button"
                   onClick={() => router.back()}
-                  className="px-5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all"
+                  className="px-5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
+                  type="button"
+                  onClick={() => handleSaveOrder(true)}
+                  disabled={loading}
+                  className="bg-amber-500 hover:bg-amber-600 text-white font-extrabold px-5 py-3.5 rounded-xl text-xs shadow-md transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                >
+                  <FileText className="w-4 h-4" />
+                  {loading ? 'Guardando...' : '💾 Guardar como Borrador (Sin Enviar)'}
+                </button>
+                <button
                   type="submit"
                   disabled={loading}
-                  className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black px-7 py-3.5 rounded-xl text-xs shadow-lg transition-all flex items-center gap-2 disabled:opacity-50"
+                  className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black px-7 py-3.5 rounded-xl text-xs shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
                 >
-                  <Save className="w-4 h-4" />
-                  {loading ? 'Guardando...' : '📱 Guardar e Ingresar SP Digital (SPD)'}
+                  <Send className="w-4 h-4" />
+                  {loading ? 'Enviando...' : '🚀 Enviar Solicitud SP Digital Oficial'}
                 </button>
               </div>
             </>
@@ -1209,18 +1340,27 @@ function NewOrderForm() {
           </div>
 
           {/* Submit Action Bar */}
-          <div className="flex items-center justify-end gap-3 pt-4">
+          <div className="flex items-center justify-end gap-3 pt-4 flex-wrap">
             <button
               type="button"
               onClick={() => router.back()}
-              className="px-5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all"
+              className="px-5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
             >
               Cancelar
             </button>
             <button
+              type="button"
+              onClick={() => handleSaveOrder(true)}
+              disabled={loading}
+              className="bg-amber-500 hover:bg-amber-600 text-white font-extrabold px-5 py-3 rounded-xl text-xs shadow-md transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+            >
+              <FileText className="w-4 h-4" />
+              💾 Guardar Borrador
+            </button>
+            <button
               type="submit"
               disabled={loading}
-              className={`text-white font-black px-6 py-3 rounded-xl text-xs shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 ${
+              className={`text-white font-black px-6 py-3 rounded-xl text-xs shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer ${
                 orderType === 'DEMO'
                   ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700'
                   : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700'
