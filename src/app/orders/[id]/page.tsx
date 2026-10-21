@@ -78,6 +78,7 @@ export default function OrderDetailPage() {
   const [deliveryNotes, setDeliveryNotes] = useState('');
   const [deliveryFile, setDeliveryFile] = useState<File | null>(null);
   const [deliveryExternalUrl, setDeliveryExternalUrl] = useState('');
+  const [deliveryMethod, setDeliveryMethod] = useState<'EMAIL' | 'LINK' | 'FILE'>('EMAIL');
   const [changeNotes, setChangeNotes] = useState('');
   const [changeChecklistItems, setChangeChecklistItems] = useState<string[]>(['']);
   const [showChangesModal, setShowChangesModal] = useState(false);
@@ -347,10 +348,19 @@ export default function OrderDetailPage() {
     e.preventDefault();
 
     const hasExistingOutput = order?.files?.some((f: any) => f.fileType?.startsWith('OUTPUT') && (f.filePath || f.externalUrl));
-    if (!deliveryFile && !deliveryExternalUrl?.trim() && !hasExistingOutput) {
-      setMsg({ type: 'error', text: 'Por favor selecciona el archivo de video/entregable o ingresa un enlace en la nube (Drive/WeTransfer/Frame.io) para completar la entrega.' });
-      return;
+    
+    if (deliveryMethod === 'FILE') {
+      if (!deliveryFile && !hasExistingOutput) {
+        setMsg({ type: 'error', text: 'Por favor selecciona el archivo de video/entregable para completar la entrega.' });
+        return;
+      }
+    } else if (deliveryMethod === 'LINK') {
+      if (!deliveryExternalUrl?.trim() && !hasExistingOutput) {
+        setMsg({ type: 'error', text: 'Por favor ingresa un enlace en la nube (Drive/WeTransfer/Frame.io) para completar la entrega.' });
+        return;
+      }
     }
+    // Para 'EMAIL', no se requiere archivo ni URL, permitiendo dar por terminada la SP sin problemas de peso
 
     setActionLoading(true);
     setMsg(null);
@@ -358,21 +368,20 @@ export default function OrderDetailPage() {
       let uploadedFileName = '';
       let uploadedFilePath = '';
 
-      // Upload deliverable file if provided
-      if (deliveryFile) {
+      // Upload deliverable file if provided and method is FILE
+      if (deliveryFile && deliveryMethod === 'FILE') {
         const fileSizeMB = deliveryFile.size / (1024 * 1024);
 
-        // If file is > 10 MB and no external URL is provided, guide user to use cloud link
+        // If file is > 10 MB and no external URL is provided, guide user to email or cloud link
         if (fileSizeMB > 10) {
           if (!deliveryExternalUrl?.trim()) {
             setMsg({
               type: 'error',
-              text: `El video "${deliveryFile.name}" pesa ${fileSizeMB.toFixed(1)} MB y supera el límite de subida directa (10 MB). Para videos master y comerciales en alta resolución, por favor sube el archivo a Google Drive, WeTransfer o Frame.io y pega aquí el enlace de descarga.`
+              text: `El video "${deliveryFile.name}" pesa ${fileSizeMB.toFixed(1)} MB y supera el límite de subida directa (10 MB). Para evitar errores de carga, utiliza la opción "Enviado por Mail" o ingresa un enlace de Drive / WeTransfer.`
             });
             setActionLoading(false);
             return;
           }
-          // If external URL is provided, we skip heavy file upload and use the external URL!
         } else {
           const uploadData = new FormData();
           uploadData.append('file', deliveryFile);
@@ -397,13 +406,12 @@ export default function OrderDetailPage() {
               }
             }
 
-            // If external URL was also entered, proceed with external URL instead of blocking
             if (deliveryExternalUrl?.trim()) {
               console.warn('Direct upload skipped, proceeding with cloud link:', errorMsg);
             } else {
               setMsg({
                 type: 'error',
-                text: `${errorMsg || 'Error al subir el archivo entregable.'} Para videos pesados o de alta calidad, por favor ingresa el enlace de Google Drive, WeTransfer o Frame.io.`
+                text: `${errorMsg || 'Error al subir el archivo entregable.'} Si tienes problemas con el peso del archivo, puedes usar la opción "Enviado por Mail" o ingresar un enlace de Drive / WeTransfer.`
               });
               setActionLoading(false);
               return;
@@ -416,20 +424,30 @@ export default function OrderDetailPage() {
         }
       }
 
+      const defaultFileName = deliveryMethod === 'EMAIL'
+        ? 'Master (Enviado por Mail)'
+        : (deliveryExternalUrl ? 'Master en la nube' : 'Entrega Final');
+
       const res = await fetch(`/api/orders/${order.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'RESOLVE_DELIVERY',
+          deliveryMethod,
           deliveryNotes,
-          fileName: uploadedFileName || (deliveryExternalUrl ? 'Master en la nube' : 'Entrega Final'),
+          fileName: uploadedFileName || defaultFileName,
           fileUrl: uploadedFilePath,
-          externalUrl: deliveryExternalUrl?.trim() || null,
+          externalUrl: deliveryMethod === 'LINK' ? (deliveryExternalUrl?.trim() || null) : null,
         }),
       });
 
       if (res.ok) {
-        setMsg({ type: 'success', text: '¡Trabajo entregado con hora registrada! Se notificó a la ejecutiva solicitante para su aprobación.' });
+        setMsg({ 
+          type: 'success', 
+          text: deliveryMethod === 'EMAIL'
+            ? '¡Trabajo entregado y reportado como enviado por mail! Se notificó a la ejecutiva solicitante para su aprobación.'
+            : '¡Trabajo entregado con hora registrada! Se notificó a la ejecutiva solicitante para su aprobación.' 
+        });
         setDeliveryFile(null);
         setDeliveryNotes('');
         setDeliveryExternalUrl('');
@@ -2125,16 +2143,22 @@ export default function OrderDetailPage() {
                                 <Download className="w-3.5 h-3.5" /> Descargar Video
                               </a>
                             ) : !f.externalUrl ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setUploadModalType('OUTPUT_DELIVERY');
-                                  setShowUploadModal(true);
-                                }}
-                                className="text-amber-800 bg-amber-200 hover:bg-amber-300 px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer"
-                              >
-                                ⚠️ Sin archivo • Adjuntar Video
-                              </button>
+                              (f.fileName?.toLowerCase().includes('mail') || f.fileMime === 'message/rfc822') ? (
+                                <span className="text-sky-800 bg-sky-100 border border-sky-300 px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 shadow-2xs">
+                                  ✉️ Enviado por Mail
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setUploadModalType('OUTPUT_DELIVERY');
+                                    setShowUploadModal(true);
+                                  }}
+                                  className="text-amber-800 bg-amber-200 hover:bg-amber-300 px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                                >
+                                  ⚠️ Sin archivo • Adjuntar Video
+                                </button>
+                              )
                             ) : null}
                           </div>
                         </div>
@@ -2571,63 +2595,110 @@ export default function OrderDetailPage() {
                   <form onSubmit={handleResolveDelivery} className="space-y-3.5 pt-1">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                        <Sparkles className="w-4 h-4 text-emerald-600" /> Entrega del Video / Master Final:
+                        <Sparkles className="w-4 h-4 text-emerald-600" /> Método de Entrega del Comercial:
                       </span>
                     </div>
 
-                    {/* Opción 1: Enlace en la Nube (Recomendada para Videos Comerciales) */}
-                    <div className="bg-indigo-50/70 border border-indigo-200 rounded-2xl p-3 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[11px] font-black text-indigo-950 flex items-center gap-1.5">
-                          <Link2 className="w-3.5 h-3.5 text-indigo-600" /> Enlace en la Nube (Drive / Frame.io / WeTransfer):
-                        </label>
-                        <span className="text-[9px] font-black tracking-wider uppercase bg-indigo-600 text-white px-2 py-0.5 rounded-full">
-                          ⭐ Recomendado
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-indigo-700 leading-tight">
-                        Para masters en alta resolución (MP4, ProRes, MOV), pega el enlace para entrega inmediata sin límite de tamaño.
-                      </p>
-                      <input
-                        type="url"
-                        value={deliveryExternalUrl}
-                        onChange={(e) => setDeliveryExternalUrl(e.target.value)}
-                        placeholder="https://drive.google.com/... o enlace WeTransfer / Frame.io"
-                        className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
+                    {/* Selector de Método de Entrega */}
+                    <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200">
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryMethod('EMAIL')}
+                        className={`py-2 px-2 rounded-xl text-[11px] font-black transition-all flex flex-col sm:flex-row items-center justify-center gap-1 cursor-pointer ${
+                          deliveryMethod === 'EMAIL'
+                            ? 'bg-white text-sky-700 shadow-sm border border-sky-200'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <span>✉️</span>
+                        <span className="truncate">Enviado por Mail</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryMethod('LINK')}
+                        className={`py-2 px-2 rounded-xl text-[11px] font-black transition-all flex flex-col sm:flex-row items-center justify-center gap-1 cursor-pointer ${
+                          deliveryMethod === 'LINK'
+                            ? 'bg-white text-indigo-700 shadow-sm border border-indigo-200'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <span>🔗</span>
+                        <span className="truncate">Enlace Nube</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryMethod('FILE')}
+                        className={`py-2 px-2 rounded-xl text-[11px] font-black transition-all flex flex-col sm:flex-row items-center justify-center gap-1 cursor-pointer ${
+                          deliveryMethod === 'FILE'
+                            ? 'bg-white text-emerald-700 shadow-sm border border-emerald-200'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <span>📁</span>
+                        <span className="truncate">Subir Archivo</span>
+                      </button>
                     </div>
 
-                    <div className="relative flex items-center justify-center py-0.5">
-                      <div className="border-t border-slate-200 w-full"></div>
-                      <span className="bg-white px-2 text-[10px] font-bold text-slate-400 uppercase">o subir archivo directo (hasta 10 MB)</span>
-                    </div>
-
-                    {/* Opción 2: Archivo Local */}
-                    <div className="space-y-1.5">
-                      <input
-                        type="file"
-                        onChange={(e) => setDeliveryFile(e.target.files?.[0] || null)}
-                        className="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer border border-slate-200 rounded-xl p-1"
-                      />
-
-                      {deliveryFile && (
-                        <div className={`p-2.5 rounded-xl border text-[11px] space-y-1 ${
-                          deliveryFile.size > 10 * 1024 * 1024
-                            ? 'bg-amber-50 border-amber-300 text-amber-900'
-                            : 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                        }`}>
-                          <div className="flex items-center justify-between font-bold">
-                            <span className="truncate">📁 {deliveryFile.name}</span>
-                            <span className="font-mono shrink-0 ml-2">{(deliveryFile.size / (1024 * 1024)).toFixed(1)} MB</span>
-                          </div>
-                          {deliveryFile.size > 10 * 1024 * 1024 && (
-                            <p className="text-[10px] text-amber-800 leading-tight">
-                              ⚠️ <strong>Video pesado (más de 10 MB):</strong> Por restricciones de los servidores web, los videos pesados deben entregarse pegando el enlace de <strong>Google Drive, Frame.io o WeTransfer</strong> en el campo superior.
-                            </p>
-                          )}
+                    {/* Contenido según método */}
+                    {deliveryMethod === 'EMAIL' && (
+                      <div className="bg-sky-50/90 border border-sky-200 rounded-2xl p-3.5 space-y-1.5">
+                        <div className="flex items-center gap-2 text-sky-950 font-black text-xs">
+                          <span>✉️</span>
+                          <span>Entrega directa vía Correo Electrónico (Mail)</span>
                         </div>
-                      )}
-                    </div>
+                        <p className="text-[11px] text-sky-800 leading-relaxed">
+                          <strong>No requiere subir archivos:</strong> Puedes dar por terminada y entregada la SP directamente sin preocuparte por el peso del video. La SP cambiará a estado <strong>Resuelta</strong> y se notificará a la ejecutiva solicitante.
+                        </p>
+                      </div>
+                    )}
+
+                    {deliveryMethod === 'LINK' && (
+                      <div className="bg-indigo-50/70 border border-indigo-200 rounded-2xl p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-black text-indigo-950 flex items-center gap-1.5">
+                            <Link2 className="w-3.5 h-3.5 text-indigo-600" /> Enlace en la Nube (Drive / Frame.io / WeTransfer):
+                          </label>
+                        </div>
+                        <p className="text-[10px] text-indigo-700 leading-tight">
+                          Para masters en alta resolución (MP4, ProRes, MOV), pega el enlace para entrega inmediata sin límite de tamaño.
+                        </p>
+                        <input
+                          type="url"
+                          value={deliveryExternalUrl}
+                          onChange={(e) => setDeliveryExternalUrl(e.target.value)}
+                          placeholder="https://drive.google.com/... o enlace WeTransfer / Frame.io"
+                          className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                    )}
+
+                    {deliveryMethod === 'FILE' && (
+                      <div className="space-y-1.5">
+                        <input
+                          type="file"
+                          onChange={(e) => setDeliveryFile(e.target.files?.[0] || null)}
+                          className="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer border border-slate-200 rounded-xl p-1"
+                        />
+
+                        {deliveryFile && (
+                          <div className={`p-2.5 rounded-xl border text-[11px] space-y-1 ${
+                            deliveryFile.size > 10 * 1024 * 1024
+                              ? 'bg-amber-50 border-amber-300 text-amber-900'
+                              : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                          }`}>
+                            <div className="flex items-center justify-between font-bold">
+                              <span className="truncate">📁 {deliveryFile.name}</span>
+                              <span className="font-mono shrink-0 ml-2">{(deliveryFile.size / (1024 * 1024)).toFixed(1)} MB</span>
+                            </div>
+                            {deliveryFile.size > 10 * 1024 * 1024 && (
+                              <p className="text-[10px] text-amber-800 leading-tight">
+                                ⚠️ <strong>Video pesado (más de 10 MB):</strong> Te recomendamos seleccionar <strong>"Enviado por Mail"</strong> o <strong>"Enlace Nube"</strong> para evitar errores de servidor.
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     <div>
                       <label className="block text-[10px] font-bold text-slate-600 mb-1">
@@ -2637,7 +2708,7 @@ export default function OrderDetailPage() {
                         rows={2}
                         value={deliveryNotes}
                         onChange={(e) => setDeliveryNotes(e.target.value)}
-                        placeholder="Ej. Master en ProRes y MP4, audio nivelado a -24 LUFS..."
+                        placeholder={deliveryMethod === 'EMAIL' ? 'Ej. Enviado por mail a la ejecutiva y cliente...' : 'Ej. Master en ProRes y MP4, audio nivelado a -24 LUFS...'}
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                       ></textarea>
                     </div>
@@ -2645,10 +2716,20 @@ export default function OrderDetailPage() {
                     <button
                       type="submit"
                       disabled={actionLoading}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                      className={`w-full text-white text-xs font-black py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer ${
+                        deliveryMethod === 'EMAIL'
+                          ? 'bg-sky-600 hover:bg-sky-700'
+                          : 'bg-emerald-600 hover:bg-emerald-700'
+                      }`}
                     >
                       <Sparkles className="w-4 h-4" />
-                      {actionLoading ? 'Procesando entrega...' : 'Marcar como Resuelta y Entregar'}
+                      {actionLoading
+                        ? 'Procesando entrega...'
+                        : deliveryMethod === 'EMAIL'
+                        ? '✉️ Marcar como Entregada (Enviado por Mail)'
+                        : deliveryMethod === 'LINK'
+                        ? '🔗 Entregar con Enlace Nube'
+                        : '📁 Subir y Entregar Video'}
                     </button>
                   </form>
                 )}

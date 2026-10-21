@@ -204,7 +204,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     // 3. ACTION: RESOLVE / DELIVER COMPLETED MATERIAL (Post-Producer)
     if (action === 'RESOLVE_DELIVERY') {
-      const { deliveryNotes, fileUrl, fileName, externalUrl } = body;
+      const { deliveryNotes, fileUrl, fileName, externalUrl, deliveryMethod, deliveryUrl } = body;
+      const effectiveExternalUrl = (externalUrl || deliveryUrl)?.trim() || null;
 
       // Workamajig Suite: Ensure client review token exists
       const reviewToken = order.clientReviewToken || `${order.orderNumber.toLowerCase().replace(/[^a-z0-9]/g, '')}-${Date.now().toString(36)}`;
@@ -215,15 +216,18 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       });
       const nextVersion = prevOutputsCount + 1;
 
+      const isEmail = deliveryMethod === 'EMAIL' || (!fileUrl && !effectiveExternalUrl);
+      const effectiveNotes = deliveryNotes || (isEmail ? `Material entregado vía correo electrónico (Mail) - Versión ${nextVersion}` : null);
+
       updatedOrder = await prisma.productionOrder.update({
         where: { id },
         data: {
           status: 'RESUELTA',
-          deliveryNotes: deliveryNotes || null,
+          deliveryNotes: effectiveNotes,
           deliveredAt: new Date(),
           clientReviewToken: reviewToken,
         },
-        include: { creator: true, postProducer: true, files: true, activityLogs: true },
+        include: { creator: true, executive: true, postProducer: true, files: true, activityLogs: true },
       });
 
       // If a file was uploaded previously right before delivery without version set, update it
@@ -234,8 +238,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         });
       }
 
-      // Only create orderFile if an external link is provided and no file was already uploaded via /api/orders/[id]/files
-      if (externalUrl && !fileUrl) {
+      // If external link is provided and no direct file, create orderFile record
+      if (effectiveExternalUrl && !fileUrl) {
         await prisma.orderFile.create({
           data: {
             orderId: id,
@@ -246,8 +250,26 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
             fileSize: 0,
             fileMime: 'text/html',
             version: nextVersion,
-            externalUrl: externalUrl,
-            notes: deliveryNotes || `Material final entregado en enlace externo (Versión ${nextVersion})`,
+            externalUrl: effectiveExternalUrl,
+            notes: effectiveNotes || `Material final entregado en enlace externo (Versión ${nextVersion})`,
+          },
+        });
+      }
+
+      // If delivered via Email (no file upload and no external link), record deliverable as Enviado por Mail
+      if (isEmail && !fileUrl && !effectiveExternalUrl) {
+        await prisma.orderFile.create({
+          data: {
+            orderId: id,
+            uploaderId: user.id,
+            fileType: 'OUTPUT_DELIVERY',
+            fileName: fileName || `Master V${nextVersion} (Enviado por Mail)`,
+            filePath: '',
+            fileSize: 0,
+            fileMime: 'message/rfc822',
+            version: nextVersion,
+            externalUrl: null,
+            notes: effectiveNotes || `Material final enviado vía correo electrónico (Mail) - Versión ${nextVersion}`,
           },
         });
       }
@@ -257,7 +279,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           orderId: id,
           userId: user.id,
           action: 'ENTREGADA',
-          details: `Material final (Versión ${nextVersion}) entregado por ${user.name}. Listo para revisión.`,
+          details: `Material final (Versión ${nextVersion}) entregado por ${user.name} ${isEmail ? '[Enviado por Correo / Mail]' : ''}. Listo para revisión y aprobación.`,
         },
       });
 
@@ -266,12 +288,26 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         userId: order.creatorId,
         orderId: id,
         type: 'RESOLVED',
-        title: `✨ ¡Tu Solicitud ${order.orderNumber} ha sido Resuelta y Atendida!`,
-        message: `${user.name} ha terminado el trabajo de producción (V${nextVersion}) para ${order.product} y subió el material requerido. Ya puedes descargarlo y aprobarlo.`,
+        title: `✨ ¡Tu Solicitud ${order.orderNumber} ha sido Entregada!`,
+        message: `${user.name} ha finalizado el trabajo de producción (V${nextVersion}) para ${order.product} ${isEmail ? '(reportado como enviado por correo electrónico / mail)' : 'y dejó disponible el material'}. Ya puedes revisarlo y aprobarlo.`,
         userPhone: order.creator.phone,
         userEmail: order.creator.email,
         orderNumber: order.orderNumber,
       });
+
+      // 🔔 NOTIFY 2: Ejecutiva si es distinta del creador
+      if (order.executiveId && order.executiveId !== order.creatorId && order.executive) {
+        await sendNotification({
+          userId: order.executiveId,
+          orderId: id,
+          type: 'RESOLVED',
+          title: `✨ ¡Solicitud ${order.orderNumber} de tu cuenta ha sido Entregada!`,
+          message: `${user.name} ha finalizado el trabajo de producción (V${nextVersion}) para ${order.product} ${isEmail ? '(reportado como enviado por correo electrónico / mail)' : 'y dejó disponible el material'}.`,
+          userPhone: order.executive.phone,
+          userEmail: order.executive.email,
+          orderNumber: order.orderNumber,
+        });
+      }
 
       // 🔔 NOTIFY 2: Coordinadoras
       const coordinators = await prisma.user.findMany({ where: { role: { in: ['COORDINADOR', 'COORDINADOR_PRODUCTOR'] } } });

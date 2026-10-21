@@ -29,6 +29,7 @@ export default function TodayWorkboardPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'all' | 'urgent' | 'changes' | 'in_progress'>('all');
   const [deliveryModalOrder, setDeliveryModalOrder] = useState<any | null>(null);
+  const [deliveryMethod, setDeliveryMethod] = useState<'EMAIL' | 'LINK'>('EMAIL');
   const [deliveryUrl, setDeliveryUrl] = useState('');
   const [deliveryNotes, setDeliveryNotes] = useState('');
   const [submittingDelivery, setSubmittingDelivery] = useState(false);
@@ -97,8 +98,8 @@ export default function TodayWorkboardPage() {
   const handleDeliverSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!deliveryModalOrder) return;
-    if (!deliveryUrl.trim()) {
-      setDeliveryError('Ingresa el enlace del comercial o entregable');
+    if (deliveryMethod === 'LINK' && !deliveryUrl.trim()) {
+      setDeliveryError('Por favor ingresa el enlace de la nube (Drive/WeTransfer/Vimeo) para entregar');
       return;
     }
 
@@ -110,7 +111,8 @@ export default function TodayWorkboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'RESOLVE_DELIVERY',
-          deliveryUrl,
+          deliveryMethod,
+          deliveryUrl: deliveryMethod === 'LINK' ? deliveryUrl.trim() : null,
           deliveryNotes,
         }),
       });
@@ -443,11 +445,12 @@ export default function TodayWorkboardPage() {
                         <button
                           onClick={() => {
                             setDeliveryModalOrder(order);
+                            setDeliveryMethod('EMAIL');
                             setDeliveryUrl('');
                             setDeliveryNotes('');
                             setDeliveryError('');
                           }}
-                          className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-95 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl shadow-sm flex items-center gap-1.5 transition-all"
+                          className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-95 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
                         >
                           <Upload className="w-3 h-3" /> Entregar Comercial
                         </button>
@@ -522,27 +525,72 @@ export default function TodayWorkboardPage() {
             )}
 
             <form onSubmit={handleDeliverSubmit} className="mt-4 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Enlace del Video / Master Comercial (Google Drive, Frame.io, YouTube, etc.) *
-                </label>
-                <input
-                  type="url"
-                  required
-                  placeholder="https://drive.google.com/... o https://vimeo.com/..."
-                  value={deliveryUrl}
-                  onChange={(e) => setDeliveryUrl(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white text-slate-900"
-                />
+              {/* Selector de Método de Entrega */}
+              <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeliveryMethod('EMAIL');
+                    setDeliveryError('');
+                  }}
+                  className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    deliveryMethod === 'EMAIL'
+                      ? 'bg-white text-sky-700 shadow-sm border border-sky-200'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <span>✉️</span>
+                  <span>Enviado por Mail</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeliveryMethod('LINK');
+                    setDeliveryError('');
+                  }}
+                  className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    deliveryMethod === 'LINK'
+                      ? 'bg-white text-indigo-700 shadow-sm border border-indigo-200'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <span>🔗</span>
+                  <span>Enlace en la Nube</span>
+                </button>
               </div>
+
+              {deliveryMethod === 'EMAIL' ? (
+                <div className="bg-sky-50/90 border border-sky-200 rounded-2xl p-3.5 space-y-1.5">
+                  <div className="flex items-center gap-2 text-sky-950 font-black text-xs">
+                    <span>✉️</span>
+                    <span>Entrega directa vía Correo Electrónico</span>
+                  </div>
+                  <p className="text-[11px] text-sky-800 leading-relaxed">
+                    <strong>Sin subir archivos:</strong> Puedes dar por terminada la orden inmediatamente si enviaste el material por mail. La SP quedará en estado <strong>Resuelta</strong> y se notificará a la solicitante.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Enlace del Video / Master Comercial (Google Drive, Frame.io, YouTube, etc.) *
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://drive.google.com/... o https://vimeo.com/..."
+                    value={deliveryUrl}
+                    onChange={(e) => setDeliveryUrl(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white text-slate-900"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Notas de Entrega / Aclaraciones de Versión
+                  Notas de Entrega / Aclaraciones de Versión (Opcional)
                 </label>
                 <textarea
-                  rows={3}
-                  placeholder="Ej: Se ajustó el locutor, se incluyó pleca legal y se niveló el audio a -24 LUFS."
+                  rows={2}
+                  placeholder={deliveryMethod === 'EMAIL' ? "Ej: Enviado al cliente y ejecutiva por mail con fecha..." : "Ej: Se ajustó el locutor, se incluyó pleca legal y se niveló el audio a -24 LUFS."}
                   value={deliveryNotes}
                   onChange={(e) => setDeliveryNotes(e.target.value)}
                   className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white text-slate-900"
@@ -550,26 +598,32 @@ export default function TodayWorkboardPage() {
               </div>
 
               <div className="p-3 bg-cyan-50/70 border border-cyan-200 rounded-xl text-[11px] text-cyan-900">
-                💡 Al entregar, el estado cambiará a <strong>Revisión Interna</strong> y se generará automáticamente el token para que el cliente o ejecutiva puedan aprobarlo.
+                💡 Al entregar, el estado cambiará a <strong>Resuelta / En Revisión</strong> y se generará automáticamente el token para que el cliente o ejecutiva puedan aprobarlo.
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setDeliveryModalOrder(null)}
-                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={submittingDelivery}
-                  className="px-5 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-md transition-all disabled:opacity-50 flex items-center gap-1.5"
+                  className={`px-5 py-2 text-xs font-bold text-white rounded-xl shadow-md transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer ${
+                    deliveryMethod === 'EMAIL' ? 'bg-sky-600 hover:bg-sky-500' : 'bg-emerald-600 hover:bg-emerald-500'
+                  }`}
                 >
                   {submittingDelivery ? (
                     <>
                       <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                       Entregando...
+                    </>
+                  ) : deliveryMethod === 'EMAIL' ? (
+                    <>
+                      <span>✉️</span> Confirmar (Enviado por Mail)
                     </>
                   ) : (
                     <>
