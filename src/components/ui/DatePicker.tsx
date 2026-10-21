@@ -60,6 +60,23 @@ export default function DatePicker({
   const initialDate = parseDate(value);
   const [currentMonth, setCurrentMonth] = useState(initialDate.getMonth());
   const [currentYear, setCurrentYear] = useState(initialDate.getFullYear());
+  const [computedAlign, setComputedAlign] = useState<'left' | 'right'>(align === 'right' ? 'right' : 'left');
+
+  // Adjust dropdown alignment dynamically if near right viewport edge
+  useEffect(() => {
+    if (isOpen && containerRef.current) {
+      if (align === 'right') {
+        setComputedAlign('right');
+      } else {
+        const rect = containerRef.current.getBoundingClientRect();
+        if (typeof window !== 'undefined' && rect.left + 310 > window.innerWidth - 16) {
+          setComputedAlign('right');
+        } else {
+          setComputedAlign('left');
+        }
+      }
+    }
+  }, [isOpen, align]);
 
   // Close calendar on outside click
   useEffect(() => {
@@ -123,7 +140,7 @@ export default function DatePicker({
   const totalDaysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
   return (
-    <div className="relative" ref={containerRef}>
+    <div className={`relative ${isOpen ? 'z-[60]' : 'z-10'}`} ref={containerRef}>
       {label && (
         <label className={`block text-xs font-bold mb-1.5 flex items-center gap-1.5 ${isUrgent ? 'text-red-900' : 'text-slate-800'}`}>
           <CalendarIcon className={`w-4 h-4 ${isUrgent ? 'text-red-600' : 'text-cyan-600'}`} />
@@ -161,7 +178,7 @@ export default function DatePicker({
       {/* INTERACTIVE CALENDAR DROPDOWN MODAL */}
       {isOpen && (
         <div
-          className={`absolute ${align === 'right' ? 'right-0 sm:right-0 left-auto' : 'left-0'} mt-2 z-[70] bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 w-72 sm:w-84 animate-in fade-in zoom-in-95`}
+          className={`absolute ${computedAlign === 'right' ? 'right-0 left-auto' : 'left-0 right-auto'} mt-2 z-[9999] bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 w-[290px] sm:w-[320px] max-w-[calc(100vw-2rem)] animate-in fade-in zoom-in-95`}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header Navigation */}

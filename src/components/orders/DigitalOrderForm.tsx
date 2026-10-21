@@ -121,8 +121,8 @@ export default function DigitalOrderForm({
   return (
     <div className="space-y-6">
       {/* 1. SECCIÓN: EJECUTIVA */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-3 bg-emerald-600 border-b border-emerald-700 text-white flex items-center justify-between">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm">
+        <div className="px-6 py-3 bg-emerald-600 border-b border-emerald-700 text-white flex items-center justify-between rounded-t-3xl">
           <h2 className="text-xs font-black uppercase tracking-wider flex items-center gap-2">
             <span>1.</span>
             <span>EJECUTIVA TITULAR (VENTAS / DIGITAL)</span>
@@ -177,8 +177,8 @@ export default function DigitalOrderForm({
       </div>
 
       {/* 2. SECCIÓN: CLIENTE / MARCA */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-3 bg-emerald-50 border-b border-emerald-200 flex items-center justify-between">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm">
+        <div className="px-6 py-3 bg-emerald-50 border-b border-emerald-200 flex items-center justify-between rounded-t-3xl">
           <h2 className="text-xs font-black text-emerald-950 uppercase tracking-wider flex items-center gap-2">
             <span>2.</span>
             <span>CLIENTE / MARCA & DATOS DE LA SOLICITUD</span>
@@ -280,8 +280,8 @@ export default function DigitalOrderForm({
       </div>
 
       {/* 3. SECCIÓN: FECHAS */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-3 bg-emerald-50 border-b border-emerald-200 flex items-center justify-between">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm relative z-30">
+        <div className="px-6 py-3 bg-emerald-50 border-b border-emerald-200 flex items-center justify-between rounded-t-3xl">
           <h2 className="text-xs font-black text-emerald-950 uppercase tracking-wider flex items-center gap-2">
             <span>3.</span>
             <span>CRONOGRAMA & FECHAS DE ENTREGA</span>
@@ -300,6 +300,7 @@ export default function DigitalOrderForm({
               value={digitalData.receptionDate}
               onChange={(val) => setDigitalData({ ...digitalData, receptionDate: val })}
               placeholder="dd/mm/aaaa"
+              align="left"
             />
           </div>
 
@@ -314,6 +315,7 @@ export default function DigitalOrderForm({
                 setFormData((prev: any) => ({ ...prev, airDate: val }));
               }}
               placeholder="dd/mm/aaaa"
+              align="left"
             />
           </div>
 
@@ -328,6 +330,7 @@ export default function DigitalOrderForm({
                 setFormData((prev: any) => ({ ...prev, materialDeliveryDate: val }));
               }}
               placeholder="dd/mm/aaaa"
+              align="right"
             />
           </div>
 
@@ -339,14 +342,15 @@ export default function DigitalOrderForm({
               value={digitalData.finishedProductDeliveryDate}
               onChange={(val) => setDigitalData({ ...digitalData, finishedProductDeliveryDate: val })}
               placeholder="dd/mm/aaaa"
+              align="right"
             />
           </div>
         </div>
       </div>
 
       {/* 4. SECCIÓN: PLATAFORMAS Y FORMATOS (MATRIZ INTERACTIVA) */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-3.5 bg-gradient-to-r from-slate-900 to-emerald-950 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm relative z-20">
+        <div className="px-6 py-3.5 bg-gradient-to-r from-slate-900 to-emerald-950 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-t-3xl">
           <div className="flex items-center gap-2">
             <Share2 className="w-4 h-4 text-emerald-400" />
             <h2 className="text-xs font-black uppercase tracking-wider">
@@ -515,8 +519,8 @@ export default function DigitalOrderForm({
       </div>
 
       {/* 5. SECCIÓN: RECURSOS Y MATERIALES */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-3 bg-emerald-50 border-b border-emerald-200 flex items-center justify-between">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm relative z-10">
+        <div className="px-6 py-3 bg-emerald-50 border-b border-emerald-200 flex items-center justify-between rounded-t-3xl">
           <h2 className="text-xs font-black text-emerald-950 uppercase tracking-wider flex items-center gap-2">
             <span>5.</span>
             <span>RECURSOS Y MATERIALES DE INSUMO</span>
@@ -599,8 +603,8 @@ export default function DigitalOrderForm({
       </div>
 
       {/* 6. SECCIÓN: INSTRUCCIONES, ARCHIVOS & ENLACE DE DESCARGA */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-3 bg-emerald-50 border-b border-emerald-200 flex items-center justify-between">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm relative z-10">
+        <div className="px-6 py-3 bg-emerald-50 border-b border-emerald-200 flex items-center justify-between rounded-t-3xl">
           <h2 className="text-xs font-black text-emerald-950 uppercase tracking-wider flex items-center gap-2">
             <span>6.</span>
             <span>INSTRUCCIONES O COMENTARIOS ESPECIALES & ARCHIVOS</span>
