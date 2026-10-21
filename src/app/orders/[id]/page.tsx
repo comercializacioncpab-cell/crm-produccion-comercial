@@ -125,6 +125,9 @@ export default function OrderDetailPage() {
     orderDescription: '',
     publishDate: '',
     receptionDate: '',
+    informCreativeDigital: true,
+    informCommunityManager: true,
+    informMonetization: true,
   });
 
   // Financial Costs & Profitability States (Digital Project Cost Sheet)
@@ -801,6 +804,15 @@ export default function OrderDetailPage() {
       currentSponsorships = [];
     }
 
+    let parsedDigital: any = null;
+    if (order.digitalData) {
+      try {
+        parsedDigital = JSON.parse(order.digitalData);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
     setEditFormData({
       clientAgency: order.clientAgency || '',
       product: order.product || '',
@@ -824,6 +836,9 @@ export default function OrderDetailPage() {
       orderDescription: order.orderDescription || '',
       publishDate: order.publishDate || '',
       receptionDate: order.receptionDate || '',
+      informCreativeDigital: parsedDigital?.informProfiles?.creativeDigital ?? true,
+      informCommunityManager: parsedDigital?.informProfiles?.communityManager ?? true,
+      informMonetization: parsedDigital?.informProfiles?.monetization ?? true,
     });
     setShowEditModal(true);
   };
@@ -911,6 +926,11 @@ export default function OrderDetailPage() {
         body: JSON.stringify({
           action: 'EDIT_ORDER',
           ...editFormData,
+          informProfiles: order.orderCategory === 'DIGITAL' ? {
+            creativeDigital: editFormData.informCreativeDigital,
+            communityManager: editFormData.informCommunityManager,
+            monetization: editFormData.informMonetization,
+          } : undefined,
         }),
       });
       const data = await res.json();
@@ -1354,6 +1374,41 @@ export default function OrderDetailPage() {
                         <p className="text-slate-800 font-medium whitespace-pre-wrap">{order.orderDescription}</p>
                       </div>
                     )}
+
+                    {/* Perfiles Digitales Notificados a nivel Informativo */}
+                    <div className="col-span-2 sm:col-span-6 bg-indigo-50/50 p-3.5 rounded-2xl border border-indigo-100">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-indigo-950 block text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5">
+                          🔔 Equipo Notificado a Nivel Informativo (Sin Rol de Aprobación):
+                        </span>
+                        <span className="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-full">
+                          Solo informativo
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                          digitalParsed?.informProfiles?.creativeDigital !== false
+                            ? 'bg-violet-50 text-violet-800 border-violet-200 shadow-2xs'
+                            : 'bg-slate-100 text-slate-400 border-slate-200 line-through opacity-60'
+                        }`}>
+                          🎨 Creativo Digital {digitalParsed?.informProfiles?.creativeDigital !== false ? '✓' : '(No)'}
+                        </span>
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                          digitalParsed?.informProfiles?.communityManager !== false
+                            ? 'bg-sky-50 text-sky-800 border-sky-200 shadow-2xs'
+                            : 'bg-slate-100 text-slate-400 border-slate-200 line-through opacity-60'
+                        }`}>
+                          📲 Community Manager {digitalParsed?.informProfiles?.communityManager !== false ? '✓' : '(No)'}
+                        </span>
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                          digitalParsed?.informProfiles?.monetization !== false
+                            ? 'bg-amber-50 text-amber-800 border-amber-200 shadow-2xs'
+                            : 'bg-slate-100 text-slate-400 border-slate-200 line-through opacity-60'
+                        }`}>
+                          💎 Jefe de Monetización {digitalParsed?.informProfiles?.monetization !== false ? '✓' : '(No)'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -3370,6 +3425,64 @@ export default function OrderDetailPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* NOTIFICAR A EQUIPO DIGITAL (SOLO INFORMATIVO) */}
+                {isDigital && (
+                  <div className="bg-indigo-50/70 p-4 rounded-2xl border border-indigo-200 space-y-3">
+                    <div>
+                      <h4 className="font-black text-xs text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
+                        🔔 Notificar a Equipo Digital (Solo Informativo)
+                      </h4>
+                      <p className="text-[11px] text-indigo-700 font-medium mt-0.5">
+                        Los usuarios seleccionados recibirán notificaciones para conocimiento del flujo. No intervienen como aprobadores ni editores directos.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      <label className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                        editFormData.informCreativeDigital
+                          ? 'bg-violet-600 text-white border-violet-600 shadow-sm'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}>
+                        <input
+                          type="checkbox"
+                          checked={editFormData.informCreativeDigital}
+                          onChange={(e) => setEditFormData({ ...editFormData, informCreativeDigital: e.target.checked })}
+                          className="rounded text-violet-600 focus:ring-violet-500 w-4 h-4"
+                        />
+                        <span>🎨 Creativo Digital</span>
+                      </label>
+
+                      <label className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                        editFormData.informCommunityManager
+                          ? 'bg-sky-600 text-white border-sky-600 shadow-sm'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}>
+                        <input
+                          type="checkbox"
+                          checked={editFormData.informCommunityManager}
+                          onChange={(e) => setEditFormData({ ...editFormData, informCommunityManager: e.target.checked })}
+                          className="rounded text-sky-600 focus:ring-sky-500 w-4 h-4"
+                        />
+                        <span>📲 Community Manager</span>
+                      </label>
+
+                      <label className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                        editFormData.informMonetization
+                          ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}>
+                        <input
+                          type="checkbox"
+                          checked={editFormData.informMonetization}
+                          onChange={(e) => setEditFormData({ ...editFormData, informMonetization: e.target.checked })}
+                          className="rounded text-amber-600 focus:ring-amber-500 w-4 h-4"
+                        />
+                        <span>💎 Jefe de Monetización</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
 
                 {/* 5. EQUIPO POST-PRODUCCIÓN (Para Coordinadores / Admins) */}
                 {isCoordinator && (

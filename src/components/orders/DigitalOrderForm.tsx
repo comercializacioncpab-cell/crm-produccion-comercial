@@ -51,6 +51,11 @@ export interface DigitalOrderFormProps {
     newsroomLocation: string;
     resources: Record<string, string>;
     specialInstructions: string;
+    informProfiles?: {
+      creativeDigital?: boolean;
+      communityManager?: boolean;
+      monetization?: boolean;
+    };
   };
   setDigitalData: React.Dispatch<React.SetStateAction<any>>;
   digitalMatrix: Record<string, string[]>;
@@ -691,7 +696,117 @@ export default function DigitalOrderForm({
         </div>
       </div>
 
-      {/* 7. PRIORIDAD Y VALOR COMERCIAL */}
+      {/* 7. SECCIÓN: EQUIPO DIGITAL A INFORMAR (SOLO NOTIFICACIÓN INFORMATIVA - SIN ASIGNACIÓN) */}
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm relative z-10 overflow-hidden">
+        <div className="px-6 py-3 bg-gradient-to-r from-violet-50 via-sky-50 to-amber-50 border-b border-slate-200 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🔔</span>
+            <h2 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+              7. Notificar a Equipo Digital (Solo Informativo - Sin Rol de Aprobación)
+            </h2>
+          </div>
+          <span className="text-[10px] font-bold text-slate-600 bg-white px-2.5 py-0.5 rounded-full border border-slate-200 shadow-2xs">
+            Notificaciones Informativas
+          </span>
+        </div>
+
+        <div className="p-6 space-y-3">
+          <p className="text-xs text-slate-500">
+            Marca las casillas de los perfiles que deben recibir una notificación sobre esta SP Digital para mantenerse al tanto de lo solicitado. <em>(No aprueban ni modifican la orden, únicamente se les informa para su seguimiento)</em>:
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+            {/* 1. Creativo Digital */}
+            <label className={`flex items-start gap-3 p-3.5 rounded-2xl border-2 transition-all cursor-pointer ${
+              digitalData.informProfiles?.creativeDigital
+                ? 'bg-violet-50/80 border-violet-400 text-violet-950 shadow-xs ring-2 ring-violet-400/20'
+                : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+            }`}>
+              <input
+                type="checkbox"
+                checked={Boolean(digitalData.informProfiles?.creativeDigital)}
+                onChange={(e) => setDigitalData({
+                  ...digitalData,
+                  informProfiles: {
+                    ...digitalData.informProfiles,
+                    creativeDigital: e.target.checked
+                  }
+                })}
+                className="mt-0.5 w-4 h-4 rounded text-violet-600 focus:ring-violet-500 cursor-pointer"
+              />
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-1.5 font-bold text-xs">
+                  <span>🎨</span>
+                  <span>Creativo Digital</span>
+                </div>
+                <p className="text-[11px] opacity-80 leading-snug">
+                  Notificar para que esté informado de briefs, ideas creativas y guiones.
+                </p>
+              </div>
+            </label>
+
+            {/* 2. Community Manager */}
+            <label className={`flex items-start gap-3 p-3.5 rounded-2xl border-2 transition-all cursor-pointer ${
+              digitalData.informProfiles?.communityManager
+                ? 'bg-sky-50/80 border-sky-400 text-sky-950 shadow-xs ring-2 ring-sky-400/20'
+                : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+            }`}>
+              <input
+                type="checkbox"
+                checked={Boolean(digitalData.informProfiles?.communityManager)}
+                onChange={(e) => setDigitalData({
+                  ...digitalData,
+                  informProfiles: {
+                    ...digitalData.informProfiles,
+                    communityManager: e.target.checked
+                  }
+                })}
+                className="mt-0.5 w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer"
+              />
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-1.5 font-bold text-xs">
+                  <span>📲</span>
+                  <span>Community Manager</span>
+                </div>
+                <p className="text-[11px] opacity-80 leading-snug">
+                  Notificar para calendarización, fechas de salida y copys en redes.
+                </p>
+              </div>
+            </label>
+
+            {/* 3. Jefe de Monetización */}
+            <label className={`flex items-start gap-3 p-3.5 rounded-2xl border-2 transition-all cursor-pointer ${
+              digitalData.informProfiles?.monetization
+                ? 'bg-amber-50/80 border-amber-400 text-amber-950 shadow-xs ring-2 ring-amber-400/20'
+                : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+            }`}>
+              <input
+                type="checkbox"
+                checked={Boolean(digitalData.informProfiles?.monetization)}
+                onChange={(e) => setDigitalData({
+                  ...digitalData,
+                  informProfiles: {
+                    ...digitalData.informProfiles,
+                    monetization: e.target.checked
+                  }
+                })}
+                className="mt-0.5 w-4 h-4 rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
+              />
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-1.5 font-bold text-xs">
+                  <span>💎</span>
+                  <span>Jefe de Monetización</span>
+                </div>
+                <p className="text-[11px] opacity-80 leading-snug">
+                  Notificar para control del valor comercial, rentabilidad y costos.
+                </p>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {/* 8. PRIORIDAD Y VALOR COMERCIAL */}
       <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>

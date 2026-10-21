@@ -542,8 +542,21 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         ? (Array.isArray(sponsorshipTypes) ? JSON.stringify(sponsorshipTypes) : typeof sponsorshipTypes === 'string' ? sponsorshipTypes : JSON.stringify([]))
         : undefined;
 
-      const updatedDigitalData = digitalData !== undefined
-        ? (typeof digitalData === 'object' ? JSON.stringify(digitalData) : digitalData)
+      let currentDigital: any = {};
+      try {
+        currentDigital = order.digitalData ? JSON.parse(order.digitalData) : {};
+      } catch {
+        currentDigital = {};
+      }
+      if (body.informProfiles !== undefined) {
+        currentDigital.informProfiles = body.informProfiles;
+      }
+      if (digitalData !== undefined) {
+        const digObj = typeof digitalData === 'object' ? digitalData : JSON.parse(digitalData || '{}');
+        currentDigital = { ...currentDigital, ...digObj };
+      }
+      const updatedDigitalData = (body.informProfiles !== undefined || digitalData !== undefined)
+        ? JSON.stringify(currentDigital)
         : undefined;
 
       updatedOrder = await prisma.productionOrder.update({
@@ -784,6 +797,54 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           userEmail: coord.email,
           orderNumber: order.orderNumber,
         });
+      }
+
+      // 📣 NOTIFICACIONES INFORMATIVAS A PERFILES DIGITALES (Creativo Digital, Community Manager, Jefe de Monetización)
+      if (isDigital) {
+        let digDataObj: any = {};
+        try {
+          digDataObj = typeof order.digitalData === 'string' ? JSON.parse(order.digitalData) : (order.digitalData || {});
+        } catch {
+          digDataObj = {};
+        }
+
+        const inform = digDataObj.informProfiles || {};
+        const rolesToInform: string[] = [];
+        if (inform.creativeDigital) rolesToInform.push('CREATIVO_DIGITAL');
+        if (inform.communityManager) rolesToInform.push('COMMUNITY_MANAGER');
+        if (inform.monetization) rolesToInform.push('JEFE_MONETIZACION');
+
+        if (rolesToInform.length > 0) {
+          const informedUsers = await prisma.user.findMany({
+            where: {
+              role: { in: rolesToInform },
+              status: 'APROBADO',
+            },
+          });
+
+          for (const infUser of informedUsers) {
+            if (coordinators.some((c) => c.id === infUser.id) || (order.executiveId && order.executiveId === infUser.id)) {
+              continue;
+            }
+
+            const roleTitle = infUser.role === 'CREATIVO_DIGITAL'
+              ? 'Creativo/a Digital'
+              : infUser.role === 'COMMUNITY_MANAGER'
+              ? 'Community Manager'
+              : 'Jefe/a de Monetización';
+
+            await sendNotification({
+              userId: infUser.id,
+              orderId: order.id,
+              type: 'NEW_SP',
+              title: `📱 [Informativo] Nueva SP Digital ${order.orderNumber}`,
+              message: `Hola ${infUser.name} (${roleTitle}): Se ha registrado la SP Digital ${order.orderNumber} para ${order.clientAgency} (${order.product}). Se te notifica para conocimiento de lo solicitado en el flujo digital.`,
+              userPhone: infUser.phone,
+              userEmail: infUser.email,
+              orderNumber: order.orderNumber,
+            });
+          }
+        }
       }
 
       return NextResponse.json({ success: true, order: updatedOrder, message: 'SP enviada a Coordinación exitosamente' });

@@ -368,6 +368,55 @@ export async function POST(req: Request) {
           orderNumber,
         });
       }
+
+      // 📣 NOTIFICACIONES INFORMATIVAS A PERFILES DIGITALES (Creativo Digital, Community Manager, Jefe de Monetización)
+      if (isDigital) {
+        let digDataObj: any = {};
+        try {
+          digDataObj = typeof digitalData === 'string' ? JSON.parse(digitalData) : (digitalData || {});
+        } catch {
+          digDataObj = {};
+        }
+
+        const inform = digDataObj.informProfiles || {};
+        const rolesToInform: string[] = [];
+        if (inform.creativeDigital) rolesToInform.push('CREATIVO_DIGITAL');
+        if (inform.communityManager) rolesToInform.push('COMMUNITY_MANAGER');
+        if (inform.monetization) rolesToInform.push('JEFE_MONETIZACION');
+
+        if (rolesToInform.length > 0) {
+          const informedUsers = await prisma.user.findMany({
+            where: {
+              role: { in: rolesToInform },
+              status: 'APROBADO',
+            },
+          });
+
+          for (const infUser of informedUsers) {
+            // Avoid duplicates if already notified
+            if (coordinators.some((c) => c.id === infUser.id) || (targetExecutive && targetExecutive.id === infUser.id)) {
+              continue;
+            }
+
+            const roleTitle = infUser.role === 'CREATIVO_DIGITAL'
+              ? 'Creativo/a Digital'
+              : infUser.role === 'COMMUNITY_MANAGER'
+              ? 'Community Manager'
+              : 'Jefe/a de Monetización';
+
+            await sendNotification({
+              userId: infUser.id,
+              orderId: newOrder.id,
+              type: 'NEW_SP',
+              title: `📱 [Informativo] Nueva SP Digital ${orderNumber}`,
+              message: `Hola ${infUser.name} (${roleTitle}): Se ha registrado la SP Digital ${orderNumber} para ${effectiveClientAgency} (${effectiveProduct}). Se te notifica para conocimiento de lo solicitado en el flujo digital.`,
+              userPhone: infUser.phone,
+              userEmail: infUser.email,
+              orderNumber,
+            });
+          }
+        }
+      }
     }
 
     return NextResponse.json({ success: true, order: newOrder }, { status: 201 });

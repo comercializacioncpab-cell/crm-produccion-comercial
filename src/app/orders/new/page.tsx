@@ -95,6 +95,11 @@ function NewOrderForm() {
       otros: '',
     } as Record<string, string>,
     specialInstructions: '',
+    informProfiles: {
+      creativeDigital: true,
+      communityManager: true,
+      monetization: true,
+    },
   });
 
   const [digitalMatrix, setDigitalMatrix] = useState<Record<string, string[]>>({});
@@ -263,6 +268,7 @@ function NewOrderForm() {
                 newsroomLocation: dig.newsroomDetails?.location || '',
                 resources: dig.resources || prev.resources,
                 specialInstructions: dig.specialInstructions || '',
+                informProfiles: dig.informProfiles || prev.informProfiles,
               }));
               if (dig.platformsAndFormats) {
                 setDigitalMatrix(dig.platformsAndFormats);
@@ -391,6 +397,7 @@ function NewOrderForm() {
               resources: digitalData.resources,
               specialInstructions: digitalData.specialInstructions,
               finishedProductDeliveryDate: digitalData.finishedProductDeliveryDate,
+              informProfiles: digitalData.informProfiles,
             },
             files: files.map((f) => ({
               fileName: f.name,

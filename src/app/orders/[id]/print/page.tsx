@@ -321,8 +321,8 @@ export default function PrintOrderPage() {
             </div>
           </div>
 
-          {/* SECTION 7: INSTRUCCIONES ESPECIALES */}
-          <div className="border border-slate-900">
+          {/* SECTION 6: INSTRUCCIONES ESPECIALES */}
+          <div className="border border-slate-900 mb-3">
             <div className="bg-[#fef08a] px-3 py-1 font-black text-xs text-slate-900 uppercase border-b border-slate-900">
               6. INSTRUCCIONES ESPECIALES & ENLACES
             </div>
@@ -337,6 +337,24 @@ export default function PrintOrderPage() {
                 <span className="font-bold text-slate-900 block">Observaciones / Copys:</span>
                 <p className="whitespace-pre-wrap text-slate-800">{order.materialNotes || 'Sin observaciones adicionales.'}</p>
               </div>
+            </div>
+          </div>
+
+          {/* SECTION 7: NOTIFICACIÓN A EQUIPO DIGITAL (SOLO INFORMATIVO) */}
+          <div className="border border-slate-900">
+            <div className="bg-[#fef08a] px-3 py-1 font-black text-xs text-slate-900 uppercase border-b border-slate-900">
+              7. NOTIFICACIÓN A EQUIPO DIGITAL (CARÁCTER INFORMATIVO - SIN APROBACIÓN)
+            </div>
+            <div className="p-3 text-xs flex flex-wrap gap-4 font-mono font-bold">
+              <span>
+                [{digitalParsed.informProfiles?.creativeDigital !== false ? 'X' : ' '}] Creativo Digital
+              </span>
+              <span>
+                [{digitalParsed.informProfiles?.communityManager !== false ? 'X' : ' '}] Community Manager
+              </span>
+              <span>
+                [{digitalParsed.informProfiles?.monetization !== false ? 'X' : ' '}] Jefe de Monetización
+              </span>
             </div>
           </div>
         </div>
