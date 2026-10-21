@@ -37,7 +37,7 @@ export async function GET(req: Request) {
       ];
     } else if (scope !== 'all') {
       // Default fallback when scope is omitted:
-      if (user.role === 'SOLICITANTE' || user.role === 'EJECUTIVA_DIGITAL') {
+      if (user.role === 'SOLICITANTE' || user.role === 'EJECUTIVA_DIGITAL' || user.role === 'CREATIVO_DIGITAL' || user.role === 'COMMUNITY_MANAGER') {
         where.OR = [
           { creatorId: user.id },
           { executiveId: user.id },
@@ -172,8 +172,8 @@ export async function POST(req: Request) {
       });
     }
 
-    // Default to creator if they are SOLICITANTE or EJECUTIVA_DIGITAL and no executive is explicitly set
-    if (!targetExecutive && (user.role === 'SOLICITANTE' || user.role === 'EJECUTIVA_DIGITAL')) {
+    // Default to creator if they are SOLICITANTE, EJECUTIVA_DIGITAL, CREATIVO_DIGITAL, COMMUNITY_MANAGER, JEFE_MONETIZACION and no executive is explicitly set
+    if (!targetExecutive && (user.role === 'SOLICITANTE' || user.role === 'EJECUTIVA_DIGITAL' || user.role === 'CREATIVO_DIGITAL' || user.role === 'COMMUNITY_MANAGER' || user.role === 'JEFE_MONETIZACION')) {
       targetExecutive = user;
     }
 

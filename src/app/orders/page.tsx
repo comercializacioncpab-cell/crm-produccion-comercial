@@ -56,7 +56,7 @@ function OrdersContent() {
         if (res.ok) {
           const data = await res.json();
           const sales = (data.users || []).filter(
-            (u: any) => u.status === 'APROBADO' && ['SOLICITANTE', 'EJECUTIVA_DIGITAL', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR', 'COORDINADOR_PRODUCTOR', 'COORDINADORA_VENTAS'].includes(u.role)
+            (u: any) => u.status === 'APROBADO' && ['SOLICITANTE', 'EJECUTIVA_DIGITAL', 'CREATIVO_DIGITAL', 'COMMUNITY_MANAGER', 'JEFE_MONETIZACION', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR', 'COORDINADOR_PRODUCTOR', 'COORDINADORA_VENTAS'].includes(u.role)
           );
           setExecutives(sales);
         }

@@ -543,6 +543,12 @@ export default function UsersPage() {
                               ? 'bg-pink-50 text-pink-700 border-pink-200'
                               : u.role === 'EJECUTIVA_DIGITAL'
                               ? 'bg-emerald-50 text-emerald-800 border-emerald-300 font-extrabold'
+                              : u.role === 'CREATIVO_DIGITAL'
+                              ? 'bg-violet-50 text-violet-800 border-violet-300 font-extrabold'
+                              : u.role === 'COMMUNITY_MANAGER'
+                              ? 'bg-sky-50 text-sky-800 border-sky-300 font-extrabold'
+                              : u.role === 'JEFE_MONETIZACION'
+                              ? 'bg-amber-100 text-amber-950 border-amber-400 font-black shadow-xs'
                               : u.role === 'COORDINADORA_VENTAS'
                               ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
                               : u.role === 'COORDINADOR'
@@ -557,6 +563,9 @@ export default function UsersPage() {
                           }`}>
                             {u.role === 'SOLICITANTE' && '👩‍💼 Ejecutiva TV'}
                             {u.role === 'EJECUTIVA_DIGITAL' && '📱 Ejecutiva Digital'}
+                            {u.role === 'CREATIVO_DIGITAL' && '🎨 Creativo Digital'}
+                            {u.role === 'COMMUNITY_MANAGER' && '📲 Community Manager'}
+                            {u.role === 'JEFE_MONETIZACION' && '💎 Jefe de Monetización'}
                             {u.role === 'COORDINADORA_VENTAS' && '💼 Coord. de Ventas'}
                             {u.role === 'COORDINADOR' && '📋 Coordinadora'}
                             {u.role === 'POST_PRODUCTOR' && '🎬 Post-Productor'}
@@ -806,6 +815,9 @@ export default function UsersPage() {
                     >
                       <option value="SOLICITANTE">👩‍💼 Solicitante (Ejecutiva TV)</option>
                       <option value="EJECUTIVA_DIGITAL">📱 Ejecutiva Digital</option>
+                      <option value="CREATIVO_DIGITAL">🎨 Creativo Digital</option>
+                      <option value="COMMUNITY_MANAGER">📲 Community Manager</option>
+                      <option value="JEFE_MONETIZACION">💎 Jefe de Monetización</option>
                       <option value="COORDINADORA_VENTAS">💼 Coordinadora de Ventas</option>
                       <option value="COORDINADOR">📋 Coordinadora de Producción</option>
                       <option value="COORDINADOR_PRODUCTOR">🎯 Coordinador/a - Productor</option>

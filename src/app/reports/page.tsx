@@ -73,10 +73,10 @@ export default function MonthlyReportPage() {
   };
 
   useEffect(() => {
-    if (user && (user.role === 'COORDINADOR' || user.role === 'ADMIN' || user.role === 'PRODUCTOR_SENIOR' || user.role === 'COORDINADOR_PRODUCTOR')) {
+    if (user && (user.role === 'COORDINADOR' || user.role === 'ADMIN' || user.role === 'PRODUCTOR_SENIOR' || user.role === 'COORDINADOR_PRODUCTOR' || user.role === 'JEFE_MONETIZACION')) {
       fetchReport();
     } else if (user) {
-      setError('Acceso restringido: Este reporte está disponible para Coordinadoras, Productores Senior y Administradores.');
+      setError('Acceso restringido: Este reporte está disponible para Coordinadoras, Productores Senior, Jefatura de Monetización y Administradores.');
       setLoading(false);
     }
   }, [user, selectedCategory, selectedMonth, selectedPost, selectedExecutive, selectedClient, selectedOrderType]);

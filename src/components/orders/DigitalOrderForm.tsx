@@ -150,7 +150,7 @@ export default function DigitalOrderForm({
                 <option value="">-- Seleccionar Ejecutiva Titular --</option>
                 {executives.map((exec) => (
                   <option key={exec.id} value={exec.id}>
-                    {exec.role === 'EJECUTIVA_DIGITAL' ? '📱 [DIGITAL] ' : '👩‍💼 '}
+                    {exec.role === 'EJECUTIVA_DIGITAL' ? '📱 [DIGITAL] ' : exec.role === 'CREATIVO_DIGITAL' ? '🎨 [CREATIVO] ' : exec.role === 'COMMUNITY_MANAGER' ? '📲 [CM] ' : exec.role === 'JEFE_MONETIZACION' ? '💎 [MONETIZACIÓN] ' : '👩‍💼 '}
                     {exec.name} ({exec.initials || 'SP'}) - {exec.email}
                   </option>
                 ))}
@@ -168,7 +168,7 @@ export default function DigitalOrderForm({
                 <p className="text-xs text-emerald-900 font-extrabold">{user?.name}</p>
                 <p className="text-[11px] text-emerald-700">{user?.email}</p>
                 <span className="inline-block mt-1 text-[10px] bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full font-bold">
-                  {user?.role === 'EJECUTIVA_DIGITAL' ? '📱 Ejecutiva Digital' : '👩‍💼 Ejecutiva de Ventas'}
+                  {user?.role === 'EJECUTIVA_DIGITAL' ? '📱 Ejecutiva Digital' : user?.role === 'CREATIVO_DIGITAL' ? '🎨 Creativo Digital' : user?.role === 'COMMUNITY_MANAGER' ? '📲 Community Manager' : user?.role === 'JEFE_MONETIZACION' ? '💎 Jefe de Monetización' : '👩‍💼 Ejecutiva de Ventas'}
                 </span>
               </div>
             </div>

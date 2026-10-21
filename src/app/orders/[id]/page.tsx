@@ -1019,7 +1019,10 @@ export default function OrderDetailPage() {
     user && (user.role === 'POST_PRODUCTOR' || user.role === 'PRODUCTOR_SENIOR' || user.role === 'COORDINADOR_PRODUCTOR' || user.role === 'ADMIN')
   );
   const canEditOrder = Boolean(
-    user && ['ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR', 'COORDINADORA', 'COORDINADOR_PRODUCTOR', 'SOLICITANTE', 'EJECUTIVA', 'EJECUTIVA_DIGITAL', 'COORDINADORA_VENTAS'].includes(user.role)
+    user && ['ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR', 'COORDINADORA', 'COORDINADOR_PRODUCTOR', 'SOLICITANTE', 'EJECUTIVA', 'EJECUTIVA_DIGITAL', 'COORDINADORA_VENTAS', 'CREATIVO_DIGITAL', 'COMMUNITY_MANAGER', 'JEFE_MONETIZACION'].includes(user.role)
+  );
+  const canManageFinancials = Boolean(
+    user && (isCoordinator || user.role === 'JEFE_MONETIZACION' || user.role === 'ADMIN' || user.role === 'PRODUCTOR_SENIOR')
   );
 
   return (
@@ -2186,7 +2189,7 @@ export default function OrderDetailPage() {
                       <span>Valor del Paquete Comercial:</span>
                       <span className="font-mono font-black text-slate-900">${packageVal.toFixed(2)} USD</span>
                     </label>
-                    {isCoordinator ? (
+                    {canManageFinancials ? (
                       <input
                         type="number"
                         min="0"
@@ -2206,7 +2209,7 @@ export default function OrderDetailPage() {
                     <label className="flex items-center gap-2 text-[11px] font-bold text-slate-700 cursor-pointer">
                       <input
                         type="checkbox"
-                        disabled={!isCoordinator}
+                        disabled={!canManageFinancials}
                         checked={digitalCosts.agencyCommissionApplies}
                         onChange={(e) => setDigitalCosts({ ...digitalCosts, agencyCommissionApplies: e.target.checked })}
                         className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
@@ -2231,7 +2234,7 @@ export default function OrderDetailPage() {
                           type="number"
                           min="0"
                           step="0.01"
-                          disabled={!isCoordinator}
+                          disabled={!canManageFinancials}
                           value={digitalCosts.producerCost || ''}
                           onChange={(e) => setDigitalCosts({ ...digitalCosts, producerCost: parseFloat(e.target.value) || 0 })}
                           className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50 disabled:opacity-60"
@@ -2244,7 +2247,7 @@ export default function OrderDetailPage() {
                           type="number"
                           min="0"
                           step="0.01"
-                          disabled={!isCoordinator}
+                          disabled={!canManageFinancials}
                           value={digitalCosts.reporterCost || ''}
                           onChange={(e) => setDigitalCosts({ ...digitalCosts, reporterCost: parseFloat(e.target.value) || 0 })}
                           className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50 disabled:opacity-60"
@@ -2257,7 +2260,7 @@ export default function OrderDetailPage() {
                           type="number"
                           min="0"
                           step="0.01"
-                          disabled={!isCoordinator}
+                          disabled={!canManageFinancials}
                           value={digitalCosts.mobilizationCost || ''}
                           onChange={(e) => setDigitalCosts({ ...digitalCosts, mobilizationCost: parseFloat(e.target.value) || 0 })}
                           className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50 disabled:opacity-60"
@@ -2270,7 +2273,7 @@ export default function OrderDetailPage() {
                           type="number"
                           min="0"
                           step="0.01"
-                          disabled={!isCoordinator}
+                          disabled={!canManageFinancials}
                           value={digitalCosts.otherCost || ''}
                           onChange={(e) => setDigitalCosts({ ...digitalCosts, otherCost: parseFloat(e.target.value) || 0 })}
                           className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50 disabled:opacity-60"
@@ -2316,7 +2319,7 @@ export default function OrderDetailPage() {
 
                   {/* Botones de Acción */}
                   <div className="space-y-2 pt-1">
-                    {isCoordinator && (
+                    {canManageFinancials && (
                       <button
                         type="button"
                         onClick={handleSaveFinancialCosts}

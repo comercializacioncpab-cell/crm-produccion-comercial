@@ -422,6 +422,9 @@ export default function UserDetailPage() {
                       >
                         <option value="SOLICITANTE">👩‍💼 Solicitante (Ejecutiva TV)</option>
                         <option value="EJECUTIVA_DIGITAL">📱 Ejecutiva Digital</option>
+                        <option value="CREATIVO_DIGITAL">🎨 Creativo Digital</option>
+                        <option value="COMMUNITY_MANAGER">📲 Community Manager</option>
+                        <option value="JEFE_MONETIZACION">💎 Jefe de Monetización</option>
                         <option value="COORDINADORA_VENTAS">💼 Coordinadora de Ventas</option>
                         <option value="COORDINADOR">📋 Coordinadora de Producción</option>
                         <option value="COORDINADOR_PRODUCTOR">🎯 Coordinador/a - Productor</option>

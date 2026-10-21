@@ -49,25 +49,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       name: 'Dashboard General',
       href: '/dashboard',
       icon: LayoutDashboard,
-      roles: ['SOLICITANTE', 'EJECUTIVA_DIGITAL', 'COORDINADORA_VENTAS', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
+      roles: ['SOLICITANTE', 'EJECUTIVA_DIGITAL', 'COORDINADORA_VENTAS', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR', 'CREATIVO_DIGITAL', 'COMMUNITY_MANAGER', 'JEFE_MONETIZACION'],
     },
     {
       name: 'Mesa de Trabajo (Hoy)',
       href: '/today',
       icon: Sparkles,
-      roles: ['POST_PRODUCTOR', 'COORDINADOR_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR'],
+      roles: ['POST_PRODUCTOR', 'COORDINADOR_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'CREATIVO_DIGITAL', 'COMMUNITY_MANAGER'],
     },
     {
       name: 'Tráfico & Cargas',
       href: '/traffic',
       icon: CalendarClock,
-      roles: ['COORDINADOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
+      roles: ['COORDINADOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR', 'JEFE_MONETIZACION'],
     },
     {
       name: 'Nueva Solicitud (SP)',
       href: '/orders/new',
       icon: FilePlus2,
-      roles: ['SOLICITANTE', 'EJECUTIVA_DIGITAL', 'COORDINADORA_VENTAS', 'COORDINADOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
+      roles: ['SOLICITANTE', 'EJECUTIVA_DIGITAL', 'COORDINADORA_VENTAS', 'COORDINADOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR', 'CREATIVO_DIGITAL', 'COMMUNITY_MANAGER', 'JEFE_MONETIZACION'],
       highlight: true,
       hasSubmenu: true,
     },
@@ -75,7 +75,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       name: 'Todas las Órdenes',
       href: '/orders',
       icon: Layers,
-      roles: ['SOLICITANTE', 'EJECUTIVA_DIGITAL', 'COORDINADORA_VENTAS', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
+      roles: ['SOLICITANTE', 'EJECUTIVA_DIGITAL', 'COORDINADORA_VENTAS', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR', 'CREATIVO_DIGITAL', 'COMMUNITY_MANAGER', 'JEFE_MONETIZACION'],
     },
     {
       name: 'Bandeja Coordinación',
@@ -99,19 +99,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       name: 'Mi Perfil / Celular',
       href: '/profile',
       icon: User,
-      roles: ['SOLICITANTE', 'EJECUTIVA_DIGITAL', 'COORDINADORA_VENTAS', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
+      roles: ['SOLICITANTE', 'EJECUTIVA_DIGITAL', 'COORDINADORA_VENTAS', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR', 'CREATIVO_DIGITAL', 'COMMUNITY_MANAGER', 'JEFE_MONETIZACION'],
     },
     {
       name: 'Ingresos Totales ($)',
       href: '/financial',
       icon: DollarSign,
-      roles: ['ADMIN', 'PRODUCTOR_SENIOR'],
+      roles: ['ADMIN', 'PRODUCTOR_SENIOR', 'JEFE_MONETIZACION'],
     },
     {
       name: 'Reporte Mensual / SLA',
       href: '/reports',
       icon: BarChart3,
-      roles: ['COORDINADOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
+      roles: ['COORDINADOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR', 'JEFE_MONETIZACION'],
     },
   ];
 
@@ -137,6 +137,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <span className="text-[11px] text-cyan-300 font-medium">
                       {user.role === 'SOLICITANTE' && '👩‍💼 Ejecutiva de Ventas'}
                       {user.role === 'EJECUTIVA_DIGITAL' && '📱 Ejecutiva Digital'}
+                      {user.role === 'CREATIVO_DIGITAL' && '🎨 Creativo Digital'}
+                      {user.role === 'COMMUNITY_MANAGER' && '📲 Community Manager'}
+                      {user.role === 'JEFE_MONETIZACION' && '💎 Jefe de Monetización'}
                       {user.role === 'COORDINADORA_VENTAS' && '💼 Coordinadora de Ventas'}
                       {user.role === 'COORDINADOR' && '📋 Coordinadora de Producción'}
                       {user.role === 'POST_PRODUCTOR' && '🎬 Post-Productor'}

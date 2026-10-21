@@ -74,6 +74,12 @@ export default function Navbar() {
         return { text: '👑 Productor Senior', bg: 'bg-amber-100 text-amber-900 border-amber-300 font-extrabold' };
       case 'COORDINADOR_PRODUCTOR':
         return { text: '🎯 Coordinador/a - Productor', bg: 'bg-teal-100 text-teal-800 border-teal-300 font-bold' };
+      case 'CREATIVO_DIGITAL':
+        return { text: '🎨 Creativo Digital', bg: 'bg-violet-100 text-violet-800 border-violet-300 font-bold' };
+      case 'COMMUNITY_MANAGER':
+        return { text: '📲 Community Manager', bg: 'bg-sky-100 text-sky-800 border-sky-300 font-bold' };
+      case 'JEFE_MONETIZACION':
+        return { text: '💎 Jefe de Monetización', bg: 'bg-amber-100 text-amber-950 border-amber-400 font-extrabold' };
       case 'ADMIN':
         return { text: 'Administrador', bg: 'bg-slate-100 text-slate-700 border-slate-200' };
       default:

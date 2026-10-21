@@ -42,12 +42,13 @@ function NewOrderForm() {
   const typeParam = searchParams.get('type')?.toUpperCase();
 
   // Categoría principal: TV (Tradicional) vs DIGITAL (Redes & Web)
+  const isDigitalRole = user?.role === 'EJECUTIVA_DIGITAL' || user?.role === 'CREATIVO_DIGITAL' || user?.role === 'COMMUNITY_MANAGER' || user?.role === 'JEFE_MONETIZACION';
   const [orderCategory, setOrderCategory] = useState<'TV' | 'DIGITAL'>(
     typeParam === 'DIGITAL' 
       ? 'DIGITAL' 
       : typeParam === 'TV' 
       ? 'TV' 
-      : (user?.role === 'EJECUTIVA_DIGITAL' ? 'DIGITAL' : 'TV')
+      : (isDigitalRole ? 'DIGITAL' : 'TV')
   );
 
   useEffect(() => {
@@ -137,7 +138,7 @@ function NewOrderForm() {
         if (usersRes.ok) {
           const data = await usersRes.json();
           const allUsers = data.users || [];
-          const salesUsers = allUsers.filter((u: any) => u.status === 'APROBADO' && (u.role === 'SOLICITANTE' || u.role === 'EJECUTIVA_DIGITAL' || u.role === 'ADMIN' || u.role === 'PRODUCTOR_SENIOR' || u.role === 'COORDINADOR' || u.role === 'COORDINADOR_PRODUCTOR' || u.role === 'COORDINADORA_VENTAS'));
+          const salesUsers = allUsers.filter((u: any) => u.status === 'APROBADO' && (u.role === 'SOLICITANTE' || u.role === 'EJECUTIVA_DIGITAL' || u.role === 'CREATIVO_DIGITAL' || u.role === 'COMMUNITY_MANAGER' || u.role === 'JEFE_MONETIZACION' || u.role === 'ADMIN' || u.role === 'PRODUCTOR_SENIOR' || u.role === 'COORDINADOR' || u.role === 'COORDINADOR_PRODUCTOR' || u.role === 'COORDINADORA_VENTAS'));
           setExecutives(salesUsers);
         }
 

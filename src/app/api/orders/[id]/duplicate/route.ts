@@ -30,7 +30,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     // Resolve executive and initials
     let targetExecutive: { id: string; name?: string | null; initials?: string | null } | null = sourceOrder.executive;
-    if (!targetExecutive && (user.role === 'SOLICITANTE' || user.role === 'EJECUTIVA_DIGITAL')) {
+    if (!targetExecutive && (user.role === 'SOLICITANTE' || user.role === 'EJECUTIVA_DIGITAL' || user.role === 'CREATIVO_DIGITAL' || user.role === 'COMMUNITY_MANAGER' || user.role === 'JEFE_MONETIZACION')) {
       targetExecutive = user;
     }
 
