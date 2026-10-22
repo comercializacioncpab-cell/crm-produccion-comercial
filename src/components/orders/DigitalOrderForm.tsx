@@ -24,6 +24,7 @@ import {
   DIGITAL_KPIS, 
   DIGITAL_RESOURCES_LIST 
 } from '@/lib/order-utils';
+import EditorialRequestForm, { EditorialFormData } from './EditorialRequestForm';
 
 export interface DigitalOrderFormProps {
   formData: {
@@ -106,6 +107,40 @@ export default function DigitalOrderForm({
   setNewsroomFormData,
 }: DigitalOrderFormProps) {
   const selectedExec = executives.find((e) => e.id === selectedExecutiveId);
+
+  const syncEditorialData = () => {
+    const prefilledData: EditorialFormData = {
+      executiveName: selectedExec?.name || user?.name || '',
+      clientAgency: formData.clientAgency || '',
+      product: formData.product || '',
+      campaign: digitalData.campaign || '',
+      contentObjective: digitalData.contentObjective === 'OTRO' ? digitalData.customKpi : digitalData.contentObjective,
+      orderDescription: digitalData.orderDescription || '',
+      receptionDate: digitalData.receptionDate || '',
+      publishDate: digitalData.publishDate || '',
+      materialDeliveryDate: digitalData.materialDeliveryDate || '',
+      finishedProductDeliveryDate: digitalData.finishedProductDeliveryDate || '',
+      platformsAndFormats: digitalMatrix,
+      publicationAccount: digitalData.publicationAccount || '',
+      isNewsroomSegment: Boolean(digitalData.isNewsroomSegment),
+      newsroomSegmentDetail: digitalData.newsroomSegmentType || '',
+      rights: newsroomFormData?.rights || '',
+      resources: Object.keys(digitalData.resources || {}).reduce((acc: any, key: string) => {
+        const item = digitalData.resources[key];
+        acc[key] = {
+          applied: (item && typeof item === 'object') ? (item as any).applied : item === 'SI',
+          detail: (item && typeof item === 'object') ? (item as any).detail || '' : '',
+          fileUrl: (item && typeof item === 'object') ? (item as any).fileUrl || '' : '',
+          invitationAttached: newsroomFormData?.resources?.[key]?.invitationAttached || false,
+        };
+        return acc;
+      }, {}),
+      specialInstructions: newsroomFormData?.specialInstructions || digitalData.specialInstructions || '',
+      orderNumber: manualOrderNumber ? `SPD-${activeInitials}-${manualOrderNumber}` : undefined,
+      oiNumber: oiNumber || undefined,
+    };
+    setNewsroomFormData(prefilledData);
+  };
 
   const toggleMatrixCell = (format: string, networkId: string) => {
     setDigitalMatrix((prev) => {
@@ -995,7 +1030,13 @@ export default function DigitalOrderForm({
             <input
               type="checkbox"
               checked={requiresNewsroom}
-              onChange={(e) => setRequiresNewsroom(e.target.checked)}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setRequiresNewsroom(checked);
+                if (checked && (!newsroomFormData?.clientAgency || !newsroomFormData?.product)) {
+                  syncEditorialData();
+                }
+              }}
               className="mt-1 w-5 h-5 rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
             />
             <div className="space-y-1">
@@ -1014,106 +1055,34 @@ export default function DigitalOrderForm({
             </div>
           </label>
 
-          {/* Subformulario desplegable pre-llenado con datos de la SPD */}
+          {/* Subformulario oficial de Solicitud Editorial */}
           {requiresNewsroom && (
-            <div className="mt-5 p-5 bg-gradient-to-b from-amber-50/50 to-white rounded-2xl border border-amber-200 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-amber-200/80">
-                <div className="flex items-center gap-2">
-                  <span className="text-amber-700 font-extrabold text-sm">📋</span>
-                  <h3 className="text-xs font-black uppercase text-amber-950">
-                    Formulario de Solicitud Editorial (EV Digital + Comercial)
-                  </h3>
-                </div>
-                <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-300">
-                  Pre-llenado automático desde la SPD
-                </span>
-              </div>
-
-              {/* Resumen pre-llenado */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-3 rounded-xl border border-amber-100 text-[11px]">
-                <div>
-                  <span className="text-slate-400 block font-semibold">Ejecutiva:</span>
-                  <span className="font-bold text-slate-800">{selectedExec?.name || user?.name}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block font-semibold">Cliente / Marca:</span>
-                  <span className="font-bold text-slate-800">{formData.clientAgency || '(Sin cliente)'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block font-semibold">Producto:</span>
-                  <span className="font-bold text-slate-800">{formData.product || '(Sin producto)'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block font-semibold">Campaña:</span>
-                  <span className="font-bold text-slate-800">{digitalData.campaign || '(Sin campaña)'}</span>
-                </div>
-              </div>
-
-              {/* Campos específicos para Redacción */}
-              <div className="space-y-3 pt-2">
-                <div>
-                  <label className="block text-xs font-bold text-slate-800 mb-1">
-                    Detalle de la Cobertura / Pauta para Redacción:
-                  </label>
-                  <textarea
-                    rows={3}
-                    placeholder="Describe los temas centrales que el periodista o redactor debe abordar, ángulos de la noticia, voceros clave o preguntas clave..."
-                    value={newsroomFormData.editorialDetails || ''}
-                    onChange={(e) => setNewsroomFormData({ ...newsroomFormData, editorialDetails: e.target.value })}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none bg-white text-slate-900"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Contacto en Sitio / Vocero de la Marca:
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ej: Lic. Carlos Pérez (0991234567)"
-                      value={newsroomFormData.onSiteContact || ''}
-                      onChange={(e) => setNewsroomFormData({ ...newsroomFormData, onSiteContact: e.target.value })}
-                      className="w-full p-2 rounded-lg border border-slate-200 text-xs font-medium bg-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Entregable Esperado de Redacción:
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ej: Nota web en ecuavisa.com + 2 reels de cobertura"
-                      value={newsroomFormData.expectedDeliverable || ''}
-                      onChange={(e) => setNewsroomFormData({ ...newsroomFormData, expectedDeliverable: e.target.value })}
-                      className="w-full p-2 rounded-lg border border-slate-200 text-xs font-medium bg-white"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  <label className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white cursor-pointer text-xs font-bold text-slate-700 hover:bg-slate-50">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(newsroomFormData.requiresJournalist)}
-                      onChange={(e) => setNewsroomFormData({ ...newsroomFormData, requiresJournalist: e.target.checked })}
-                      className="w-4 h-4 text-amber-600 rounded"
-                    />
-                    <span>🎤 Requiere Periodista / Redactor en sitio</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white cursor-pointer text-xs font-bold text-slate-700 hover:bg-slate-50">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(newsroomFormData.requiresCameraperson)}
-                      onChange={(e) => setNewsroomFormData({ ...newsroomFormData, requiresCameraperson: e.target.checked })}
-                      className="w-4 h-4 text-amber-600 rounded"
-                    />
-                    <span>📹 Requiere Camarógrafo de Redacción</span>
-                  </label>
-                </div>
-              </div>
+            <div className="mt-5 space-y-4">
+              <EditorialRequestForm
+                data={{
+                  ...newsroomFormData,
+                  executiveName: newsroomFormData?.executiveName ?? (selectedExec?.name || user?.name || ''),
+                  clientAgency: newsroomFormData?.clientAgency !== undefined ? newsroomFormData.clientAgency : (formData.clientAgency || ''),
+                  product: newsroomFormData?.product !== undefined ? newsroomFormData.product : (formData.product || ''),
+                  campaign: newsroomFormData?.campaign !== undefined ? newsroomFormData.campaign : (digitalData.campaign || ''),
+                  contentObjective: newsroomFormData?.contentObjective !== undefined ? newsroomFormData.contentObjective : (digitalData.contentObjective === 'OTRO' ? digitalData.customKpi : digitalData.contentObjective),
+                  orderDescription: newsroomFormData?.orderDescription !== undefined ? newsroomFormData.orderDescription : (digitalData.orderDescription || ''),
+                  receptionDate: newsroomFormData?.receptionDate !== undefined ? newsroomFormData.receptionDate : (digitalData.receptionDate || ''),
+                  publishDate: newsroomFormData?.publishDate !== undefined ? newsroomFormData.publishDate : (digitalData.publishDate || ''),
+                  materialDeliveryDate: newsroomFormData?.materialDeliveryDate !== undefined ? newsroomFormData.materialDeliveryDate : (digitalData.materialDeliveryDate || ''),
+                  finishedProductDeliveryDate: newsroomFormData?.finishedProductDeliveryDate !== undefined ? newsroomFormData.finishedProductDeliveryDate : (digitalData.finishedProductDeliveryDate || ''),
+                  platformsAndFormats: newsroomFormData?.platformsAndFormats || digitalMatrix,
+                  publicationAccount: newsroomFormData?.publicationAccount !== undefined ? newsroomFormData.publicationAccount : (digitalData.publicationAccount || ''),
+                  newsroomSegmentDetail: newsroomFormData?.newsroomSegmentDetail !== undefined ? newsroomFormData.newsroomSegmentDetail : (digitalData.newsroomSegmentType || ''),
+                  orderNumber: manualOrderNumber ? `SPD-${activeInitials}-${manualOrderNumber}` : undefined,
+                  oiNumber: oiNumber || undefined,
+                }}
+                isEditable={true}
+                onChange={(updated) => setNewsroomFormData(updated)}
+                onSyncFromSP={syncEditorialData}
+                orderNumber={manualOrderNumber ? `SPD-${activeInitials}-${manualOrderNumber}` : undefined}
+                oiNumber={oiNumber || undefined}
+              />
             </div>
           )}
         </div>

@@ -9,17 +9,20 @@ import {
   DIGITAL_FORMATS,
   DIGITAL_RESOURCES_LIST
 } from '@/lib/order-utils';
-import { Printer, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { Printer, ArrowLeft, ShieldCheck, Newspaper, FileText } from 'lucide-react';
 import Link from 'next/link';
+import EditorialRequestForm from '@/components/orders/EditorialRequestForm';
 
 export default function PrintOrderPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const orderId = params.id as string;
   const token = searchParams.get('token') || '';
+  const typeParam = searchParams.get('type') || '';
 
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'SP' | 'EDITORIAL'>(typeParam === 'editorial' ? 'EDITORIAL' : 'SP');
 
   useEffect(() => {
     async function load() {
@@ -61,6 +64,14 @@ export default function PrintOrderPage() {
     }
   })();
 
+  const newsroomParsed = (() => {
+    try {
+      return order.newsroomData ? (typeof order.newsroomData === 'string' ? JSON.parse(order.newsroomData) : order.newsroomData) : {};
+    } catch {
+      return {};
+    }
+  })();
+
   const sponsorshipParsed = (() => {
     try {
       return JSON.parse(order.sponsorshipTypes || '[]');
@@ -72,30 +83,91 @@ export default function PrintOrderPage() {
   return (
     <div className="bg-slate-200 min-h-screen py-6 px-4 print:p-0 print:bg-white text-slate-900 font-sans">
       {/* Floating Action Controls (Hidden on Print) */}
-      <div className="max-w-4xl mx-auto mb-4 flex items-center justify-between no-print gap-2">
-        {token ? (
-          <div className="flex items-center gap-2 bg-emerald-50 text-emerald-900 border border-emerald-200 px-3.5 py-2 rounded-xl text-xs font-bold shadow-2xs">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>Ficha Oficial Ecuavisa (Acceso Externo Seguro)</span>
-          </div>
-        ) : (
-          <Link
-            href={`/orders/${order.id}`}
-            className="bg-white hover:bg-slate-50 text-slate-700 px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm border border-slate-300 transition-all cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" /> Volver a la SP
-          </Link>
-        )}
+      <div className="max-w-4xl mx-auto mb-4 flex flex-col sm:flex-row sm:items-center justify-between no-print gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {token ? (
+            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-900 border border-emerald-200 px-3.5 py-2 rounded-xl text-xs font-bold shadow-2xs">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <span>Ficha Oficial Ecuavisa (Acceso Externo Seguro)</span>
+            </div>
+          ) : (
+            <Link
+              href={`/orders/${order.id}`}
+              className="bg-white hover:bg-slate-50 text-slate-700 px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm border border-slate-300 transition-all cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" /> Volver a la SP
+            </Link>
+          )}
+
+          {/* Selector de Ficha (SP vs Formato Editorial OI) */}
+          {order.requiresNewsroom && (
+            <div className="flex items-center bg-white p-1 rounded-xl border border-slate-300 shadow-xs">
+              <button
+                type="button"
+                onClick={() => setActiveTab('SP')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'SP'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Ficha de Producción (SP)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('EDITORIAL')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'EDITORIAL'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Newspaper className="w-3.5 h-3.5" />
+                <span>Formulario Editorial (OI)</span>
+              </button>
+            </div>
+          )}
+        </div>
 
         <button
           onClick={() => window.print()}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2 rounded-xl text-xs flex items-center gap-2 shadow-md transition-all cursor-pointer"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2 rounded-xl text-xs flex items-center gap-2 shadow-md transition-all cursor-pointer self-end sm:self-auto"
         >
           <Printer className="w-4 h-4" /> 🖨️ Imprimir / Guardar como PDF
         </button>
       </div>
 
-      {isDigital ? (
+      {activeTab === 'EDITORIAL' && order.requiresNewsroom ? (
+        <div className="max-w-4xl mx-auto bg-white p-4 sm:p-8 rounded-2xl shadow-xl print:shadow-none print:p-0 print:rounded-none mb-8 print-page">
+          <EditorialRequestForm
+            data={{
+              ...(newsroomParsed || {}),
+              executiveName: newsroomParsed?.executiveName || order.executive?.name || order.creator?.name || '',
+              clientAgency: newsroomParsed?.clientAgency || order.clientAgency,
+              product: newsroomParsed?.product || order.product,
+              campaign: newsroomParsed?.campaign || order.campaign,
+              contentObjective: newsroomParsed?.contentObjective || order.contentObjective,
+              orderDescription: newsroomParsed?.orderDescription || order.orderDescription,
+              receptionDate: newsroomParsed?.receptionDate || order.receptionDate,
+              publishDate: newsroomParsed?.publishDate || order.publishDate,
+              materialDeliveryDate: newsroomParsed?.materialDeliveryDate || order.materialDeliveryDate,
+              finishedProductDeliveryDate: newsroomParsed?.finishedProductDeliveryDate || digitalParsed.finishedProductDeliveryDate,
+              platformsAndFormats: newsroomParsed?.platformsAndFormats || digitalParsed.platformsAndFormats,
+              publicationAccount: newsroomParsed?.publicationAccount || digitalParsed.publicationAccount,
+              newsroomSegmentDetail: newsroomParsed?.newsroomSegmentDetail || digitalParsed.newsroomDetails?.segmentType,
+              rights: newsroomParsed?.rights,
+              resources: newsroomParsed?.resources || digitalParsed.resources,
+              specialInstructions: newsroomParsed?.specialInstructions || digitalParsed.specialInstructions,
+              orderNumber: order.orderNumber,
+              oiNumber: order.oiNumber,
+            }}
+            isEditable={false}
+            orderNumber={order.orderNumber}
+            oiNumber={order.oiNumber}
+          />
+        </div>
+      ) : isDigital ? (
         <div className="max-w-4xl mx-auto bg-white p-8 rounded-2xl shadow-xl print:shadow-none print:p-0 print:rounded-none mb-8 print-page">
           {/* Header Bar */}
           <div className="flex items-stretch border-2 border-slate-900 mb-2">

@@ -128,13 +128,7 @@ function NewOrderForm() {
   const [manualOrderNumber, setManualOrderNumber] = useState('');
   const [oiNumber, setOiNumber] = useState('');
   const [requiresNewsroom, setRequiresNewsroom] = useState(false);
-  const [newsroomFormData, setNewsroomFormData] = useState({
-    editorialDetails: '',
-    onSiteContact: '',
-    expectedDeliverable: '',
-    requiresJournalist: false,
-    requiresCameraperson: false,
-  });
+  const [newsroomFormData, setNewsroomFormData] = useState<any>({});
   const [files, setFiles] = useState<{ name: string; size: number; fileObj?: File }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -374,20 +368,28 @@ function NewOrderForm() {
       const resolvedExecutiveId = selectedExecutiveId || user?.id || null;
       const isDigital = orderCategory === 'DIGITAL';
 
+      const resolvedExecutiveName = newsroomFormData.executiveName || selectedExec?.name || user?.name || '';
       const newsroomPayload = requiresNewsroom ? {
+        executiveName: resolvedExecutiveName,
+        clientAgency: newsroomFormData.clientAgency !== undefined ? newsroomFormData.clientAgency : formData.clientAgency,
+        product: newsroomFormData.product !== undefined ? newsroomFormData.product : formData.product,
+        campaign: newsroomFormData.campaign !== undefined ? newsroomFormData.campaign : (isDigital ? digitalData.campaign : undefined),
+        contentObjective: newsroomFormData.contentObjective !== undefined ? newsroomFormData.contentObjective : (isDigital ? (digitalData.contentObjective === 'OTRO' ? digitalData.customKpi : digitalData.contentObjective) : undefined),
+        orderDescription: newsroomFormData.orderDescription !== undefined ? newsroomFormData.orderDescription : (isDigital ? digitalData.orderDescription : undefined),
+        receptionDate: newsroomFormData.receptionDate !== undefined ? newsroomFormData.receptionDate : (isDigital ? digitalData.receptionDate : undefined),
+        publishDate: newsroomFormData.publishDate !== undefined ? newsroomFormData.publishDate : (isDigital ? digitalData.publishDate : undefined),
+        materialDeliveryDate: newsroomFormData.materialDeliveryDate !== undefined ? newsroomFormData.materialDeliveryDate : (isDigital ? digitalData.materialDeliveryDate : undefined),
+        finishedProductDeliveryDate: newsroomFormData.finishedProductDeliveryDate !== undefined ? newsroomFormData.finishedProductDeliveryDate : (isDigital ? digitalData.finishedProductDeliveryDate : undefined),
+        platformsAndFormats: newsroomFormData.platformsAndFormats || digitalMatrix,
+        publicationAccount: newsroomFormData.publicationAccount !== undefined ? newsroomFormData.publicationAccount : (isDigital ? digitalData.publicationAccount : undefined),
+        isNewsroomSegment: newsroomFormData.isNewsroomSegment !== undefined ? newsroomFormData.isNewsroomSegment : (isDigital ? digitalData.isNewsroomSegment : false),
+        newsroomSegmentDetail: newsroomFormData.newsroomSegmentDetail !== undefined ? newsroomFormData.newsroomSegmentDetail : (isDigital ? digitalData.newsroomSegmentType : undefined),
+        rights: newsroomFormData.rights || '',
+        resources: newsroomFormData.resources || (isDigital ? digitalData.resources : {}),
+        specialInstructions: newsroomFormData.specialInstructions || (isDigital ? digitalData.specialInstructions : ''),
         ...newsroomFormData,
-        executive: selectedExec?.name || user?.name,
-        client: formData.clientAgency,
-        product: formData.product,
-        campaign: isDigital ? digitalData.campaign : undefined,
-        kpi: isDigital ? (digitalData.contentObjective === 'OTRO' ? digitalData.customKpi : digitalData.contentObjective) : undefined,
-        publishDate: isDigital ? digitalData.publishDate : undefined,
-        coverageDetails: isDigital ? {
-          segmentType: digitalData.newsroomSegmentType,
-          date: digitalData.newsroomDate,
-          time: digitalData.newsroomTime,
-          location: digitalData.newsroomLocation,
-        } : undefined,
+        // Mantener compatibilidad con nombres anteriores
+        editorialDetails: newsroomFormData.specialInstructions || newsroomFormData.editorialDetails || (isDigital ? digitalData.orderDescription : ''),
       } : null;
 
       const payload = isDigital

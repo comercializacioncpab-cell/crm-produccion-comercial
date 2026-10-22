@@ -19,8 +19,12 @@ import {
   User, 
   ExternalLink,
   Sparkles,
-  AlertCircle
+  AlertCircle,
+  Printer,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
+import EditorialRequestForm from '@/components/orders/EditorialRequestForm';
 
 export default function RedaccionWorkboardPage() {
   const { user } = useAuth();
@@ -30,6 +34,7 @@ export default function RedaccionWorkboardPage() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDIENTE' | 'RECIBIDO' | 'INGRESADO' | 'ENTREGADO'>('ALL');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
   const fetchOrders = async () => {
     try {
@@ -343,13 +348,36 @@ export default function RedaccionWorkboardPage() {
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedOrderId(expandedOrderId === ord.id ? null : ord.id)}
+                        className={`text-xs font-bold px-3 py-1.5 rounded-xl border flex items-center gap-1.5 transition-colors cursor-pointer ${
+                          expandedOrderId === ord.id
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200'
+                        }`}
+                      >
+                        <Newspaper className="w-3.5 h-3.5" />
+                        <span>{expandedOrderId === ord.id ? 'Ocultar Formato' : '📋 Ver Formulario Editorial (OI)'}</span>
+                        {expandedOrderId === ord.id ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                      </button>
+
+                      <Link
+                        href={`/orders/${ord.id}/print?type=editorial`}
+                        target="_blank"
+                        className="text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl border border-slate-200 flex items-center gap-1 transition-colors"
+                      >
+                        <Printer className="w-3.5 h-3.5 text-slate-600" />
+                        <span>🖨️ PDF</span>
+                      </Link>
+
                       <Link
                         href={`/orders/${ord.id}`}
                         className="text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 flex items-center gap-1 transition-colors"
                       >
                         <Eye className="w-3.5 h-3.5 text-slate-500" />
-                        <span>Ver SP Completa</span>
+                        <span>Ver SP</span>
                       </Link>
                     </div>
                   </div>
@@ -497,6 +525,53 @@ export default function RedaccionWorkboardPage() {
                       </button>
                     </div>
                   </div>
+
+                  {/* Vista Desplegable del Formulario de Solicitud Editorial Oficial */}
+                  {expandedOrderId === ord.id && (
+                    <div className="pt-4 border-t border-slate-200 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                          <span>📋</span>
+                          <span>Ficha Oficial Editorial (EV Digital + Comercial)</span>
+                        </div>
+                        <Link
+                          href={`/orders/${ord.id}/print?type=editorial`}
+                          target="_blank"
+                          className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1 rounded-lg flex items-center gap-1 transition-all"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                          <span>Abrir versión para Imprimir</span>
+                        </Link>
+                      </div>
+
+                      <EditorialRequestForm
+                        data={{
+                          ...newsroomInfo,
+                          executiveName: newsroomInfo.executiveName || ord.executive?.name || ord.creator?.name || '',
+                          clientAgency: newsroomInfo.clientAgency || ord.clientAgency,
+                          product: newsroomInfo.product || ord.product,
+                          campaign: newsroomInfo.campaign || ord.campaign,
+                          contentObjective: newsroomInfo.contentObjective || ord.contentObjective,
+                          orderDescription: newsroomInfo.orderDescription || ord.orderDescription,
+                          receptionDate: newsroomInfo.receptionDate || ord.receptionDate,
+                          publishDate: newsroomInfo.publishDate || ord.publishDate,
+                          materialDeliveryDate: newsroomInfo.materialDeliveryDate || ord.materialDeliveryDate,
+                          finishedProductDeliveryDate: newsroomInfo.finishedProductDeliveryDate || digData.finishedProductDeliveryDate,
+                          platformsAndFormats: newsroomInfo.platformsAndFormats || digData.platformsAndFormats,
+                          publicationAccount: newsroomInfo.publicationAccount || digData.publicationAccount,
+                          newsroomSegmentDetail: newsroomInfo.newsroomSegmentDetail || digData.newsroomDetails?.segmentType,
+                          rights: newsroomInfo.rights,
+                          resources: newsroomInfo.resources || digData.resources,
+                          specialInstructions: newsroomInfo.specialInstructions || digData.specialInstructions,
+                          orderNumber: ord.orderNumber,
+                          oiNumber: ord.oiNumber,
+                        }}
+                        isEditable={false}
+                        orderNumber={ord.orderNumber}
+                        oiNumber={ord.oiNumber}
+                      />
+                    </div>
+                  )}
                 </div>
               );
             })}

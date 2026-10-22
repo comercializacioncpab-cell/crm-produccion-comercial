@@ -62,6 +62,7 @@ import {
   DIGITAL_FORMATS,
   DIGITAL_RESOURCES_LIST
 } from '@/lib/order-utils';
+import EditorialRequestForm, { EditorialFormData } from '@/components/orders/EditorialRequestForm';
 
 export default function OrderDetailPage() {
   const { user } = useAuth();
@@ -1485,8 +1486,19 @@ export default function OrderDetailPage() {
               target="_blank"
               className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
             >
-              <Printer className="w-3.5 h-3.5 text-slate-500" /> Formato Oficial (Imprimir / PDF)
+              <Printer className="w-3.5 h-3.5 text-slate-500" /> Formato Oficial SP (PDF)
             </Link>
+
+            {/* Print Official Editorial Request Format (PDF) */}
+            {order.requiresNewsroom && (
+              <Link
+                href={`/orders/${order.id}/print?type=editorial`}
+                target="_blank"
+                className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
+              >
+                <Printer className="w-3.5 h-3.5 text-white" /> 📰 Formato Editorial (OI)
+              </Link>
+            )}
           </div>
         </div>
 
@@ -1900,6 +1912,70 @@ export default function OrderDetailPage() {
                     </div>
                   )}
                 </div>
+
+                {/* 📰 FORMULARIO DE SOLICITUD EDITORIAL OFICIAL (Si requiresNewsroom) */}
+                {order.requiresNewsroom && (
+                  <div className="space-y-3 pt-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">📰</span>
+                        <h3 className="text-xs font-black uppercase text-slate-800 tracking-wide">
+                          Formulario de Solicitud Editorial (EV Digital + Comercial)
+                        </h3>
+                        <span className="text-[10px] bg-blue-100 text-blue-900 border border-blue-200 px-2.5 py-0.5 rounded-full font-bold">
+                          Mesa de Redacción
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {canEditOrder && (
+                          <button
+                            type="button"
+                            onClick={openEditModal}
+                            className="bg-slate-100 hover:bg-slate-200 text-slate-800 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border border-slate-300 transition-all cursor-pointer"
+                          >
+                            <Edit className="w-3.5 h-3.5 text-blue-600" />
+                            <span>Modificar Formato</span>
+                          </button>
+                        )}
+                        <Link
+                          href={`/orders/${order.id}/print?type=editorial`}
+                          target="_blank"
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                          <span>🖨️ Ver / Imprimir Formato Editorial (PDF)</span>
+                        </Link>
+                      </div>
+                    </div>
+
+                    <EditorialRequestForm
+                      data={{
+                        ...(parsedNewsroomData || {}),
+                        executiveName: parsedNewsroomData?.executiveName || order.executive?.name || order.creator?.name || '',
+                        clientAgency: parsedNewsroomData?.clientAgency || order.clientAgency,
+                        product: parsedNewsroomData?.product || order.product,
+                        campaign: parsedNewsroomData?.campaign || order.campaign,
+                        contentObjective: parsedNewsroomData?.contentObjective || order.contentObjective,
+                        orderDescription: parsedNewsroomData?.orderDescription || order.orderDescription,
+                        receptionDate: parsedNewsroomData?.receptionDate || order.receptionDate,
+                        publishDate: parsedNewsroomData?.publishDate || order.publishDate,
+                        materialDeliveryDate: parsedNewsroomData?.materialDeliveryDate || order.materialDeliveryDate,
+                        finishedProductDeliveryDate: parsedNewsroomData?.finishedProductDeliveryDate || digitalParsed.finishedProductDeliveryDate,
+                        platformsAndFormats: parsedNewsroomData?.platformsAndFormats || digitalParsed.platformsAndFormats,
+                        publicationAccount: parsedNewsroomData?.publicationAccount || digitalParsed.publicationAccount,
+                        newsroomSegmentDetail: parsedNewsroomData?.newsroomSegmentDetail || digitalParsed.newsroomDetails?.segmentType,
+                        rights: parsedNewsroomData?.rights,
+                        resources: parsedNewsroomData?.resources || digitalParsed.resources,
+                        specialInstructions: parsedNewsroomData?.specialInstructions || digitalParsed.specialInstructions,
+                        orderNumber: order.orderNumber,
+                        oiNumber: order.oiNumber,
+                      }}
+                      isEditable={false}
+                      orderNumber={order.orderNumber}
+                      oiNumber={order.oiNumber}
+                    />
+                  </div>
+                )}
               </>
             ) : (
               <>
