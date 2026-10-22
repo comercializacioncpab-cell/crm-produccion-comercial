@@ -50,6 +50,13 @@ export async function GET(req: Request) {
       }
     }
 
+    // 📰 RESTRICCIÓN ESTRICTA PARA ROL REDACCIÓN:
+    // Solo pueden ver las SPD (Digital) en las que se chequeó el requerimiento a Redacción (requiresNewsroom: true) y su registro histórico
+    if (user.role === 'REDACCION') {
+      where.orderCategory = 'DIGITAL';
+      where.requiresNewsroom = true;
+    }
+
     if (executiveId && executiveId !== 'ALL') {
       where.executiveId = executiveId;
     }
@@ -102,6 +109,22 @@ export async function GET(req: Request) {
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    if (user.role === 'REDACCION') {
+      orders.forEach((o: any) => {
+        o.packageValue = null;
+        if (o.digitalData) {
+          try {
+            const dig = typeof o.digitalData === 'string' ? JSON.parse(o.digitalData) : o.digitalData;
+            if (dig && typeof dig === 'object') {
+              dig.financialCosts = undefined;
+              dig.packageValue = undefined;
+              o.digitalData = JSON.stringify(dig);
+            }
+          } catch {}
+        }
+      });
+    }
 
     return NextResponse.json({ orders });
   } catch (error) {

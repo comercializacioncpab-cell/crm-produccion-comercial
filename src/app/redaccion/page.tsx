@@ -43,9 +43,10 @@ export default function RedaccionWorkboardPage() {
       if (res.ok) {
         const data = await res.json();
         const allOrders = data.orders || [];
-        // Filter orders that require newsroom or have newsroomStatus
+        // Filtrar estrictamente solo las SPD (Digital) en las que se chequeó el box de Redacción (requiresNewsroom: true)
+        // Las SPD anteriores permanecen como registro histórico
         const newsroomOrders = allOrders.filter(
-          (o: any) => o.requiresNewsroom === true || Boolean(o.newsroomStatus)
+          (o: any) => o.requiresNewsroom === true && (o.orderCategory === 'DIGITAL' || o.orderNumber?.startsWith('SPD'))
         );
         setOrders(newsroomOrders);
       }
@@ -236,13 +237,13 @@ export default function RedaccionWorkboardPage() {
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-600">✅ Entregados</span>
+              <span className="text-xs font-bold text-slate-600">✅ Entregados (Registro)</span>
               <span className="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-black text-xs">
                 {countDelivered}
               </span>
             </div>
             <p className="text-2xl font-black text-slate-900 mt-2">{countDelivered}</p>
-            <p className="text-[10px] text-slate-500 mt-0.5">Coberturas finalizadas</p>
+            <p className="text-[10px] text-slate-500 mt-0.5">Historial y entregas pasadas</p>
           </button>
         </div>
 
@@ -252,7 +253,7 @@ export default function RedaccionWorkboardPage() {
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
             <input
               type="text"
-              placeholder="Buscar por SP, OI, cliente, producto o ejecutiva..."
+              placeholder="Buscar por SPD, OI, cliente, producto o ejecutiva..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
@@ -269,11 +270,11 @@ export default function RedaccionWorkboardPage() {
               onChange={(e) => setStatusFilter(e.target.value as any)}
               className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
             >
-              <option value="ALL">Todos los Estados ({orders.length})</option>
+              <option value="ALL">Todas las SPD con Redacción ({orders.length})</option>
               <option value="PENDIENTE">⏳ Pendientes ({countPending})</option>
               <option value="RECIBIDO">📥 Recibidos ({countReceived})</option>
               <option value="INGRESADO">✍️ Ingresados ({countEntered})</option>
-              <option value="ENTREGADO">✅ Entregados ({countDelivered})</option>
+              <option value="ENTREGADO">✅ Entregados / Registro Histórico ({countDelivered})</option>
             </select>
           </div>
         </div>

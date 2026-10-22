@@ -56,6 +56,12 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 });
     }
 
+    // 📰 Control de Acceso Estricto para REDACCIÓN:
+    // Solo tienen acceso a las SPD donde se haya chequeado el box de Redacción (requiresNewsroom: true)
+    if (user && user.role === 'REDACCION' && (!order.requiresNewsroom || order.orderCategory !== 'DIGITAL')) {
+      return NextResponse.json({ error: 'Acceso no autorizado a esta orden' }, { status: 403 });
+    }
+
     // Auto-generate clientReviewToken if not set yet
     if (!order.clientReviewToken) {
       const generatedToken = `${order.orderNumber.toLowerCase().replace(/[^a-z0-9]/g, '')}-${Date.now().toString(36)}`;
@@ -101,6 +107,20 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     if (!user) {
       if (token !== order.clientReviewToken) {
         return NextResponse.json({ error: 'Token de acceso inválido o expirado' }, { status: 403 });
+      }
+    }
+
+    if (user && user.role === 'REDACCION' && order) {
+      order.packageValue = null;
+      if (order.digitalData) {
+        try {
+          const dig = typeof order.digitalData === 'string' ? JSON.parse(order.digitalData) : order.digitalData;
+          if (dig && typeof dig === 'object') {
+            dig.financialCosts = undefined;
+            dig.packageValue = undefined;
+            order.digitalData = JSON.stringify(dig);
+          }
+        } catch {}
       }
     }
 

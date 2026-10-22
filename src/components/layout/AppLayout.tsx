@@ -34,8 +34,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!loading && user) {
-      if (user.role === 'REDACCION' && (pathname === '/dashboard' || pathname === '/' || pathname.startsWith('/orders/new') || pathname.startsWith('/financial') || pathname.startsWith('/users'))) {
-        router.push('/redaccion');
+      if (user.role === 'REDACCION') {
+        const isAllowedPath = pathname === '/redaccion' || pathname.startsWith('/orders/');
+        if (!isAllowedPath) {
+          router.push('/redaccion');
+        }
       }
     }
   }, [user, loading, router, pathname]);
@@ -88,10 +91,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       hasSubmenu: true,
     },
     {
-      name: user.role === 'REDACCION' ? 'Listado SPD / OI' : 'Todas las Órdenes',
+      name: 'Todas las Órdenes',
       href: '/orders',
       icon: Layers,
-      roles: ['SOLICITANTE', 'EJECUTIVA_DIGITAL', 'COORDINADORA_VENTAS', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR', 'CREATIVO_DIGITAL', 'COMMUNITY_MANAGER', 'JEFE_MONETIZACION', 'REDACCION'],
+      roles: ['SOLICITANTE', 'EJECUTIVA_DIGITAL', 'COORDINADORA_VENTAS', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR', 'CREATIVO_DIGITAL', 'COMMUNITY_MANAGER', 'JEFE_MONETIZACION'],
     },
     {
       name: 'Bandeja Coordinación',
