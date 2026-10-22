@@ -80,6 +80,8 @@ export default function Navbar() {
         return { text: '📲 Community Manager', bg: 'bg-sky-100 text-sky-800 border-sky-300 font-bold' };
       case 'JEFE_MONETIZACION':
         return { text: '💎 Jefe de Monetización', bg: 'bg-amber-100 text-amber-950 border-amber-400 font-extrabold' };
+      case 'REDACCION':
+        return { text: '📰 Redacción', bg: 'bg-rose-100 text-rose-900 border-rose-300 font-extrabold' };
       case 'ADMIN':
         return { text: 'Administrador', bg: 'bg-slate-100 text-slate-700 border-slate-200' };
       default:

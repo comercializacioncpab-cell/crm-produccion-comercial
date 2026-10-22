@@ -106,6 +106,9 @@ export default function OrderDetailPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [executives, setExecutives] = useState<any[]>([]);
   const [editFormData, setEditFormData] = useState({
+    orderNumber: '',
+    oiNumber: '',
+    requiresNewsroom: false,
     clientAgency: '',
     product: '',
     program: '',
@@ -172,6 +175,13 @@ export default function OrderDetailPage() {
     setCopiedPublicLink(false);
     setShowShareEmailModal(true);
   };
+
+  // Progress Inquiry States (Ejecutiva ↔ Post-Productor)
+  const [inquiryQuestion, setInquiryQuestion] = useState('Solicito información sobre el avance y status actual de la orden.');
+  const [inquiryAnswer, setInquiryAnswer] = useState('');
+  const [showInquiryForm, setShowInquiryForm] = useState(false);
+  const [inquiryLoading, setInquiryLoading] = useState(false);
+  const [newsroomLoading, setNewsroomLoading] = useState(false);
 
   const getPublicPdfUrl = () => {
     if (!order) return '';
@@ -777,6 +787,82 @@ export default function OrderDetailPage() {
     }
   };
 
+  const handleAskInquiry = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!inquiryQuestion.trim() || !order) return;
+    setInquiryLoading(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/progress-inquiry`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'ASK', question: inquiryQuestion }),
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Error al consultar avance');
+      }
+      const data = await res.json();
+      setOrder(data.order);
+      setMsg({ type: 'success', text: 'Consulta de avance enviada al post-productor exitosamente' });
+      setShowInquiryForm(false);
+      setInquiryQuestion('Solicito información sobre el avance y status actual de la orden.');
+    } catch (err: any) {
+      setMsg({ type: 'error', text: err.message || 'Error inesperado' });
+    } finally {
+      setInquiryLoading(false);
+    }
+  };
+
+  const handleRespondInquiry = async (inquiryId?: string) => {
+    if (!inquiryAnswer.trim() || !order) {
+      alert('Por favor escribe el detalle del avance antes de enviar.');
+      return;
+    }
+    setInquiryLoading(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/progress-inquiry`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'RESPOND', answer: inquiryAnswer, inquiryId }),
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Error al responder consulta');
+      }
+      const data = await res.json();
+      setOrder(data.order);
+      setMsg({ type: 'success', text: 'Reporte de avance enviado a la ejecutiva por correo y notificación' });
+      setInquiryAnswer('');
+    } catch (err: any) {
+      setMsg({ type: 'error', text: err.message || 'Error inesperado' });
+    } finally {
+      setInquiryLoading(false);
+    }
+  };
+
+  const handleUpdateNewsroomStatus = async (newStatus: string) => {
+    if (!order) return;
+    setNewsroomLoading(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'UPDATE_NEWSROOM_STATUS', newsroomStatus: newStatus }),
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Error al actualizar estado de redacción');
+      }
+      const data = await res.json();
+      setOrder(data.order);
+      setMsg({ type: 'success', text: `Estado de Redacción actualizado a "${newStatus}"` });
+    } catch (err: any) {
+      setMsg({ type: 'error', text: err.message || 'Error inesperado' });
+    } finally {
+      setNewsroomLoading(false);
+    }
+  };
+
   const downloadWordDoc = () => {
     if (!order) return;
     const docHtml = `
@@ -922,6 +1008,9 @@ export default function OrderDetailPage() {
     }
 
     setEditFormData({
+      orderNumber: order.orderNumber || '',
+      oiNumber: order.oiNumber || '',
+      requiresNewsroom: Boolean(order.requiresNewsroom),
       clientAgency: order.clientAgency || '',
       product: order.product || '',
       program: order.program || '',
@@ -1158,6 +1247,23 @@ export default function OrderDetailPage() {
     }
   })();
 
+  const inquiriesList = (() => {
+    try {
+      return order?.progressInquiries ? JSON.parse(order.progressInquiries) : [];
+    } catch {
+      return [];
+    }
+  })();
+  const pendingInquiry = inquiriesList.find((i: any) => i.status === 'PENDING');
+
+  const parsedNewsroomData = (() => {
+    try {
+      return order?.newsroomData ? (typeof order.newsroomData === 'string' ? JSON.parse(order.newsroomData) : order.newsroomData) : null;
+    } catch {
+      return null;
+    }
+  })();
+
   const inputFiles = (order.files || []).filter((f: any) => f.fileType.startsWith('INPUT'));
   const outputFiles = (order.files || []).filter((f: any) => f.fileType.startsWith('OUTPUT'));
 
@@ -1243,6 +1349,11 @@ export default function OrderDetailPage() {
                 <h1 className="text-2xl font-black text-slate-900 font-mono">
                   {order.orderNumber}
                 </h1>
+                {order.oiNumber && (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-blue-100 text-blue-900 border border-blue-300 font-mono shadow-2xs">
+                    OI: {order.oiNumber}
+                  </span>
+                )}
                 {isDigital ? (
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-600 text-white border border-emerald-500 shadow-2xs flex items-center gap-1">
                     📱 SP Digital (Redes & Web)
@@ -1259,6 +1370,21 @@ export default function OrderDetailPage() {
                   {priorityInfo.label}
                 </span>
 
+                {/* Redacción Badge */}
+                {order.requiresNewsroom && (
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-black border flex items-center gap-1 shadow-2xs ${
+                    order.newsroomStatus === 'ENTREGADO'
+                      ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                      : order.newsroomStatus === 'INGRESADO'
+                      ? 'bg-purple-100 text-purple-900 border-purple-300'
+                      : order.newsroomStatus === 'RECIBIDO'
+                      ? 'bg-blue-100 text-blue-900 border-blue-300'
+                      : 'bg-amber-100 text-amber-900 border-amber-300'
+                  }`}>
+                    📰 Redacción: {order.newsroomStatus === 'ENTREGADO' ? '✅ Entregado' : order.newsroomStatus === 'INGRESADO' ? '✍️ Ingresado' : order.newsroomStatus === 'RECIBIDO' ? '📥 Recibido' : '⏳ Pendiente'}
+                  </span>
+                )}
+
                 {/* DEMO Badges */}
                 {order.isDemo ? (
                   <span className={`px-2.5 py-0.5 rounded-full text-xs font-black border flex items-center gap-1 ${
@@ -1269,7 +1395,7 @@ export default function OrderDetailPage() {
                     🧪 DEMO / Piloto ($0 USD) {order.demoStatus === 'VENDIDO' ? '• [VENDIDO 💰]' : '• [En Evaluación]'}
                   </span>
                 ) : (
-                  order.packageValue > 0 && (
+                  order.packageValue > 0 && user?.role !== 'REDACCION' && (
                     <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
                       💰 ${Number(order.packageValue).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
                     </span>
@@ -1551,12 +1677,14 @@ export default function OrderDetailPage() {
                         🎯 {order.contentObjective || 'N/A'}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-emerald-700 block text-[11px] font-bold">Valor Paquete Digital:</span>
-                      <strong className="text-emerald-900 font-black text-sm">
-                        ${Number(order.packageValue || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </strong>
-                    </div>
+                    {user?.role !== 'REDACCION' && (
+                      <div>
+                        <span className="text-emerald-700 block text-[11px] font-bold">Valor Paquete Digital:</span>
+                        <strong className="text-emerald-900 font-black text-sm">
+                          ${Number(order.packageValue || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </strong>
+                      </div>
+                    )}
                     {order.orderDescription && (
                       <div className="col-span-2 sm:col-span-6 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
                         <span className="text-slate-500 block text-[11px] font-bold mb-1 uppercase tracking-wider">
@@ -1829,12 +1957,14 @@ export default function OrderDetailPage() {
                     </span>
                   )}
                 </div>
-                <div>
-                  <span className="text-emerald-700 block text-[11px] font-bold">Valor Paquete:</span>
-                  <strong className="text-emerald-900 font-black text-sm">
-                    ${Number(order.packageValue || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </strong>
-                </div>
+                {user?.role !== 'REDACCION' && (
+                  <div>
+                    <span className="text-emerald-700 block text-[11px] font-bold">Valor Paquete:</span>
+                    <strong className="text-emerald-900 font-black text-sm">
+                      ${Number(order.packageValue || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </strong>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -2417,7 +2547,7 @@ export default function OrderDetailPage() {
             )}
 
             {/* PANEL DE GASTOS & RENTABILIDAD DEL PROYECTO (SP DIGITAL) */}
-            {order.orderCategory === 'DIGITAL' && (
+            {order.orderCategory === 'DIGITAL' && user?.role !== 'REDACCION' && (
               <div className="bg-white rounded-3xl border border-emerald-200 p-5 shadow-sm space-y-4">
                 <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                   <div className="flex items-center gap-2">
@@ -2834,6 +2964,253 @@ export default function OrderDetailPage() {
                 )}
               </div>
             )}
+
+            {/* PANEL: MESA DE REDACCIÓN (Si requiresNewsroom está activado) */}
+            {order.requiresNewsroom && (
+              <div className="bg-white rounded-3xl border border-amber-300 p-5 shadow-sm space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-amber-100">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-sm">
+                      📰
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-xs text-slate-900">Mesa de Redacción</h3>
+                      <p className="text-[10px] text-slate-500">Requerimiento Editorial & Cobertura</p>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
+                    order.newsroomStatus === 'ENTREGADO'
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                      : order.newsroomStatus === 'INGRESADO'
+                      ? 'bg-purple-100 text-purple-800 border-purple-300'
+                      : order.newsroomStatus === 'RECIBIDO'
+                      ? 'bg-blue-100 text-blue-800 border-blue-300'
+                      : 'bg-amber-100 text-amber-800 border-amber-300'
+                  }`}>
+                    {order.newsroomStatus === 'ENTREGADO' ? '✅ Entregado' : order.newsroomStatus === 'INGRESADO' ? '✍️ Ingresado' : order.newsroomStatus === 'RECIBIDO' ? '📥 Recibido' : '⏳ Pendiente'}
+                  </span>
+                </div>
+
+                {/* Resumen de Requerimiento */}
+                {parsedNewsroomData && (
+                  <div className="bg-amber-50/60 p-3 rounded-2xl border border-amber-200/80 space-y-2 text-xs">
+                    {parsedNewsroomData.editorialDetails && (
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-amber-900 block">Pauta Editorial:</span>
+                        <p className="text-slate-800 text-[11px]">{parsedNewsroomData.editorialDetails}</p>
+                      </div>
+                    )}
+                    {parsedNewsroomData.expectedDeliverable && (
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-amber-900 block">Entregable:</span>
+                        <p className="text-slate-800 text-[11px] font-bold">{parsedNewsroomData.expectedDeliverable}</p>
+                      </div>
+                    )}
+                    {parsedNewsroomData.onSiteContact && (
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-amber-900 block">Contacto en Sitio:</span>
+                        <p className="text-slate-800 text-[11px]">{parsedNewsroomData.onSiteContact}</p>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 pt-1">
+                      {parsedNewsroomData.requiresJournalist && (
+                        <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-md">
+                          🎤 Periodista
+                        </span>
+                      )}
+                      {parsedNewsroomData.requiresCameraperson && (
+                        <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-md">
+                          📹 Camarógrafo
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Botones de acción para Redacción / Coordinación / Admin */}
+                {(user?.role === 'REDACCION' || isCoordinator || user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR') && (
+                  <div className="space-y-1.5 pt-1">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                      Actualizar Estado de Redacción:
+                    </span>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateNewsroomStatus('RECIBIDO')}
+                        disabled={newsroomLoading || order.newsroomStatus === 'RECIBIDO'}
+                        className={`py-2 rounded-xl text-[11px] font-black transition-all flex items-center justify-center gap-1 cursor-pointer shadow-2xs ${
+                          order.newsroomStatus === 'RECIBIDO'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-blue-50 text-blue-800 border border-blue-200 hover:bg-blue-100'
+                        } disabled:opacity-50`}
+                      >
+                        <span>📥</span> Recibido
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateNewsroomStatus('INGRESADO')}
+                        disabled={newsroomLoading || order.newsroomStatus === 'INGRESADO'}
+                        className={`py-2 rounded-xl text-[11px] font-black transition-all flex items-center justify-center gap-1 cursor-pointer shadow-2xs ${
+                          order.newsroomStatus === 'INGRESADO'
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-purple-50 text-purple-800 border border-purple-200 hover:bg-purple-100'
+                        } disabled:opacity-50`}
+                      >
+                        <span>✍️</span> Ingresado
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateNewsroomStatus('ENTREGADO')}
+                        disabled={newsroomLoading || order.newsroomStatus === 'ENTREGADO'}
+                        className={`py-2 rounded-xl text-[11px] font-black transition-all flex items-center justify-center gap-1 cursor-pointer shadow-2xs ${
+                          order.newsroomStatus === 'ENTREGADO'
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                        } disabled:opacity-50`}
+                      >
+                        <span>✅</span> Entregado
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* PANEL: CONSULTA DE AVANCE (EJECUTIVA ↔ POST-PRODUCCIÓN) */}
+            <div className="bg-white rounded-3xl border border-sky-200 p-5 shadow-sm space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-sky-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-sm">
+                    💬
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-xs text-slate-900">Consulta de Avance</h3>
+                    <p className="text-[10px] text-slate-500">Ejecutiva ↔ Post-Producción</p>
+                  </div>
+                </div>
+                {inquiriesList.length > 0 && (
+                  <span className="text-[10px] font-black bg-sky-50 text-sky-800 border border-sky-200 px-2 py-0.5 rounded-full">
+                    {inquiriesList.length} {inquiriesList.length === 1 ? 'consulta' : 'consultas'}
+                  </span>
+                )}
+              </div>
+
+              {/* Si el usuario actual es la Ejecutiva o Coordinador o Admin: botón o formulario para consultar */}
+              {(user?.role === 'SOLICITANTE' || user?.role === 'EJECUTIVA_DIGITAL' || isCoordinator || user?.id === order.executiveId || user?.id === order.creatorId) && (
+                <div className="space-y-3">
+                  {!showInquiryForm ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowInquiryForm(true)}
+                      className="w-full bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 text-xs font-black py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      <span>Solicitar Información de Avance</span>
+                    </button>
+                  ) : (
+                    <form onSubmit={handleAskInquiry} className="p-3.5 bg-sky-50/70 border border-sky-200 rounded-2xl space-y-2.5">
+                      <label className="block text-[11px] font-bold text-sky-950">
+                        Pregunta o consulta para el Post-Productor:
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={inquiryQuestion}
+                        onChange={(e) => setInquiryQuestion(e.target.value)}
+                        placeholder="Ej: ¿Cómo va el avance del primer corte? ¿Cuándo se estima tener la versión lista?"
+                        className="w-full p-2.5 bg-white border border-sky-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-sky-500"
+                        required
+                      />
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowInquiryForm(false)}
+                          className="px-3 py-1.5 rounded-lg border border-slate-200 text-[11px] font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={inquiryLoading}
+                          className="px-4 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-[11px] font-black flex items-center gap-1 shadow-sm cursor-pointer disabled:opacity-50"
+                        >
+                          <Send className="w-3 h-3" />
+                          <span>{inquiryLoading ? 'Enviando...' : 'Enviar Consulta'}</span>
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              )}
+
+              {/* Si el usuario actual es Post-Productor (o Admin) y hay una consulta pendiente o desea responder */}
+              {(isPostProducerUser || order.postProducerId === user?.id || order.secondaryPostProducerId === user?.id || isCoordinator) && (
+                <div className="space-y-3 pt-1">
+                  <div className="p-3.5 bg-amber-50/90 border border-amber-300 rounded-2xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black text-amber-950 flex items-center gap-1">
+                        ✍️ Responder Status / Avance a la Ejecutiva:
+                      </span>
+                      {pendingInquiry && (
+                        <span className="text-[9px] font-extrabold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full animate-pulse">
+                          Consulta Pendiente
+                        </span>
+                      )}
+                    </div>
+                    {pendingInquiry && (
+                      <p className="text-[11px] text-amber-900 bg-white/80 p-2 rounded-xl border border-amber-200 italic">
+                        &quot;{pendingInquiry.question}&quot; — <span className="font-bold">{pendingInquiry.askedByUserName}</span>
+                      </p>
+                    )}
+                    <textarea
+                      rows={3}
+                      value={inquiryAnswer}
+                      onChange={(e) => setInquiryAnswer(e.target.value)}
+                      placeholder="Escribe el detalle del status actual, lo editado, tomas avanzadas o lo enviado por mail..."
+                      className="w-full p-2.5 bg-white border border-amber-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRespondInquiry(pendingInquiry?.id)}
+                      disabled={inquiryLoading || !inquiryAnswer.trim()}
+                      className="w-full bg-amber-600 hover:bg-amber-700 text-white text-xs font-black py-2 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>{inquiryLoading ? 'Enviando...' : 'Enviar Reporte de Avance a la Ejecutiva'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Historial de Consultas & Respuestas */}
+              {inquiriesList.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Historial de Consultas de Avance:
+                  </span>
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {inquiriesList.map((inq: any) => (
+                      <div key={inq.id} className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-slate-800 text-[11px]">{inq.askedByUserName}</span>
+                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${inq.status === 'RESPONDED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                            {inq.status === 'RESPONDED' ? '✓ Respondido' : '⏳ Pendiente'}
+                          </span>
+                        </div>
+                        <p className="text-slate-600 text-[11px]">{inq.question}</p>
+                        {inq.answer && (
+                          <div className="mt-1 pt-1 border-t border-slate-200/80 bg-white p-2 rounded-lg text-[11px]">
+                            <span className="font-bold text-emerald-800 block text-[10px]">
+                              Respuesta de {inq.respondedByUserName} ({formatDateTime(inq.respondedAt)}):
+                            </span>
+                            <p className="text-slate-800 mt-0.5">{inq.answer}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* PANEL 3: APROBACIÓN Y REVISIÓN (Solicitante / Coordinadora / Admin / Productor Senior / Coordinador-Productor) */}
             {(user?.role === 'SOLICITANTE' || isCoordinator) && (
@@ -3365,6 +3742,48 @@ export default function OrderDetailPage() {
                   <h4 className="font-black text-xs text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
                     🏢 1. Información General & Valor
                   </h4>
+
+                  {/* Nomenclatura SP y OI */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-blue-50/70 rounded-xl border border-blue-100">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Número de SP (Nomenclatura) *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={editFormData.orderNumber}
+                        onChange={(e) => setEditFormData({ ...editFormData, orderNumber: e.target.value })}
+                        placeholder="Ej. SPD-XU-101"
+                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Orden de Inserción (OI)
+                      </label>
+                      <input
+                        type="text"
+                        value={editFormData.oiNumber}
+                        onChange={(e) => setEditFormData({ ...editFormData, oiNumber: e.target.value })}
+                        placeholder="Ej. OI-5042"
+                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-black text-purple-700 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 p-3 bg-amber-50/70 border border-amber-200 rounded-xl">
+                    <input
+                      type="checkbox"
+                      id="editRequiresNewsroom"
+                      checked={Boolean(editFormData.requiresNewsroom)}
+                      onChange={(e) => setEditFormData({ ...editFormData, requiresNewsroom: e.target.checked })}
+                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500 cursor-pointer"
+                    />
+                    <label htmlFor="editRequiresNewsroom" className="text-xs font-bold text-amber-900 cursor-pointer select-none">
+                      📰 Requiere gestión en Mesa de Redacción
+                    </label>
+                  </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>

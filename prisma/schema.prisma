@@ -96,6 +96,15 @@ model ProductionOrder {
   clientApprovedBy     String?           // Nombre del contacto de la agencia o cliente
   clientNotes          String?           // Comentarios o ajustes del cliente
 
+  // 📰 Módulo de Redacción Editorial & Nomenclatura OI
+  oiNumber             String?           // Orden de Inserción (OI) ingresada manualmente
+  requiresNewsroom     Boolean           @default(false) // Si solicita trabajo o cobertura a Redacción
+  newsroomStatus       String?           @default("PENDIENTE") // PENDIENTE, RECIBIDO, INGRESADO, ENTREGADO
+  newsroomData         String?           // Formulario de Solicitud Editorial (JSON)
+
+  // 💬 Consultas de Avance (Ejecutiva ↔ Post-Productor)
+  progressInquiries    String?           // JSON serializado con historial de preguntas y respuestas de avance
+
   isDemo               Boolean           @default(false)
   demoStatus           String?           // PENDIENTE_VENTA, VENDIDO, DESCARTADO
   sourceDemoId         String?           // Si esta SP comercial proviene de un DEMO

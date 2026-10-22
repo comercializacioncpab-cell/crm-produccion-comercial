@@ -618,6 +618,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         receptionDate,
         publishDate,
         digitalData,
+        orderNumber,
+        oiNumber,
+        requiresNewsroom,
+        newsroomStatus,
+        newsroomData,
       } = body;
 
       const parsedPackageValue = packageValue !== undefined && packageValue !== null && packageValue !== ''
@@ -645,9 +650,18 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         ? JSON.stringify(currentDigital)
         : undefined;
 
+      const updatedNewsroomData = newsroomData !== undefined
+        ? (typeof newsroomData === 'object' && newsroomData !== null ? JSON.stringify(newsroomData) : String(newsroomData))
+        : undefined;
+
       updatedOrder = await prisma.productionOrder.update({
         where: { id },
         data: {
+          ...(orderNumber !== undefined && { orderNumber: orderNumber.trim() }),
+          ...(oiNumber !== undefined && { oiNumber: oiNumber ? oiNumber.trim() : null }),
+          ...(requiresNewsroom !== undefined && { requiresNewsroom: Boolean(requiresNewsroom) }),
+          ...(newsroomStatus !== undefined && { newsroomStatus }),
+          ...(updatedNewsroomData !== undefined && { newsroomData: updatedNewsroomData }),
           ...(clientAgency !== undefined && { clientAgency: clientAgency.trim() }),
           ...(product !== undefined && { product: product.trim() }),
           ...(campaign !== undefined && { campaign: campaign ? campaign.trim() : null }),
@@ -934,6 +948,193 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       }
 
       return NextResponse.json({ success: true, order: updatedOrder, message: 'SP enviada a Coordinación exitosamente' });
+    }
+
+    // 12. ACTION: UPDATE_NEWSROOM_STATUS (Mesa de Redacción)
+    if (action === 'UPDATE_NEWSROOM_STATUS') {
+      const { newsroomStatus } = body;
+      if (!['PENDIENTE', 'RECIBIDO', 'INGRESADO', 'ENTREGADO'].includes(newsroomStatus)) {
+        return NextResponse.json({ error: 'Estado de Redacción no válido' }, { status: 400 });
+      }
+
+      updatedOrder = await prisma.productionOrder.update({
+        where: { id },
+        data: { newsroomStatus },
+        include: {
+          creator: true,
+          executive: true,
+          postProducer: true,
+          secondaryPostProducer: true,
+          files: true,
+          activityLogs: true,
+        },
+      });
+
+      const statusLabels: Record<string, string> = {
+        RECIBIDO: '📥 Recibido',
+        INGRESADO: '✍️ Ingresado',
+        ENTREGADO: '✅ Entregado',
+        PENDIENTE: '⏳ Pendiente',
+      };
+
+      const label = statusLabels[newsroomStatus] || newsroomStatus;
+      await prisma.activityLog.create({
+        data: {
+          orderId: id,
+          userId: user.id,
+          action: 'REDACCION_STATUS',
+          details: `Mesa de Redacción marcó el requerimiento como "${label}" (${user.name}).`,
+        },
+      });
+
+      // Notify executive if RECIBIDO, INGRESADO, or ENTREGADO
+      const targetExec = order.executive || order.creator;
+      if (targetExec && targetExec.id !== user.id) {
+        await sendNotification({
+          userId: targetExec.id,
+          orderId: id,
+          type: 'STATUS_CHANGE',
+          title: `📰 Redacción: ${label} - ${order.orderNumber}`,
+          message: `El equipo de Redacción ha actualizado el estado de la cobertura/requerimiento editorial a "${label}" para la orden ${order.orderNumber} (${order.product}).`,
+          userPhone: targetExec.phone,
+          userEmail: targetExec.email,
+          orderNumber: order.orderNumber,
+        });
+      }
+
+      return NextResponse.json({ success: true, order: updatedOrder });
+    }
+
+    // 13. ACTION: PROGRESS_INQUIRY (Consulta de Avance: Ejecutiva ↔ Post-Productor)
+    if (action === 'PROGRESS_INQUIRY') {
+      const { subAction, question, answer, inquiryId } = body;
+
+      let inquiries: any[] = [];
+      try {
+        inquiries = order.progressInquiries ? JSON.parse(order.progressInquiries) : [];
+      } catch {
+        inquiries = [];
+      }
+
+      if (subAction === 'ASK') {
+        const newInquiry = {
+          id: `inq-${Date.now()}`,
+          createdAt: new Date().toISOString(),
+          askedByUserId: user.id,
+          askedByUserName: user.name,
+          question: question && question.trim() ? question.trim() : 'Solicito información sobre el avance y status actual de la orden.',
+          status: 'PENDING',
+        };
+        inquiries.unshift(newInquiry);
+
+        updatedOrder = await prisma.productionOrder.update({
+          where: { id },
+          data: { progressInquiries: JSON.stringify(inquiries) },
+          include: { creator: true, executive: true, postProducer: true, secondaryPostProducer: true },
+        });
+
+        await prisma.activityLog.create({
+          data: {
+            orderId: id,
+            userId: user.id,
+            action: 'CONSULTA_AVANCE',
+            details: `Consulta de avance solicitada por ${user.name}: "${newInquiry.question}"`,
+          },
+        });
+
+        // Notify assigned post-producers
+        const postUsers = [order.postProducer, order.secondaryPostProducer].filter(Boolean);
+        for (const pUser of postUsers) {
+          if (pUser && pUser.id !== user.id) {
+            await sendNotification({
+              userId: pUser.id,
+              orderId: id,
+              type: 'INQUIRY',
+              title: `🔔 Consulta de Avance: ${order.orderNumber}`,
+              message: `${user.name} solicita status de avance en la SP ${order.orderNumber} (${order.clientAgency} - ${order.product}): "${newInquiry.question}". Por favor responde a la brevedad.`,
+              userPhone: pUser.phone,
+              userEmail: pUser.email,
+              orderNumber: order.orderNumber,
+            });
+          }
+        }
+
+        return NextResponse.json({ success: true, order: updatedOrder, inquiries });
+      }
+
+      if (subAction === 'RESPOND') {
+        if (!answer || !answer.trim()) {
+          return NextResponse.json({ error: 'Debes escribir el detalle del avance antes de enviar.' }, { status: 400 });
+        }
+
+        let found = false;
+        inquiries = inquiries.map((inq: any) => {
+          if ((!inquiryId && inq.status === 'PENDING') || inq.id === inquiryId) {
+            found = true;
+            return {
+              ...inq,
+              status: 'RESPONDED',
+              answer: answer.trim(),
+              respondedAt: new Date().toISOString(),
+              respondedByUserId: user.id,
+              respondedByUserName: user.name,
+            };
+          }
+          return inq;
+        });
+
+        if (!found) {
+          inquiries.unshift({
+            id: `inq-${Date.now()}`,
+            createdAt: new Date().toISOString(),
+            askedByUserId: order.executiveId || order.creatorId,
+            askedByUserName: order.executive?.name || order.creator?.name || 'Ejecutiva',
+            question: 'Actualización periódica de avance',
+            status: 'RESPONDED',
+            answer: answer.trim(),
+            respondedAt: new Date().toISOString(),
+            respondedByUserId: user.id,
+            respondedByUserName: user.name,
+          });
+        }
+
+        updatedOrder = await prisma.productionOrder.update({
+          where: { id },
+          data: { progressInquiries: JSON.stringify(inquiries) },
+          include: { creator: true, executive: true, postProducer: true, secondaryPostProducer: true },
+        });
+
+        await prisma.activityLog.create({
+          data: {
+            orderId: id,
+            userId: user.id,
+            action: 'RESPUESTA_AVANCE',
+            details: `Reporte de avance emitido por ${user.name}: "${answer.trim()}"`,
+          },
+        });
+
+        const recipients = [order.executive, order.creator].filter(Boolean);
+        const uniqueRecipients = recipients.filter((r, idx, self) => r && self.findIndex(s => s?.id === r.id) === idx && r.id !== user.id);
+
+        for (const target of uniqueRecipients) {
+          if (target) {
+            await sendNotification({
+              userId: target.id,
+              orderId: id,
+              type: 'INQUIRY_REPLY',
+              title: `📋 Reporte de Avance: ${order.orderNumber}`,
+              message: `${user.name} (Post-Producción) ha respondido a la consulta de avance en ${order.orderNumber} (${order.product}): "${answer.trim()}".`,
+              userPhone: target.phone,
+              userEmail: target.email,
+              orderNumber: order.orderNumber,
+            });
+          }
+        }
+
+        return NextResponse.json({ success: true, order: updatedOrder, inquiries });
+      }
+
+      return NextResponse.json({ error: 'Acción de consulta no válida' }, { status: 400 });
     }
 
     // Generic update

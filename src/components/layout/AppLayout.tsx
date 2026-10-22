@@ -17,7 +17,8 @@ import {
   DollarSign,
   BarChart3,
   CalendarClock,
-  Sparkles
+  Sparkles,
+  Newspaper
 } from 'lucide-react';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -30,6 +31,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       router.push('/login');
     }
   }, [user, loading, router]);
+
+  useEffect(() => {
+    if (!loading && user) {
+      if (user.role === 'REDACCION' && (pathname === '/dashboard' || pathname === '/' || pathname.startsWith('/orders/new') || pathname.startsWith('/financial') || pathname.startsWith('/users'))) {
+        router.push('/redaccion');
+      }
+    }
+  }, [user, loading, router, pathname]);
 
   if (loading) {
     return (
@@ -45,6 +54,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   const navItems = [
+    {
+      name: 'Mesa de Redacción',
+      href: '/redaccion',
+      icon: Newspaper,
+      roles: ['REDACCION', 'COORDINADOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
+      highlight: true,
+    },
     {
       name: 'Dashboard General',
       href: '/dashboard',
@@ -72,10 +88,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       hasSubmenu: true,
     },
     {
-      name: 'Todas las Órdenes',
+      name: user.role === 'REDACCION' ? 'Listado SPD / OI' : 'Todas las Órdenes',
       href: '/orders',
       icon: Layers,
-      roles: ['SOLICITANTE', 'EJECUTIVA_DIGITAL', 'COORDINADORA_VENTAS', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR', 'CREATIVO_DIGITAL', 'COMMUNITY_MANAGER', 'JEFE_MONETIZACION'],
+      roles: ['SOLICITANTE', 'EJECUTIVA_DIGITAL', 'COORDINADORA_VENTAS', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR', 'CREATIVO_DIGITAL', 'COMMUNITY_MANAGER', 'JEFE_MONETIZACION', 'REDACCION'],
     },
     {
       name: 'Bandeja Coordinación',

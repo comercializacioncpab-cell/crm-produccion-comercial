@@ -70,6 +70,14 @@ export interface DigitalOrderFormProps {
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   removeFile: (index: number) => void;
   activeInitials: string;
+  manualOrderNumber: string;
+  setManualOrderNumber: (val: string) => void;
+  oiNumber: string;
+  setOiNumber: (val: string) => void;
+  requiresNewsroom: boolean;
+  setRequiresNewsroom: (val: boolean) => void;
+  newsroomFormData: any;
+  setNewsroomFormData: React.Dispatch<React.SetStateAction<any>>;
 }
 
 export default function DigitalOrderForm({
@@ -88,6 +96,14 @@ export default function DigitalOrderForm({
   handleFileChange,
   removeFile,
   activeInitials,
+  manualOrderNumber,
+  setManualOrderNumber,
+  oiNumber,
+  setOiNumber,
+  requiresNewsroom,
+  setRequiresNewsroom,
+  newsroomFormData,
+  setNewsroomFormData,
 }: DigitalOrderFormProps) {
   const selectedExec = executives.find((e) => e.id === selectedExecutiveId);
 
@@ -126,6 +142,67 @@ export default function DigitalOrderForm({
 
   return (
     <div className="space-y-6">
+      {/* 0. NOMENCLATURA SP Y ORDEN DE INSERCIÓN (OI) */}
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-lg">#</span>
+            <h2 className="text-xs font-black uppercase text-slate-800 tracking-wider">
+              Nomenclatura SP y Orden de Inserción (OI)
+            </h2>
+          </div>
+          <span className="text-[10px] text-slate-500 font-bold bg-slate-100 px-2.5 py-1 rounded-full">
+            Ingreso Manual de Códigos
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* N° SP Manual */}
+          <div>
+            <label className="block text-xs font-bold text-slate-800 mb-1">
+              Número de SP (Solicitud de Producción Digital) *
+            </label>
+            <div className="flex items-center shadow-xs rounded-xl overflow-hidden border border-slate-200 focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-emerald-500">
+              <span className="inline-flex items-center px-3.5 py-2.5 bg-emerald-100 text-emerald-950 font-mono font-black text-xs border-r border-emerald-200 select-none">
+                SPD-{activeInitials}-
+              </span>
+              <input
+                type="text"
+                value={manualOrderNumber}
+                onChange={(e) => setManualOrderNumber(e.target.value)}
+                placeholder="Ej: 1128"
+                className="flex-1 px-3.5 py-2.5 text-xs font-mono font-bold uppercase focus:outline-none bg-white text-slate-900"
+              />
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1">
+              El prefijo <strong>SPD-{activeInitials}-</strong> es fijo. Ingresa el número manual de la SP.
+            </p>
+          </div>
+
+          {/* N° OI Manual */}
+          <div>
+            <label className="block text-xs font-bold text-slate-800 mb-1">
+              Orden de Inserción (OI)
+            </label>
+            <div className="flex items-center shadow-xs rounded-xl overflow-hidden border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
+              <span className="inline-flex items-center px-3.5 py-2.5 bg-blue-100 text-blue-950 font-mono font-black text-xs border-r border-blue-200 select-none">
+                OI:
+              </span>
+              <input
+                type="text"
+                value={oiNumber}
+                onChange={(e) => setOiNumber(e.target.value)}
+                placeholder="Ej: 84920"
+                className="flex-1 px-3.5 py-2.5 text-xs font-mono font-bold uppercase focus:outline-none bg-white text-slate-900"
+              />
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Ingresa el número de Orden de Inserción para vinculación comercial.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* 1. SECCIÓN: EJECUTIVA */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm">
         <div className="px-6 py-3 bg-emerald-600 border-b border-emerald-700 text-white flex items-center justify-between rounded-t-3xl">
@@ -456,70 +533,66 @@ export default function DigitalOrderForm({
           </div>
 
           {/* Cobertura / Segmento de Redacción */}
-          <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl space-y-3">
-            <label className="flex items-center gap-2 cursor-pointer font-bold text-xs text-slate-900 select-none">
-              <input
-                type="checkbox"
-                checked={digitalData.isNewsroomSegment}
-                onChange={(e) => setDigitalData({ ...digitalData, isNewsroomSegment: e.target.checked })}
-                className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
+          <div className="bg-emerald-50/50 border border-emerald-200 p-4 rounded-2xl space-y-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-900 mb-1 flex items-center gap-2">
+                <span className="text-base">📹</span>
+                <span>Especificar si es un producto / segmento de la redacción:</span>
+              </label>
+              <textarea
+                rows={2}
+                placeholder="Escribe el detalle aquí (ej: Cobertura de evento en exteriores, cápsula de noticias, reportaje de redacción, entrevista especial...)"
+                value={digitalData.newsroomSegmentType || ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setDigitalData({
+                    ...digitalData,
+                    newsroomSegmentType: val,
+                    isNewsroomSegment: Boolean(val.trim()),
+                  });
+                }}
+                className="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white text-slate-900"
               />
-              <span>📹 Especificar si es un producto/segmento de la redacción (Cobertura en exteriores)</span>
-            </label>
+            </div>
 
-            {digitalData.isNewsroomSegment && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 bg-white p-3 rounded-xl border border-slate-200">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Tipo / Segmento:
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ej: COBERTURA EVENTO"
-                    value={digitalData.newsroomSegmentType}
-                    onChange={(e) => setDigitalData({ ...digitalData, newsroomSegmentType: e.target.value })}
-                    className="w-full p-2 rounded-lg border border-slate-200 text-xs font-bold uppercase"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Fecha del Evento:
-                  </label>
-                  <DatePicker
-                    value={digitalData.newsroomDate}
-                    onChange={(val) => setDigitalData({ ...digitalData, newsroomDate: val })}
-                    placeholder="dd/mm/aaaa"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Hora del Evento:
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ej: 19h00"
-                    value={digitalData.newsroomTime}
-                    onChange={(e) => setDigitalData({ ...digitalData, newsroomTime: e.target.value })}
-                    className="w-full p-2 rounded-lg border border-slate-200 text-xs font-bold uppercase"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Lugar / Locación:
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ej: Palma Polo Club"
-                    value={digitalData.newsroomLocation}
-                    onChange={(e) => setDigitalData({ ...digitalData, newsroomLocation: e.target.value })}
-                    className="w-full p-2 rounded-lg border border-slate-200 text-xs font-bold uppercase"
-                  />
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Fecha del Evento / Cobertura:
+                </label>
+                <DatePicker
+                  value={digitalData.newsroomDate}
+                  onChange={(val) => setDigitalData({ ...digitalData, newsroomDate: val })}
+                  placeholder="dd/mm/aaaa"
+                />
               </div>
-            )}
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Hora del Evento:
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej: 19h00"
+                  value={digitalData.newsroomTime}
+                  onChange={(e) => setDigitalData({ ...digitalData, newsroomTime: e.target.value })}
+                  className="w-full p-2 rounded-lg border border-slate-200 text-xs font-bold uppercase bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Lugar / Locación:
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej: Palma Polo Club"
+                  value={digitalData.newsroomLocation}
+                  onChange={(e) => setDigitalData({ ...digitalData, newsroomLocation: e.target.value })}
+                  className="w-full p-2 rounded-lg border border-slate-200 text-xs font-bold uppercase bg-white"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -532,40 +605,73 @@ export default function DigitalOrderForm({
             <span>RECURSOS Y MATERIALES DE INSUMO</span>
           </h2>
           <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-300">
-            Checklist de Entrega
+            Checklist & Detalle de Insumos
           </span>
         </div>
 
         <div className="p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             {DIGITAL_RESOURCES_LIST.map((res) => {
               const currentStatus = digitalData.resources?.[res.id] || 'NO';
+              const currentDetail = digitalData.resources?.[`${res.id}_detail`] || '';
 
               return (
                 <div
                   key={res.id}
-                  className="flex items-center justify-between p-3 rounded-2xl border border-slate-200 bg-slate-50/50"
+                  className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-2.5 transition-all hover:bg-slate-50"
                 >
-                  <span className="text-xs font-bold text-slate-800">{res.label}</span>
-                  <div className="flex items-center gap-1">
-                    {['SI', 'NO', 'ENVIADO POR AGENCIA'].map((statusOption) => (
-                      <button
-                        key={statusOption}
-                        type="button"
-                        onClick={() => handleResourceStatusChange(res.id, statusOption)}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all ${
-                          currentStatus === statusOption
-                            ? statusOption === 'SI'
-                              ? 'bg-emerald-600 text-white shadow-sm'
-                              : statusOption === 'NO'
-                              ? 'bg-slate-700 text-white shadow-sm'
-                              : 'bg-amber-500 text-white shadow-sm'
-                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-                        }`}
-                      >
-                        {statusOption === 'SI' ? '✓ Sí' : statusOption === 'NO' ? '✕ No' : 'Agencia'}
-                      </button>
-                    ))}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      {res.label}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      {['SI', 'NO'].map((statusOption) => (
+                        <button
+                          key={statusOption}
+                          type="button"
+                          onClick={() => handleResourceStatusChange(res.id, statusOption)}
+                          className={`px-3 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
+                            currentStatus === statusOption
+                              ? statusOption === 'SI'
+                                ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-600'
+                                : 'bg-slate-700 text-white shadow-sm ring-1 ring-slate-700'
+                              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {statusOption === 'SI' ? '✓ Sí' : '✕ No'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Campo para escribir detalle y/o adjuntar archivo */}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder={`Escribir detalle para ${res.label.toLowerCase()}...`}
+                      value={currentDetail}
+                      onChange={(e) => setDigitalData((prev: any) => ({
+                        ...prev,
+                        resources: {
+                          ...prev.resources,
+                          [`${res.id}_detail`]: e.target.value,
+                        },
+                      }))}
+                      className="flex-1 px-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    />
+                    <label 
+                      className="cursor-pointer px-2.5 py-1.5 bg-white hover:bg-emerald-50 border border-emerald-200 rounded-xl text-[10px] font-bold text-emerald-700 flex items-center gap-1 shrink-0 transition-colors shadow-2xs"
+                      title="Adjuntar archivo para este recurso"
+                    >
+                      <Upload className="w-3 h-3 text-emerald-600" />
+                      <span>Adjuntar</span>
+                      <input
+                        type="file"
+                        className="hidden"
+                        onChange={handleFileChange}
+                      />
+                    </label>
                   </div>
                 </div>
               );
@@ -875,6 +981,141 @@ export default function DigitalOrderForm({
               {digitalData.agencyCommissionApplies ? 'Aplica 15%' : 'No Aplica'}
             </span>
           </label>
+        </div>
+      </div>
+
+      {/* 9. SUBFORMULARIO: SOLICITUD A REDACCIÓN */}
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-6">
+          <label className={`flex items-start gap-3.5 p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+            requiresNewsroom
+              ? 'bg-amber-50/70 border-amber-400 shadow-sm ring-2 ring-amber-400/20'
+              : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+          }`}>
+            <input
+              type="checkbox"
+              checked={requiresNewsroom}
+              onChange={(e) => setRequiresNewsroom(e.target.checked)}
+              className="mt-1 w-5 h-5 rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
+            />
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-base">📰</span>
+                <span className="text-xs font-black text-slate-900 uppercase tracking-wide">
+                  Solicitar Requerimiento / Cobertura a Redacción
+                </span>
+                <span className="text-[10px] bg-amber-200 text-amber-900 font-extrabold px-2 py-0.5 rounded-full">
+                  Mesa de Redacción
+                </span>
+              </div>
+              <p className="text-xs text-slate-600">
+                Al activar esta opción, la orden se remitirá directamente al tablero de la Mesa de Redacción (<code>/redaccion</code>) para su asignación editorial, cobertura periodística o redacción de notas y copys.
+              </p>
+            </div>
+          </label>
+
+          {/* Subformulario desplegable pre-llenado con datos de la SPD */}
+          {requiresNewsroom && (
+            <div className="mt-5 p-5 bg-gradient-to-b from-amber-50/50 to-white rounded-2xl border border-amber-200 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-amber-200/80">
+                <div className="flex items-center gap-2">
+                  <span className="text-amber-700 font-extrabold text-sm">📋</span>
+                  <h3 className="text-xs font-black uppercase text-amber-950">
+                    Formulario de Solicitud Editorial (EV Digital + Comercial)
+                  </h3>
+                </div>
+                <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-300">
+                  Pre-llenado automático desde la SPD
+                </span>
+              </div>
+
+              {/* Resumen pre-llenado */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-3 rounded-xl border border-amber-100 text-[11px]">
+                <div>
+                  <span className="text-slate-400 block font-semibold">Ejecutiva:</span>
+                  <span className="font-bold text-slate-800">{selectedExec?.name || user?.name}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block font-semibold">Cliente / Marca:</span>
+                  <span className="font-bold text-slate-800">{formData.clientAgency || '(Sin cliente)'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block font-semibold">Producto:</span>
+                  <span className="font-bold text-slate-800">{formData.product || '(Sin producto)'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block font-semibold">Campaña:</span>
+                  <span className="font-bold text-slate-800">{digitalData.campaign || '(Sin campaña)'}</span>
+                </div>
+              </div>
+
+              {/* Campos específicos para Redacción */}
+              <div className="space-y-3 pt-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 mb-1">
+                    Detalle de la Cobertura / Pauta para Redacción:
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Describe los temas centrales que el periodista o redactor debe abordar, ángulos de la noticia, voceros clave o preguntas clave..."
+                    value={newsroomFormData.editorialDetails || ''}
+                    onChange={(e) => setNewsroomFormData({ ...newsroomFormData, editorialDetails: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none bg-white text-slate-900"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Contacto en Sitio / Vocero de la Marca:
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej: Lic. Carlos Pérez (0991234567)"
+                      value={newsroomFormData.onSiteContact || ''}
+                      onChange={(e) => setNewsroomFormData({ ...newsroomFormData, onSiteContact: e.target.value })}
+                      className="w-full p-2 rounded-lg border border-slate-200 text-xs font-medium bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Entregable Esperado de Redacción:
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej: Nota web en ecuavisa.com + 2 reels de cobertura"
+                      value={newsroomFormData.expectedDeliverable || ''}
+                      onChange={(e) => setNewsroomFormData({ ...newsroomFormData, expectedDeliverable: e.target.value })}
+                      className="w-full p-2 rounded-lg border border-slate-200 text-xs font-medium bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <label className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white cursor-pointer text-xs font-bold text-slate-700 hover:bg-slate-50">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(newsroomFormData.requiresJournalist)}
+                      onChange={(e) => setNewsroomFormData({ ...newsroomFormData, requiresJournalist: e.target.checked })}
+                      className="w-4 h-4 text-amber-600 rounded"
+                    />
+                    <span>🎤 Requiere Periodista / Redactor en sitio</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white cursor-pointer text-xs font-bold text-slate-700 hover:bg-slate-50">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(newsroomFormData.requiresCameraperson)}
+                      onChange={(e) => setNewsroomFormData({ ...newsroomFormData, requiresCameraperson: e.target.checked })}
+                      className="w-4 h-4 text-amber-600 rounded"
+                    />
+                    <span>📹 Requiere Camarógrafo de Redacción</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

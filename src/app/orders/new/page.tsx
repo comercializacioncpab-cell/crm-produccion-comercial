@@ -125,6 +125,16 @@ function NewOrderForm() {
   const [executives, setExecutives] = useState<any[]>([]);
   const [selectedExecutiveId, setSelectedExecutiveId] = useState('');
   const [isAssigningForOther, setIsAssigningForOther] = useState(false);
+  const [manualOrderNumber, setManualOrderNumber] = useState('');
+  const [oiNumber, setOiNumber] = useState('');
+  const [requiresNewsroom, setRequiresNewsroom] = useState(false);
+  const [newsroomFormData, setNewsroomFormData] = useState({
+    editorialDetails: '',
+    onSiteContact: '',
+    expectedDeliverable: '',
+    requiresJournalist: false,
+    requiresCameraperson: false,
+  });
   const [files, setFiles] = useState<{ name: string; size: number; fileObj?: File }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -364,11 +374,31 @@ function NewOrderForm() {
       const resolvedExecutiveId = selectedExecutiveId || user?.id || null;
       const isDigital = orderCategory === 'DIGITAL';
 
+      const newsroomPayload = requiresNewsroom ? {
+        ...newsroomFormData,
+        executive: selectedExec?.name || user?.name,
+        client: formData.clientAgency,
+        product: formData.product,
+        campaign: isDigital ? digitalData.campaign : undefined,
+        kpi: isDigital ? (digitalData.contentObjective === 'OTRO' ? digitalData.customKpi : digitalData.contentObjective) : undefined,
+        publishDate: isDigital ? digitalData.publishDate : undefined,
+        coverageDetails: isDigital ? {
+          segmentType: digitalData.newsroomSegmentType,
+          date: digitalData.newsroomDate,
+          time: digitalData.newsroomTime,
+          location: digitalData.newsroomLocation,
+        } : undefined,
+      } : null;
+
       const payload = isDigital
         ? {
             orderCategory: 'DIGITAL',
             status: isDraftMode ? 'BORRADOR' : 'NUEVA',
             isDraft: isDraftMode,
+            manualOrderNumber: manualOrderNumber.trim() || undefined,
+            oiNumber: oiNumber.trim() || undefined,
+            requiresNewsroom: Boolean(requiresNewsroom),
+            newsroomData: newsroomPayload,
             clientAgency: formData.clientAgency || 'BORRADOR SIN CLIENTE',
             product: formData.product || 'POR DEFINIR',
             campaign: digitalData.campaign,
@@ -427,6 +457,10 @@ function NewOrderForm() {
             orderCategory: 'TV',
             status: isDraftMode ? 'BORRADOR' : 'NUEVA',
             isDraft: isDraftMode,
+            manualOrderNumber: manualOrderNumber.trim() || undefined,
+            oiNumber: oiNumber.trim() || undefined,
+            requiresNewsroom: Boolean(requiresNewsroom),
+            newsroomData: newsroomPayload,
             clientAgency: formData.clientAgency || 'BORRADOR SIN CLIENTE',
             product: formData.product || 'POR DEFINIR',
             executiveId: resolvedExecutiveId,
@@ -817,6 +851,14 @@ function NewOrderForm() {
                 handleFileChange={handleFileChange}
                 removeFile={removeFile}
                 activeInitials={activeInitials}
+                manualOrderNumber={manualOrderNumber}
+                setManualOrderNumber={setManualOrderNumber}
+                oiNumber={oiNumber}
+                setOiNumber={setOiNumber}
+                requiresNewsroom={requiresNewsroom}
+                setRequiresNewsroom={setRequiresNewsroom}
+                newsroomFormData={newsroomFormData}
+                setNewsroomFormData={setNewsroomFormData}
               />
 
               {/* Submit Action Bar for DIGITAL */}
@@ -849,6 +891,67 @@ function NewOrderForm() {
             </>
           ) : (
             <>
+              {/* NOMENCLATURA SP Y ORDEN DE INSERCIÓN (OI) PARA TV */}
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 mb-6">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-indigo-800 bg-indigo-100 px-2.5 py-1 rounded-lg">#</span>
+                    <h2 className="text-xs font-black uppercase text-slate-800 tracking-wider">
+                      Nomenclatura SP y Orden de Inserción (OI)
+                    </h2>
+                  </div>
+                  <span className="text-[10px] text-slate-500 font-bold bg-slate-100 px-2.5 py-1 rounded-full">
+                    Ingreso Manual de Códigos
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* N° SP Manual */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1">
+                      Número de SP (Solicitud de Producción TV) *
+                    </label>
+                    <div className="flex items-center shadow-xs rounded-xl overflow-hidden border border-slate-200 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
+                      <span className="inline-flex items-center px-3.5 py-2.5 bg-indigo-100 text-indigo-950 font-mono font-black text-xs border-r border-indigo-200 select-none">
+                        SP-{activeInitials}-
+                      </span>
+                      <input
+                        type="text"
+                        value={manualOrderNumber}
+                        onChange={(e) => setManualOrderNumber(e.target.value)}
+                        placeholder="Ej: 104"
+                        className="flex-1 px-3.5 py-2.5 text-xs font-mono font-bold uppercase focus:outline-none bg-white text-slate-900"
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      El prefijo <strong>SP-{activeInitials}-</strong> es fijo. Ingresa el número manual de la SP.
+                    </p>
+                  </div>
+
+                  {/* N° OI Manual */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1">
+                      Orden de Inserción (OI)
+                    </label>
+                    <div className="flex items-center shadow-xs rounded-xl overflow-hidden border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
+                      <span className="inline-flex items-center px-3.5 py-2.5 bg-blue-100 text-blue-950 font-mono font-black text-xs border-r border-blue-200 select-none">
+                        OI:
+                      </span>
+                      <input
+                        type="text"
+                        value={oiNumber}
+                        onChange={(e) => setOiNumber(e.target.value)}
+                        placeholder="Ej: 84920"
+                        className="flex-1 px-3.5 py-2.5 text-xs font-mono font-bold uppercase focus:outline-none bg-white text-slate-900"
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Ingresa el número de Orden de Inserción para vinculación comercial.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* SECCIÓN 1: INFORMACIÓN GENERAL */}
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm">
             <div className={`px-6 py-3 border-b flex items-center justify-between rounded-t-3xl ${

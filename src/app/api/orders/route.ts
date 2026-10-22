@@ -146,6 +146,10 @@ export async function POST(req: Request) {
       sourceDemoId,
       status: requestedStatus,
       isDraft: requestedIsDraft,
+      manualOrderNumber,
+      oiNumber,
+      requiresNewsroom,
+      newsroomData,
     } = body;
 
     const isDraft = requestedStatus === 'BORRADOR' || requestedIsDraft === true;
@@ -216,22 +220,47 @@ export async function POST(req: Request) {
     let paddedNumber = String(nextConsecutive).padStart(3, '0');
     let orderNumber = `${orderPrefix}-${userInitials}-${paddedNumber}`;
 
-    // Ensure uniqueness across database
-    while (await prisma.productionOrder.findUnique({ where: { orderNumber } })) {
-      nextConsecutive++;
-      paddedNumber = String(nextConsecutive).padStart(3, '0');
-      orderNumber = `${orderPrefix}-${userInitials}-${paddedNumber}`;
+    // Si se especificó un número manual (ej: "1128" o "SPD-AR-1128")
+    if (manualOrderNumber && String(manualOrderNumber).trim()) {
+      const cleanManual = String(manualOrderNumber).trim().toUpperCase();
+      if (cleanManual.startsWith(`${orderPrefix}-${userInitials}-`)) {
+        orderNumber = cleanManual;
+      } else if (cleanManual.includes('-')) {
+        // Si el usuario puso un código completo
+        orderNumber = cleanManual;
+      } else {
+        orderNumber = `${orderPrefix}-${userInitials}-${cleanManual}`;
+      }
+      const parsedNum = parseInt(cleanManual.replace(/[^0-9]/g, ''), 10);
+      if (!isNaN(parsedNum)) {
+        nextConsecutive = parsedNum;
+      }
+    } else {
+      // Ensure uniqueness across database si es automático
+      while (await prisma.productionOrder.findUnique({ where: { orderNumber } })) {
+        nextConsecutive++;
+        paddedNumber = String(nextConsecutive).padStart(3, '0');
+        orderNumber = `${orderPrefix}-${userInitials}-${paddedNumber}`;
+      }
     }
 
     const serializedDigitalData = typeof digitalData === 'object' && digitalData !== null
       ? JSON.stringify(digitalData)
       : (digitalData || null);
 
+    const serializedNewsroomData = typeof newsroomData === 'object' && newsroomData !== null
+      ? JSON.stringify(newsroomData)
+      : (newsroomData ? String(newsroomData) : null);
+
     // Create the order in PostgreSQL database
     const newOrder = await prisma.productionOrder.create({
       data: {
         orderNumber,
         consecutive: nextConsecutive,
+        oiNumber: oiNumber ? String(oiNumber).trim() : null,
+        requiresNewsroom: Boolean(requiresNewsroom),
+        newsroomStatus: requiresNewsroom ? 'PENDIENTE' : null,
+        newsroomData: serializedNewsroomData,
         orderCategory: isDigital ? 'DIGITAL' : 'TV',
         clientAgency: effectiveClientAgency,
         product: effectiveProduct,
@@ -415,6 +444,29 @@ export async function POST(req: Request) {
               orderNumber,
             });
           }
+        }
+      }
+
+      // 📰 NOTIFICACIÓN AL EQUIPO DE REDACCIÓN (Si requiresNewsroom está activado)
+      if (Boolean(requiresNewsroom)) {
+        const redaccionUsers = await prisma.user.findMany({
+          where: {
+            role: 'REDACCION',
+            status: 'APROBADO',
+          },
+        });
+
+        for (const redUser of redaccionUsers) {
+          await sendNotification({
+            userId: redUser.id,
+            orderId: newOrder.id,
+            type: 'NEW_SP',
+            title: `📰 ¡Nueva Solicitud para Redacción! ${orderNumber}`,
+            message: `Hola Equipo de Redacción: Se ha generado un nuevo requerimiento editorial en la orden ${orderNumber}${oiNumber ? ` (OI: ${oiNumber})` : ''} para ${effectiveClientAgency} (${effectiveProduct}). Por favor revisar el tablero de Redacción.`,
+            userPhone: redUser.phone,
+            userEmail: redUser.email,
+            orderNumber,
+          });
         }
       }
     }
