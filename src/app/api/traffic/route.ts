@@ -50,6 +50,7 @@ export async function GET(req: Request) {
         postProducerId: true,
         secondaryPostProducerId: true,
         changesCount: true,
+        digitalData: true,
         createdAt: true,
         updatedAt: true,
         executive: { select: { id: true, name: true, initials: true } },

@@ -22,7 +22,8 @@ import {
   DIGITAL_NETWORKS, 
   DIGITAL_FORMATS, 
   DIGITAL_KPIS, 
-  DIGITAL_RESOURCES_LIST 
+  DIGITAL_RESOURCES_LIST,
+  DIGITAL_PRODUCER_FUNCTIONS 
 } from '@/lib/order-utils';
 import EditorialRequestForm, { EditorialFormData } from './EditorialRequestForm';
 
@@ -53,6 +54,11 @@ export interface DigitalOrderFormProps {
     resources: Record<string, string>;
     specialInstructions: string;
     agencyCommissionApplies?: boolean;
+    producerScope?: {
+      selectedFunctions?: string[];
+      selectedSubItems?: string[];
+      notes?: string;
+    };
     informProfiles?: {
       creativeDigital?: boolean;
       communityManager?: boolean;
@@ -166,6 +172,66 @@ export default function DigitalOrderForm({
       resources: {
         ...prev.resources,
         [resourceId]: status,
+      },
+    }));
+  };
+
+  const selectedFunctions: string[] = digitalData.producerScope?.selectedFunctions || [];
+  const selectedSubItems: string[] = digitalData.producerScope?.selectedSubItems || [];
+
+  const toggleProducerFunction = (fnId: string) => {
+    const fnDef = DIGITAL_PRODUCER_FUNCTIONS.find((f) => f.id === fnId);
+    const exists = selectedFunctions.includes(fnId);
+    let nextFunctions: string[];
+    let nextSubItems = [...selectedSubItems];
+
+    if (exists) {
+      nextFunctions = selectedFunctions.filter((id) => id !== fnId);
+      if (fnDef) {
+        const subIds = fnDef.subItems.map((s) => s.id);
+        nextSubItems = nextSubItems.filter((id) => !subIds.includes(id));
+      }
+    } else {
+      nextFunctions = [...selectedFunctions, fnId];
+      if (fnDef) {
+        const subIds = fnDef.subItems.map((s) => s.id);
+        nextSubItems = Array.from(new Set([...nextSubItems, ...subIds]));
+      }
+    }
+
+    setDigitalData((prev: any) => ({
+      ...prev,
+      producerScope: {
+        ...prev.producerScope,
+        selectedFunctions: nextFunctions,
+        selectedSubItems: nextSubItems,
+      },
+    }));
+  };
+
+  const toggleProducerSubItem = (fnId: string, subId: string) => {
+    const fnDef = DIGITAL_PRODUCER_FUNCTIONS.find((f) => f.id === fnId);
+    const exists = selectedSubItems.includes(subId);
+    const nextSubItems = exists
+      ? selectedSubItems.filter((id) => id !== subId)
+      : [...selectedSubItems, subId];
+
+    let nextFunctions = [...selectedFunctions];
+    if (fnDef) {
+      const anySubSelected = fnDef.subItems.some((s) => nextSubItems.includes(s.id));
+      if (anySubSelected && !nextFunctions.includes(fnId)) {
+        nextFunctions.push(fnId);
+      } else if (!anySubSelected && nextFunctions.includes(fnId)) {
+        nextFunctions = nextFunctions.filter((id) => id !== fnId);
+      }
+    }
+
+    setDigitalData((prev: any) => ({
+      ...prev,
+      producerScope: {
+        ...prev.producerScope,
+        selectedFunctions: nextFunctions,
+        selectedSubItems: nextSubItems,
       },
     }));
   };
@@ -838,13 +904,106 @@ export default function DigitalOrderForm({
         </div>
       </div>
 
-      {/* 7. SECCIÓN: EQUIPO DIGITAL A INFORMAR (SOLO NOTIFICACIÓN INFORMATIVA - SIN ASIGNACIÓN) */}
+      {/* 7. ALCANCE DE PRODUCCIÓN DIGITAL REQUERIDO (POST-PRODUCTOR / PRODUCTOR DIGITAL) */}
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm relative z-10 overflow-hidden">
+        <div className="px-6 py-3.5 bg-gradient-to-r from-indigo-900 via-slate-900 to-indigo-950 text-white flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <span className="text-lg">🎬</span>
+            <div>
+              <h2 className="text-xs font-black uppercase tracking-wider text-white">
+                7. Alcance de Producción Digital Requerido (Post-Productor / Productor Digital)
+              </h2>
+              <p className="text-[11px] text-indigo-200">
+                Funciones oficiales que deberá ejecutar el Post-Productor asignado en esta orden digital comercial
+              </p>
+            </div>
+          </div>
+          <span className="text-[10px] font-bold text-cyan-300 bg-cyan-950/60 px-2.5 py-0.5 rounded-full border border-cyan-800 shadow-2xs">
+            {selectedFunctions.length} de 6 seleccionadas
+          </span>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <p className="text-xs text-slate-600">
+            Marca las funciones oficiales que se requieren de Post-Producción para este comercial digital. Estas quedarán registradas en la orden y en el seguimiento de tráfico:
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {DIGITAL_PRODUCER_FUNCTIONS.map((fn) => {
+              const isSelected = selectedFunctions.includes(fn.id);
+              return (
+                <div
+                  key={fn.id}
+                  className={`border-2 rounded-2xl p-4 transition-all ${
+                    isSelected
+                      ? 'bg-indigo-50/70 border-indigo-500 shadow-xs ring-2 ring-indigo-500/20'
+                      : 'bg-white border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleProducerFunction(fn.id)}
+                      className="mt-1 w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">{fn.icon}</span>
+                        <span className="text-[10px] font-black uppercase text-indigo-700 tracking-wider">
+                          Función {fn.number}
+                        </span>
+                      </div>
+                      <h4 className="text-xs font-black text-slate-900 mt-0.5">
+                        {fn.title}
+                      </h4>
+                      <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                        {fn.description}
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Sub-items checkboxes */}
+                  {fn.subItems.length > 1 && (
+                    <div className="mt-3 pt-2.5 border-t border-slate-200/80 space-y-1.5 pl-7">
+                      <p className="text-[10px] font-extrabold uppercase text-slate-400">Modalidades / Tareas:</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                        {fn.subItems.map((sub) => {
+                          const isSubSelected = selectedSubItems.includes(sub.id);
+                          return (
+                            <label
+                              key={sub.id}
+                              className={`flex items-center gap-2 p-1.5 rounded-lg text-[11px] font-medium cursor-pointer transition-colors ${
+                                isSubSelected ? 'bg-indigo-100/70 text-indigo-950 font-bold' : 'text-slate-600 hover:bg-slate-100'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSubSelected}
+                                onChange={() => toggleProducerSubItem(fn.id, sub.id)}
+                                className="w-3.5 h-3.5 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                              />
+                              <span className="leading-tight">{sub.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* 8. SECCIÓN: EQUIPO DIGITAL A INFORMAR (SOLO NOTIFICACIÓN INFORMATIVA - SIN ASIGNACIÓN) */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm relative z-10 overflow-hidden">
         <div className="px-6 py-3 bg-gradient-to-r from-violet-50 via-sky-50 to-amber-50 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-base">🔔</span>
             <h2 className="text-xs font-black text-slate-800 uppercase tracking-wider">
-              7. Notificar a Equipo Digital (Solo Informativo - Sin Rol de Aprobación)
+              8. Notificar a Equipo Digital (Solo Informativo - Sin Rol de Aprobación)
             </h2>
           </div>
           <span className="text-[10px] font-bold text-slate-600 bg-white px-2.5 py-0.5 rounded-full border border-slate-200 shadow-2xs">
@@ -948,7 +1107,7 @@ export default function DigitalOrderForm({
         </div>
       </div>
 
-      {/* 8. PRIORIDAD Y VALOR COMERCIAL */}
+      {/* 9. PRIORIDAD Y VALOR COMERCIAL */}
       <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -1019,7 +1178,7 @@ export default function DigitalOrderForm({
         </div>
       </div>
 
-      {/* 9. SUBFORMULARIO: SOLICITUD A REDACCIÓN */}
+      {/* 10. SUBFORMULARIO: SOLICITUD A REDACCIÓN */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-6">
           <label className={`flex items-start gap-3.5 p-4 rounded-2xl border-2 cursor-pointer transition-all ${

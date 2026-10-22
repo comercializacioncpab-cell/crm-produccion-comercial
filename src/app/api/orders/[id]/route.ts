@@ -289,6 +289,22 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       const isEmail = deliveryMethod === 'EMAIL' || (!fileUrl && !effectiveExternalUrl);
       const effectiveNotes = deliveryNotes || (isEmail ? `Material entregado vía correo electrónico (Mail) - Versión ${nextVersion}` : null);
 
+      let updatedDigitalData: string | undefined = undefined;
+      if (body.completedFunctions || body.completedSubItems) {
+        try {
+          const currentDigital = order.digitalData ? JSON.parse(order.digitalData) : {};
+          const updatedProducerScope = {
+            ...(currentDigital.producerScope || {}),
+            completedFunctions: Array.isArray(body.completedFunctions) ? body.completedFunctions : (currentDigital.producerScope?.completedFunctions || []),
+            completedSubItems: Array.isArray(body.completedSubItems) ? body.completedSubItems : (currentDigital.producerScope?.completedSubItems || []),
+          };
+          updatedDigitalData = JSON.stringify({
+            ...currentDigital,
+            producerScope: updatedProducerScope,
+          });
+        } catch {}
+      }
+
       updatedOrder = await prisma.productionOrder.update({
         where: { id },
         data: {
@@ -296,6 +312,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           deliveryNotes: effectiveNotes,
           deliveredAt: new Date(),
           clientReviewToken: reviewToken,
+          ...(updatedDigitalData && { digitalData: updatedDigitalData }),
         },
         include: { creator: true, executive: true, postProducer: true, files: true, activityLogs: true },
       });
@@ -1155,6 +1172,49 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       }
 
       return NextResponse.json({ error: 'Acción de consulta no válida' }, { status: 400 });
+    }
+
+    // 14. ACTION: UPDATE_PRODUCER_FUNCTIONS (Post-Producer / Coordinator / Admin)
+    if (action === 'UPDATE_PRODUCER_FUNCTIONS') {
+      const { completedFunctions, completedSubItems, producerScopeNotes } = body;
+
+      let currentDigital: any = {};
+      try {
+        currentDigital = order.digitalData ? JSON.parse(order.digitalData) : {};
+      } catch {
+        currentDigital = {};
+      }
+
+      const updatedProducerScope = {
+        ...(currentDigital.producerScope || {}),
+        completedFunctions: Array.isArray(completedFunctions) ? completedFunctions : (currentDigital.producerScope?.completedFunctions || []),
+        completedSubItems: Array.isArray(completedSubItems) ? completedSubItems : (currentDigital.producerScope?.completedSubItems || []),
+        ...(producerScopeNotes !== undefined && { notes: producerScopeNotes }),
+      };
+
+      const updatedDigital = {
+        ...currentDigital,
+        producerScope: updatedProducerScope,
+      };
+
+      updatedOrder = await prisma.productionOrder.update({
+        where: { id },
+        data: {
+          digitalData: JSON.stringify(updatedDigital),
+        },
+        include: { creator: true, executive: true, postProducer: true, secondaryPostProducer: true, files: true, activityLogs: true },
+      });
+
+      await prisma.activityLog.create({
+        data: {
+          orderId: id,
+          userId: user.id,
+          action: 'FUNCIONES_PRODUCTOR_ACTUALIZADAS',
+          details: `El usuario ${user.name} actualizó las funciones de producción digital completadas (${updatedProducerScope.completedFunctions.length} funciones).`,
+        },
+      });
+
+      return NextResponse.json({ success: true, order: updatedOrder, digitalData: updatedDigital });
     }
 
     // Generic update

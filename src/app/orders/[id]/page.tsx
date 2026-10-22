@@ -60,7 +60,8 @@ import {
   getWorkflowStageIndex,
   DIGITAL_NETWORKS,
   DIGITAL_FORMATS,
-  DIGITAL_RESOURCES_LIST
+  DIGITAL_RESOURCES_LIST,
+  DIGITAL_PRODUCER_FUNCTIONS
 } from '@/lib/order-utils';
 import EditorialRequestForm, { EditorialFormData } from '@/components/orders/EditorialRequestForm';
 
@@ -157,6 +158,11 @@ export default function OrderDetailPage() {
     agencyCommissionApplies: false,
   });
   const [savingCosts, setSavingCosts] = useState(false);
+
+  // Digital Producer Scope & Completed Functions States
+  const [completedFunctions, setCompletedFunctions] = useState<string[]>([]);
+  const [completedSubItems, setCompletedSubItems] = useState<string[]>([]);
+  const [savingProducerFunctions, setSavingProducerFunctions] = useState(false);
   const [costsSuccessMsg, setCostsSuccessMsg] = useState('');
 
   // Share SP by Email / External PDF Modal States
@@ -262,7 +268,7 @@ export default function OrderDetailPage() {
           setAssignPriority(data.order.priority);
         }
 
-        // Initialize digital financial costs
+        // Initialize digital financial costs & producer scope
         try {
           const dData = typeof data.order.digitalData === 'string' ? JSON.parse(data.order.digitalData) : (data.order.digitalData || {});
           if (dData.financialCosts) {
@@ -276,6 +282,11 @@ export default function OrderDetailPage() {
             });
           } else {
             setDigitalCosts((prev: any) => ({ ...prev, packageValue: data.order.packageValue || 0 }));
+          }
+
+          if (dData.producerScope) {
+            setCompletedFunctions(dData.producerScope.completedFunctions || []);
+            setCompletedSubItems(dData.producerScope.completedSubItems || []);
           }
         } catch {
           setDigitalCosts((prev: any) => ({ ...prev, packageValue: data.order.packageValue || 0 }));
@@ -382,6 +393,69 @@ export default function OrderDetailPage() {
     fetchPostProducers();
     fetchExecutives();
   }, [orderId]);
+
+  // Toggle Digital Producer Completed Functions
+  const handleToggleCompletedFunction = async (fnId: string) => {
+    if (!order) return;
+    const currentCompleted = completedFunctions.includes(fnId)
+      ? completedFunctions.filter((id) => id !== fnId)
+      : [...completedFunctions, fnId];
+
+    setCompletedFunctions(currentCompleted);
+    setSavingProducerFunctions(true);
+    try {
+      await fetch(`/api/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'UPDATE_PRODUCER_FUNCTIONS',
+          completedFunctions: currentCompleted,
+          completedSubItems,
+        }),
+      });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSavingProducerFunctions(false);
+    }
+  };
+
+  const handleToggleCompletedSubItem = async (fnId: string, subId: string) => {
+    if (!order) return;
+    const fnDef = DIGITAL_PRODUCER_FUNCTIONS.find((f) => f.id === fnId);
+    const currentSub = completedSubItems.includes(subId)
+      ? completedSubItems.filter((id) => id !== subId)
+      : [...completedSubItems, subId];
+
+    let currentCompleted = [...completedFunctions];
+    if (fnDef) {
+      const anyCompleted = fnDef.subItems.some((s) => currentSub.includes(s.id));
+      if (anyCompleted && !currentCompleted.includes(fnId)) {
+        currentCompleted.push(fnId);
+      } else if (!anyCompleted && currentCompleted.includes(fnId)) {
+        currentCompleted = currentCompleted.filter((id) => id !== fnId);
+      }
+    }
+
+    setCompletedSubItems(currentSub);
+    setCompletedFunctions(currentCompleted);
+    setSavingProducerFunctions(true);
+    try {
+      await fetch(`/api/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'UPDATE_PRODUCER_FUNCTIONS',
+          completedFunctions: currentCompleted,
+          completedSubItems: currentSub,
+        }),
+      });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSavingProducerFunctions(false);
+    }
+  };
 
   // Handle Assign Post-Producer (Coordinator / Admin)
   const handleAssign = async () => {
@@ -529,6 +603,8 @@ export default function OrderDetailPage() {
           fileName: uploadedFileName || defaultFileName,
           fileUrl: uploadedFilePath,
           externalUrl: deliveryMethod === 'LINK' ? (deliveryExternalUrl?.trim() || null) : null,
+          completedFunctions,
+          completedSubItems,
         }),
       });
 
@@ -1913,6 +1989,151 @@ export default function OrderDetailPage() {
                   )}
                 </div>
 
+                {/* 🎬 SECCIÓN 4: ALCANCE DE PRODUCCIÓN DIGITAL (FUNCIONES DEL POST-PRODUCTOR / PRODUCTOR DIGITAL) */}
+                <div className="bg-white rounded-3xl border border-indigo-200 shadow-sm overflow-hidden">
+                  <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 px-6 py-3.5 border-b border-indigo-800 text-white flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-lg">🎬</span>
+                      <div>
+                        <h3 className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
+                          <span>Alcance de Producción Digital</span>
+                          <span className="bg-cyan-500/20 text-cyan-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-cyan-400/30">
+                            Cargo: Post-Productor / Productor Digital
+                          </span>
+                        </h3>
+                        <p className="text-[11px] text-indigo-200">
+                          Funciones oficiales ejecutadas por el equipo de post-producción comercial digital
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {savingProducerFunctions && (
+                        <span className="text-[10px] text-cyan-300 animate-pulse font-mono font-bold">
+                          Guardando...
+                        </span>
+                      )}
+                      <span className="text-[10px] font-bold bg-white/10 text-white px-2.5 py-1 rounded-full border border-white/10">
+                        {completedFunctions.length} de 6 completadas
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-6 space-y-4">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <p className="text-xs text-slate-600">
+                        Registro oficial de las 6 áreas de responsabilidad asignadas y completadas para esta orden:
+                      </p>
+                      {(isPostProducerUser || order.postProducerId === user?.id || order.secondaryPostProducerId === user?.id || isCoordinator) && (
+                        <span className="text-[10px] text-indigo-700 bg-indigo-50 font-bold px-2 py-0.5 rounded-lg border border-indigo-200">
+                          ✓ Haz clic en las casillas para marcar tareas completadas
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                      {DIGITAL_PRODUCER_FUNCTIONS.map((fn) => {
+                        const isRequested = (digitalParsed.producerScope?.selectedFunctions || []).includes(fn.id);
+                        const isCompleted = completedFunctions.includes(fn.id);
+                        const canToggle = Boolean(
+                          isPostProducerUser || 
+                          order.postProducerId === user?.id || 
+                          order.secondaryPostProducerId === user?.id || 
+                          isCoordinator
+                        );
+
+                        return (
+                          <div
+                            key={fn.id}
+                            className={`border-2 rounded-2xl p-4 transition-all ${
+                              isCompleted
+                                ? 'bg-emerald-50/70 border-emerald-400 shadow-xs ring-2 ring-emerald-400/20'
+                                : isRequested
+                                ? 'bg-indigo-50/50 border-indigo-300'
+                                : 'bg-slate-50/70 border-slate-200'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <label className={`flex items-start gap-2.5 ${canToggle ? 'cursor-pointer' : 'cursor-default'}`}>
+                                <input
+                                  type="checkbox"
+                                  disabled={!canToggle}
+                                  checked={isCompleted}
+                                  onChange={() => canToggle && handleToggleCompletedFunction(fn.id)}
+                                  className="mt-1 w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
+                                />
+                                <div>
+                                  <div className="flex items-center gap-1.5">
+                                    <span>{fn.icon}</span>
+                                    <span className="text-[10px] font-black uppercase text-indigo-800 tracking-wider">
+                                      Función {fn.number}
+                                    </span>
+                                  </div>
+                                  <h4 className="text-xs font-black text-slate-900 mt-0.5 leading-snug">
+                                    {fn.title}
+                                  </h4>
+                                </div>
+                              </label>
+
+                              <div className="flex flex-col items-end gap-1 shrink-0">
+                                {isRequested && (
+                                  <span className="text-[9px] font-black bg-indigo-100 text-indigo-800 border border-indigo-200 px-2 py-0.5 rounded-full">
+                                    Requerido
+                                  </span>
+                                )}
+                                {isCompleted ? (
+                                  <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    ✓ Listo
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] font-bold bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded-full">
+                                    Pendiente
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <p className="text-[11px] text-slate-500 mt-1 pl-6 leading-relaxed">
+                              {fn.description}
+                            </p>
+
+                            {/* Sub-items list */}
+                            {fn.subItems.length > 1 && (
+                              <div className="mt-2.5 pt-2 border-t border-slate-200/80 space-y-1 pl-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                                  {fn.subItems.map((sub) => {
+                                    const subDone = completedSubItems.includes(sub.id);
+                                    const subReq = (digitalParsed.producerScope?.selectedSubItems || []).includes(sub.id);
+                                    return (
+                                      <label
+                                        key={sub.id}
+                                        className={`flex items-center gap-1.5 p-1 rounded-md text-[11px] transition-colors ${
+                                          canToggle ? 'cursor-pointer hover:bg-white/80' : 'cursor-default'
+                                        } ${subDone ? 'text-emerald-900 font-bold' : 'text-slate-600'}`}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          disabled={!canToggle}
+                                          checked={subDone}
+                                          onChange={() => canToggle && handleToggleCompletedSubItem(fn.id, sub.id)}
+                                          className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
+                                        />
+                                        <span className="truncate">{sub.label}</span>
+                                        {subReq && !subDone && (
+                                          <span className="text-[9px] text-indigo-600 font-extrabold">• req</span>
+                                        )}
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
                 {/* 📰 FORMULARIO DE SOLICITUD EDITORIAL OFICIAL (Si requiresNewsroom) */}
                 {order.requiresNewsroom && (
                   <div className="space-y-3 pt-2">
@@ -3017,6 +3238,44 @@ export default function OrderDetailPage() {
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                       ></textarea>
                     </div>
+
+                    {/* Resumen de Funciones Digitales Realizadas (Post-Productor) */}
+                    {isDigital && (
+                      <div className="bg-indigo-50/80 border border-indigo-200 rounded-2xl p-3 space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-black text-indigo-950 flex items-center gap-1.5">
+                            <span>🎬</span> Alcance de Producción Digital
+                          </span>
+                          <span className="text-[10px] font-bold bg-indigo-200/80 text-indigo-900 px-2 py-0.5 rounded-full">
+                            {completedFunctions.length} de 6 listos
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5 pt-1">
+                          {DIGITAL_PRODUCER_FUNCTIONS.map((fn) => {
+                            const isDone = completedFunctions.includes(fn.id);
+                            return (
+                              <button
+                                key={fn.id}
+                                type="button"
+                                onClick={() => handleToggleCompletedFunction(fn.id)}
+                                className={`text-left p-1.5 rounded-lg text-[10px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                                  isDone
+                                    ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                                    : 'bg-white text-slate-600 border border-slate-200 hover:border-indigo-300'
+                                }`}
+                              >
+                                {isDone ? (
+                                  <CheckSquare className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                ) : (
+                                  <Square className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                )}
+                                <span className="truncate">{fn.shortTitle}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     <button
                       type="submit"

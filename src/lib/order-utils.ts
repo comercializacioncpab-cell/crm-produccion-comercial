@@ -446,3 +446,107 @@ export const DIGITAL_RESOURCES_LIST = [
   { id: 'otros', label: 'Otros recursos' },
 ];
 
+// ==========================================
+// 🎬 FUNCIONES OFICIALES DEL CARGO: POST-PRODUCTOR / PRODUCTOR DIGITAL
+// Alcance de responsabilidades para producciones comerciales digitales Ecuavisa
+// ==========================================
+
+export interface DigitalProducerSubItem {
+  id: string;
+  label: string;
+}
+
+export interface DigitalProducerFunctionItem {
+  id: string;
+  number: number;
+  title: string;
+  shortTitle: string;
+  badge: string;
+  icon: string;
+  description: string;
+  subItems: DigitalProducerSubItem[];
+}
+
+export const DIGITAL_PRODUCER_FUNCTIONS: DigitalProducerFunctionItem[] = [
+  {
+    id: 'PLANIFICACION',
+    number: 1,
+    title: 'Planificación de producciones digitales comerciales',
+    shortTitle: 'Planificación Digital',
+    badge: 'bg-blue-100 text-blue-800 border-blue-200',
+    icon: '📅',
+    description: 'Planificación integral de cada producción digital comercial.',
+    subItems: [
+      { id: 'planificacion_integral', label: 'Planificación integral de cada producción digital comercial' },
+    ],
+  },
+  {
+    id: 'REVISION_MATERIALES',
+    number: 2,
+    title: 'Revisión de materiales',
+    shortTitle: 'Revisión de Materiales',
+    badge: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    icon: '🔍',
+    description: 'Revisión y control de calidad de materiales como banners e insumos.',
+    subItems: [
+      { id: 'control_calidad_banners', label: 'Revisión y control de calidad de materiales como banners' },
+    ],
+  },
+  {
+    id: 'CARRUSELES',
+    number: 3,
+    title: 'Carruseles',
+    shortTitle: 'Carruseles',
+    badge: 'bg-purple-100 text-purple-800 border-purple-200',
+    icon: '📑',
+    description: 'Conceptualización, diseño y armado de carruseles de contenido.',
+    subItems: [
+      { id: 'carruseles_creativos', label: 'Creativos' },
+      { id: 'carruseles_editoriales', label: 'Editoriales' },
+      { id: 'carruseles_de_marca', label: 'De marca' },
+      { id: 'carruseles_infograficos', label: 'Infográficos' },
+    ],
+  },
+  {
+    id: 'REELS_MARCA',
+    number: 4,
+    title: 'Reels de marca (con y sin talento)',
+    shortTitle: 'Reels de Marca',
+    badge: 'bg-pink-100 text-pink-800 border-pink-200',
+    icon: '🎬',
+    description: 'Flujo completo de producción de reels de marca con y sin talento en cámara.',
+    subItems: [
+      { id: 'reels_preproduccion', label: 'Preproducción' },
+      { id: 'reels_produccion', label: 'Producción' },
+      { id: 'reels_posproduccion', label: 'Posproducción (en algunos casos)' },
+    ],
+  },
+  {
+    id: 'DERECHOS_TRANSMEDIA',
+    number: 5,
+    title: 'Derechos digitales y proyectos transmedia',
+    shortTitle: 'Derechos & Transmedia',
+    badge: 'bg-amber-100 text-amber-800 border-amber-200',
+    icon: '🌐',
+    description: 'Gestión de derechos digitales de marca y desarrollo de formatos transmedia.',
+    subItems: [
+      { id: 'derechos_digitales', label: 'Gestión de derechos digitales asociados a productos de las marcas' },
+      { id: 'proyectos_transmedia', label: 'Adaptación de historias y contenidos para cada marca en proyectos transmedia, como Misión Emprende' },
+    ],
+  },
+  {
+    id: 'CONTENIDO_CANAL',
+    number: 6,
+    title: 'Contenido para el canal',
+    shortTitle: 'Contenido Canal',
+    badge: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+    icon: '📺',
+    description: 'Escritura de guiones y grabación de contenido oficial para las plataformas del canal.',
+    subItems: [
+      { id: 'escritura_guiones', label: 'Escritura de guiones' },
+      { id: 'grabacion_contenido', label: 'Grabación de contenido para uso del canal' },
+    ],
+  },
+];
+
+

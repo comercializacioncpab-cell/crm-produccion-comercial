@@ -20,7 +20,32 @@ import {
   Flame,
   Check
 } from 'lucide-react';
-import { STATUS_CONFIG, formatDateTime, formatDate } from '@/lib/order-utils';
+import { STATUS_CONFIG, formatDateTime, formatDate, DIGITAL_PRODUCER_FUNCTIONS } from '@/lib/order-utils';
+
+function getDigitalOrderBadges(ord: any): string[] {
+  if (ord.orderCategory !== 'DIGITAL') return [];
+  try {
+    const dData = typeof ord.digitalData === 'string' ? JSON.parse(ord.digitalData) : (ord.digitalData || {});
+    const sel: string[] = dData.producerScope?.selectedFunctions || [];
+    const badges: string[] = [];
+    if (sel.includes('CARRUSELES')) badges.push('📑 Carruseles');
+    if (sel.includes('REELS_MARCA')) badges.push('🎬 Reels');
+    if (sel.includes('PLANIFICACION')) badges.push('📅 Planif.');
+    if (sel.includes('REVISION_MATERIALES')) badges.push('🔍 Revisión');
+    if (sel.includes('DERECHOS_TRANSMEDIA')) badges.push('🌐 Transmedia');
+    if (sel.includes('CONTENIDO_CANAL')) badges.push('📺 Contenido Canal');
+
+    if (badges.length === 0 && dData.platformsAndFormats) {
+      const keys = Object.keys(dData.platformsAndFormats);
+      if (keys.some(k => k.toLowerCase().includes('carrusel'))) badges.push('📑 Carrusel');
+      if (keys.some(k => k.toLowerCase().includes('reel') || k.toLowerCase().includes('video'))) badges.push('🎬 Reel');
+      if (dData.isNewsroomSegment) badges.push('📰 Redacción');
+    }
+    return badges;
+  } catch {
+    return [];
+  }
+}
 
 export default function TrafficPage() {
   const { user } = useAuth();
@@ -283,7 +308,7 @@ export default function TrafficPage() {
                             {prod.name}
                           </h3>
                           <span className="text-[11px] text-slate-400 block mt-0.5">
-                            {prod.role === 'PRODUCTOR_SENIOR' ? '👑 Productor Senior' : prod.role === 'COORDINADOR_PRODUCTOR' ? '🎯 Coord. - Productor' : '🎬 Post-Productor'}
+                            {prod.role === 'PRODUCTOR_SENIOR' ? '👑 Productor Senior' : prod.role === 'COORDINADOR_PRODUCTOR' ? '🎯 Coord. - Productor' : '🎬 Post-Productor / Productor Digital'}
                           </span>
                         </div>
                       </div>
@@ -378,8 +403,22 @@ export default function TrafficPage() {
                                   {ord.clientAgency} • {ord.product}
                                 </p>
                                 <span className="text-[10px] text-slate-400 block mt-0.5">
-                                  📅 Aire: {ord.airDate || 'Por definir'}
+                                  {ord.orderCategory === 'DIGITAL' ? '📱 Publicación:' : '📅 Aire:'} {ord.publishDate || ord.airDate || 'Por definir'}
                                 </span>
+
+                                {(() => {
+                                  const dBadges = getDigitalOrderBadges(ord);
+                                  if (dBadges.length === 0) return null;
+                                  return (
+                                    <div className="flex flex-wrap gap-1 mt-1.5">
+                                      {dBadges.map((b, bIdx) => (
+                                        <span key={bIdx} className="text-[9px] font-bold bg-indigo-50 text-indigo-900 border border-indigo-200 px-1.5 py-0.2 rounded-md">
+                                          {b}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  );
+                                })()}
                               </div>
 
                               <div className="shrink-0 flex items-center gap-1">

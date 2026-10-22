@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import { useAuth } from '@/context/AuthContext';
 import { User, Phone, Mail, Lock, Save, CheckCircle2, AlertCircle, KeyRound, Sparkles } from 'lucide-react';
+import { isPostProducerRole } from '@/lib/order-utils';
+import DigitalProducerScopeCard from '@/components/users/DigitalProducerScopeCard';
 
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth();
@@ -54,9 +56,11 @@ export default function ProfilePage() {
     }
   };
 
+  const isPostProducer = isPostProducerRole(user?.role);
+
   return (
     <AppLayout>
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="max-w-3xl mx-auto space-y-6">
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
             <User className="w-6 h-6 text-cyan-600" /> Mi Perfil y Datos Personales
@@ -79,6 +83,15 @@ export default function ProfilePage() {
           </div>
         )}
 
+        {/* ALCANCE OFICIAL DE PRODUCCIÓN DIGITAL (PARA POST-PRODUCTORES) */}
+        {isPostProducer && (
+          <DigitalProducerScopeCard
+            userName={user?.name}
+            role={user?.role}
+            isSelf={true}
+          />
+        )}
+
         <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
           {/* Header Profile Badge */}
           <div className="flex items-center gap-4 pb-6 border-b border-slate-100 mb-6">
@@ -88,9 +101,16 @@ export default function ProfilePage() {
             <div>
               <h3 className="font-extrabold text-base text-slate-900">{user?.name}</h3>
               <p className="text-xs text-slate-500 font-mono">{user?.email}</p>
-              <span className="inline-block mt-1 bg-cyan-100 text-cyan-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                Rol: {user?.role}
-              </span>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="inline-block bg-cyan-100 text-cyan-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                  Rol: {user?.role === 'POST_PRODUCTOR' ? '🎬 Post-Productor / Productor Digital' : user?.role}
+                </span>
+                {isPostProducer && (
+                  <span className="inline-block bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-purple-200">
+                    📱 Digital + 📺 TV
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -159,7 +179,7 @@ export default function ProfilePage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-md transition-all flex items-center gap-2 disabled:opacity-50"
+                className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-md transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
               >
                 <Save className="w-4 h-4" />
                 {loading ? 'Guardando...' : 'Guardar Mis Cambios'}

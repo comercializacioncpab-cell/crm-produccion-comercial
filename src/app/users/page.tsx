@@ -568,7 +568,7 @@ export default function UsersPage() {
                             {u.role === 'JEFE_MONETIZACION' && '💎 Jefe de Monetización'}
                             {u.role === 'COORDINADORA_VENTAS' && '💼 Coord. de Ventas'}
                             {u.role === 'COORDINADOR' && '📋 Coordinadora'}
-                            {u.role === 'POST_PRODUCTOR' && '🎬 Post-Productor'}
+                            {u.role === 'POST_PRODUCTOR' && '🎬 Post-Productor / Productor Digital'}
                             {u.role === 'PRODUCTOR_SENIOR' && '👑 Productor Senior'}
                             {u.role === 'COORDINADOR_PRODUCTOR' && '🎯 Coordinador/a - Productor'}
                             {u.role === 'ADMIN' && '⚡ Administrador'}
@@ -821,7 +821,7 @@ export default function UsersPage() {
                       <option value="COORDINADORA_VENTAS">💼 Coordinadora de Ventas</option>
                       <option value="COORDINADOR">📋 Coordinadora de Producción</option>
                       <option value="COORDINADOR_PRODUCTOR">🎯 Coordinador/a - Productor</option>
-                      <option value="POST_PRODUCTOR">🎬 Post-Productor</option>
+                      <option value="POST_PRODUCTOR">🎬 Post-Productor / Productor Digital</option>
                       <option value="PRODUCTOR_SENIOR">👑 Productor Senior</option>
                       <option value="ADMIN">⚡ Administrador</option>
                     </select>

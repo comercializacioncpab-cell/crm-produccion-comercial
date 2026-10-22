@@ -26,7 +26,8 @@ import {
   Copy,
   MessageCircle
 } from 'lucide-react';
-import { STATUS_CONFIG, PRIORITY_CONFIG, isAdminRole } from '@/lib/order-utils';
+import { STATUS_CONFIG, PRIORITY_CONFIG, isAdminRole, isPostProducerRole } from '@/lib/order-utils';
+import DigitalProducerScopeCard from '@/components/users/DigitalProducerScopeCard';
 
 export default function UserDetailPage() {
   const { user: currentUser } = useAuth();
@@ -428,7 +429,7 @@ export default function UserDetailPage() {
                         <option value="COORDINADORA_VENTAS">💼 Coordinadora de Ventas</option>
                         <option value="COORDINADOR">📋 Coordinadora de Producción</option>
                         <option value="COORDINADOR_PRODUCTOR">🎯 Coordinador/a - Productor</option>
-                        <option value="POST_PRODUCTOR">🎬 Post-Productor</option>
+                        <option value="POST_PRODUCTOR">🎬 Post-Productor / Productor Digital</option>
                         <option value="PRODUCTOR_SENIOR">👑 Productor Senior</option>
                         <option value="ADMIN">⚡ Administrador</option>
                       </select>
@@ -555,6 +556,14 @@ export default function UserDetailPage() {
 
           {/* Right Column: Complete SP History Table */}
           <div className="lg:col-span-2 space-y-6">
+            {isPostProducerRole(targetUser.role) && (
+              <DigitalProducerScopeCard
+                userName={targetUser.name}
+                role={targetUser.role}
+                isSelf={isSelf}
+              />
+            )}
+
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div>
