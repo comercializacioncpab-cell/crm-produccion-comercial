@@ -42,7 +42,9 @@ import {
   Copy,
   Smartphone,
   Save,
-  Send
+  Send,
+  Mail,
+  Share2
 } from 'lucide-react';
 import { 
   STATUS_CONFIG, 
@@ -152,6 +154,84 @@ export default function OrderDetailPage() {
   });
   const [savingCosts, setSavingCosts] = useState(false);
   const [costsSuccessMsg, setCostsSuccessMsg] = useState('');
+
+  // Share SP by Email / External PDF Modal States
+  const [showShareEmailModal, setShowShareEmailModal] = useState(false);
+  const [shareRecipientEmail, setShareRecipientEmail] = useState('');
+  const [shareRecipientName, setShareRecipientName] = useState('');
+  const [shareCustomMessage, setShareCustomMessage] = useState('');
+  const [shareSending, setShareSending] = useState(false);
+  const [shareResult, setShareResult] = useState<{ success: boolean; message: string; printPdfUrl?: string; mailtoUrl?: string } | null>(null);
+  const [copiedPublicLink, setCopiedPublicLink] = useState(false);
+
+  const handleOpenShareEmailModal = () => {
+    setShareRecipientEmail('');
+    setShareRecipientName('');
+    setShareCustomMessage('');
+    setShareResult(null);
+    setCopiedPublicLink(false);
+    setShowShareEmailModal(true);
+  };
+
+  const getPublicPdfUrl = () => {
+    if (!order) return '';
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const token = order.clientReviewToken || '';
+    return `${origin}/orders/${order.id}/print${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+  };
+
+  const handleCopyPublicLink = () => {
+    const url = getPublicPdfUrl();
+    if (!url) return;
+    navigator.clipboard.writeText(url);
+    setCopiedPublicLink(true);
+    setTimeout(() => setCopiedPublicLink(false), 3000);
+  };
+
+  const handleSendExternalEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!shareRecipientEmail.trim() || !shareRecipientEmail.includes('@')) {
+      alert('Por favor ingresa un correo electrónico válido');
+      return;
+    }
+
+    setShareSending(true);
+    setShareResult(null);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipientEmail: shareRecipientEmail.trim(),
+          recipientName: shareRecipientName.trim(),
+          messageNote: shareCustomMessage.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setShareResult({
+          success: true,
+          message: data.message || 'Correo procesado exitosamente',
+          printPdfUrl: data.printPdfUrl,
+          mailtoUrl: data.mailtoUrl,
+        });
+        fetchOrder();
+      } else {
+        setShareResult({
+          success: false,
+          message: data.error || 'Error al enviar correo',
+        });
+      }
+    } catch (err: any) {
+      setShareResult({
+        success: false,
+        message: err.message || 'Error de conexión',
+      });
+    } finally {
+      setShareSending(false);
+    }
+  };
 
   const fetchOrder = async () => {
     try {
@@ -1262,6 +1342,16 @@ export default function OrderDetailPage() {
             >
               <MessageSquare className="w-3.5 h-3.5" /> Compartir WhatsApp
             </a>
+
+            {/* Enviar SP por Correo a Externo (PDF / Direct link) */}
+            <button
+              type="button"
+              onClick={handleOpenShareEmailModal}
+              className="bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-700 hover:to-blue-800 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+              title="Enviar esta SP por correo a clientes, agencias o contactos externos con enlace a la ficha PDF sin login"
+            >
+              <Mail className="w-3.5 h-3.5" /> ✉️ Enviar por Mail (PDF / Externo)
+            </button>
 
             {/* Print Official Format (replicates Excel) */}
             <Link
@@ -2493,11 +2583,11 @@ export default function OrderDetailPage() {
                       </button>
                     )}
 
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-1.5">
                       <Link
                         href={`/orders/${order.id}/cost-sheet`}
                         target="_blank"
-                        className="flex items-center justify-center gap-1 px-2.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold shadow-xs text-center transition-colors"
+                        className="flex items-center justify-center gap-1 px-2 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold shadow-xs text-center transition-colors"
                       >
                         <Printer className="w-3.5 h-3.5 text-cyan-400" />
                         <span>Ficha PDF</span>
@@ -2506,10 +2596,19 @@ export default function OrderDetailPage() {
                       <button
                         type="button"
                         onClick={downloadWordDoc}
-                        className="flex items-center justify-center gap-1 px-2.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold shadow-xs text-center transition-colors cursor-pointer"
+                        className="flex items-center justify-center gap-1 px-2 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold shadow-xs text-center transition-colors cursor-pointer"
                       >
                         <Download className="w-3.5 h-3.5" />
-                        <span>Descargar .doc</span>
+                        <span>Word .doc</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleOpenShareEmailModal}
+                        className="flex items-center justify-center gap-1 px-2 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-[11px] font-bold shadow-xs text-center transition-colors cursor-pointer"
+                      >
+                        <Mail className="w-3.5 h-3.5" />
+                        <span>Enviar Mail</span>
                       </button>
                     </div>
                   </div>
@@ -4055,6 +4154,157 @@ export default function OrderDetailPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL: COMPARTIR / ENVIAR SP POR CORREO A EXTERNOS */}
+        {showShareEmailModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+            <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 text-white flex items-center justify-center font-bold text-base shadow-sm">
+                    ✉️
+                  </div>
+                  <div>
+                    <h3 className="font-black text-sm text-slate-900">
+                      Enviar SP a Contacto Externo
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Para clientes, marcas o agencias sin usuario en el CRM
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowShareEmailModal(false)}
+                  className="text-slate-400 hover:text-slate-600 font-bold text-lg p-1 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Info banner */}
+              <div className="bg-sky-50/80 border border-sky-200 rounded-2xl p-3.5 text-xs text-sky-900 space-y-1">
+                <div className="flex items-center gap-1.5 font-black text-sky-950">
+                  <ShieldCheck className="w-4 h-4 text-sky-600" />
+                  <span>Acceso Seguro Sin Contraseña (Token Oficial)</span>
+                </div>
+                <p className="text-[11px] text-sky-800 leading-relaxed">
+                  El destinatario recibirá un correo con el membrete institucional de Ecuavisa y un enlace directo a la <strong>Ficha Oficial Imprimible en PDF</strong> para que pueda visualizarla y descargarla sin necesidad de iniciar sesión.
+                </p>
+              </div>
+
+              {shareResult && (
+                <div className={`p-3.5 rounded-2xl border text-xs font-bold space-y-2 ${
+                  shareResult.success
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                    : 'bg-rose-50 border-rose-200 text-rose-800'
+                }`}>
+                  <div className="flex items-center gap-1.5">
+                    {shareResult.success ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> : <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />}
+                    <span>{shareResult.message}</span>
+                  </div>
+
+                  {shareResult.mailtoUrl && (
+                    <div className="pt-1 flex flex-wrap gap-2">
+                      <a
+                        href={shareResult.mailtoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold shadow-xs transition-colors"
+                      >
+                        <Mail className="w-3 h-3" /> Abrir en mi Outlook / Correo
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <form onSubmit={handleSendExternalEmail} className="space-y-3.5">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Correo Electrónico del Destinatario: *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={shareRecipientEmail}
+                    onChange={(e) => setShareRecipientEmail(e.target.value)}
+                    placeholder="ej. cliente@empresa.com o agencia@marketing.com"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Nombre o Empresa del Contacto (Opcional):
+                  </label>
+                  <input
+                    type="text"
+                    value={shareRecipientName}
+                    onChange={(e) => setShareRecipientName(e.target.value)}
+                    placeholder="ej. Carlos Gómez / Agencia Publicitaria"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Nota o Mensaje Personalizado (Opcional):
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={shareCustomMessage}
+                    onChange={(e) => setShareCustomMessage(e.target.value)}
+                    placeholder="ej. Estimados, les comparto los requerimientos de la SP para su revisión..."
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  ></textarea>
+                </div>
+
+                <div className="pt-1 space-y-2">
+                  <button
+                    type="submit"
+                    disabled={shareSending || !shareRecipientEmail.trim()}
+                    className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-700 hover:to-blue-800 text-white font-black text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    {shareSending ? 'Enviando correo...' : '🚀 Enviar Correo con Ficha PDF'}
+                  </button>
+                </div>
+              </form>
+
+              {/* Separador de opciones rápidas */}
+              <div className="relative flex items-center justify-center py-0.5">
+                <div className="border-t border-slate-200 w-full"></div>
+                <span className="bg-white px-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">o compartir enlace</span>
+              </div>
+
+              {/* Botones de acción directa */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopyPublicLink}
+                  className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    copiedPublicLink
+                      ? 'bg-emerald-50 border-emerald-400 text-emerald-800'
+                      : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <Share2 className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>{copiedPublicLink ? '✓ ¡Enlace Copiado!' : 'Copiar Enlace PDF'}</span>
+                </button>
+
+                <Link
+                  href={getPublicPdfUrl()}
+                  target="_blank"
+                  className="py-2 px-3 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                >
+                  <Printer className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Vista Previa PDF</span>
+                </Link>
+              </div>
             </div>
           </div>
         )}

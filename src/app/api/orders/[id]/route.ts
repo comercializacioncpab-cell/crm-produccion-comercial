@@ -5,14 +5,16 @@ import { sendNotification } from '@/lib/notifications';
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
+    const { id } = params;
+    const url = new URL(req.url);
+    const token = url.searchParams.get('token');
+
     const user = await getCurrentUser();
-    if (!user) {
+    if (!user && !token) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const { id } = params;
-
-    const order = await prisma.productionOrder.findFirst({
+    let order = await prisma.productionOrder.findFirst({
       where: {
         OR: [{ id }, { orderNumber: id }],
       },
@@ -52,6 +54,54 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
     if (!order) {
       return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 });
+    }
+
+    // Auto-generate clientReviewToken if not set yet
+    if (!order.clientReviewToken) {
+      const generatedToken = `${order.orderNumber.toLowerCase().replace(/[^a-z0-9]/g, '')}-${Date.now().toString(36)}`;
+      order = await prisma.productionOrder.update({
+        where: { id: order.id },
+        data: { clientReviewToken: generatedToken },
+        include: {
+          creator: {
+            select: { id: true, name: true, initials: true, email: true, phone: true, role: true },
+          },
+          executive: {
+            select: { id: true, name: true, initials: true, email: true, phone: true, role: true },
+          },
+          postProducer: {
+            select: { id: true, name: true, initials: true, email: true, phone: true, role: true },
+          },
+          secondaryPostProducer: {
+            select: { id: true, name: true, initials: true, email: true, phone: true, role: true },
+          },
+          sourceDemo: {
+            select: { id: true, orderNumber: true, clientAgency: true, product: true, isDemo: true, demoStatus: true, createdAt: true },
+          },
+          convertedOrders: {
+            select: { id: true, orderNumber: true, clientAgency: true, product: true, packageValue: true, status: true, createdAt: true },
+          },
+          files: {
+            include: {
+              uploader: { select: { id: true, name: true, role: true } },
+            },
+            orderBy: { createdAt: 'asc' },
+          },
+          activityLogs: {
+            include: {
+              user: { select: { id: true, name: true, role: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+      });
+    }
+
+    // If accessed without user session, validate token matches
+    if (!user) {
+      if (token !== order.clientReviewToken) {
+        return NextResponse.json({ error: 'Token de acceso inválido o expirado' }, { status: 403 });
+      }
     }
 
     return NextResponse.json({ order });

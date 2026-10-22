@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { 
   SPONSORSHIP_CATEGORIES, 
   SPONSORSHIP_OPTIONS,
@@ -9,19 +9,23 @@ import {
   DIGITAL_FORMATS,
   DIGITAL_RESOURCES_LIST
 } from '@/lib/order-utils';
-import { Printer, ArrowLeft } from 'lucide-react';
+import { Printer, ArrowLeft, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 
 export default function PrintOrderPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const orderId = params.id as string;
+  const token = searchParams.get('token') || '';
+
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch(`/api/orders/${orderId}`);
+        const query = token ? `?token=${encodeURIComponent(token)}` : '';
+        const res = await fetch(`/api/orders/${orderId}${query}`);
         if (res.ok) {
           const data = await res.json();
           setOrder(data.order);
@@ -33,14 +37,19 @@ export default function PrintOrderPage() {
       }
     }
     load();
-  }, [orderId]);
+  }, [orderId, token]);
 
   if (loading) {
     return <div className="p-8 text-center text-xs text-slate-400">Cargando formato de impresión...</div>;
   }
 
   if (!order) {
-    return <div className="p-8 text-center text-xs text-slate-400">Orden no encontrada.</div>;
+    return (
+      <div className="p-8 text-center text-xs text-slate-500 max-w-md mx-auto my-12 bg-white rounded-2xl shadow-sm border border-slate-200">
+        <p className="font-bold text-slate-800 text-sm mb-1">Orden no disponible o enlace no autorizado</p>
+        <p className="text-slate-500 text-xs">Si eres un usuario externo, solicita a la ejecutiva o coordinación de Ecuavisa el enlace actualizado de visualización.</p>
+      </div>
+    );
   }
 
   const isDigital = order.orderCategory === 'DIGITAL';
@@ -63,19 +72,26 @@ export default function PrintOrderPage() {
   return (
     <div className="bg-slate-200 min-h-screen py-6 px-4 print:p-0 print:bg-white text-slate-900 font-sans">
       {/* Floating Action Controls (Hidden on Print) */}
-      <div className="max-w-4xl mx-auto mb-4 flex items-center justify-between no-print">
-        <Link
-          href={`/orders/${order.id}`}
-          className="bg-white hover:bg-slate-50 text-slate-700 px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm border border-slate-300 transition-all"
-        >
-          <ArrowLeft className="w-4 h-4" /> Volver a la SP
-        </Link>
+      <div className="max-w-4xl mx-auto mb-4 flex items-center justify-between no-print gap-2">
+        {token ? (
+          <div className="flex items-center gap-2 bg-emerald-50 text-emerald-900 border border-emerald-200 px-3.5 py-2 rounded-xl text-xs font-bold shadow-2xs">
+            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <span>Ficha Oficial Ecuavisa (Acceso Externo Seguro)</span>
+          </div>
+        ) : (
+          <Link
+            href={`/orders/${order.id}`}
+            className="bg-white hover:bg-slate-50 text-slate-700 px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm border border-slate-300 transition-all cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" /> Volver a la SP
+          </Link>
+        )}
 
         <button
           onClick={() => window.print()}
-          className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold px-5 py-2 rounded-xl text-xs flex items-center gap-2 shadow-md transition-all cursor-pointer"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2 rounded-xl text-xs flex items-center gap-2 shadow-md transition-all cursor-pointer"
         >
-          <Printer className="w-4 h-4" /> Imprimir / Guardar como PDF
+          <Printer className="w-4 h-4" /> 🖨️ Imprimir / Guardar como PDF
         </button>
       </div>
 

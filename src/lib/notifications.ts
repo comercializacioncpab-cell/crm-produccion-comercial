@@ -19,7 +19,7 @@ export function generateWhatsAppUrl(phone: string | null | undefined, text: stri
   return `https://wa.me/${cleanPhone}?text=${encodedText}`;
 }
 
-async function sendActualEmail(to: string, subject: string, htmlContent: string) {
+export async function sendActualEmail(to: string, subject: string, htmlContent: string): Promise<boolean> {
   // 1. Resend API (if configured)
   const resendApiKey = process.env.RESEND_API_KEY;
   if (resendApiKey) {
@@ -40,7 +40,7 @@ async function sendActualEmail(to: string, subject: string, htmlContent: string)
       });
       const data = await res.json();
       console.log('Resend email result:', data);
-      return;
+      return res.ok;
     } catch (e) {
       console.error('Error sending email via Resend:', e);
     }
@@ -73,11 +73,13 @@ async function sendActualEmail(to: string, subject: string, htmlContent: string)
         html: htmlContent,
       });
       console.log(`SMTP Email sent successfully to ${to}`);
-      return;
+      return true;
     } catch (smtpErr) {
       console.error('Error sending email via SMTP:', smtpErr);
     }
   }
+
+  return false;
 }
 
 export async function sendNotification({

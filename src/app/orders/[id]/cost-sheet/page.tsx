@@ -1,20 +1,24 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { Printer, ArrowLeft, Download, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { useParams, useSearchParams } from 'next/navigation';
+import { Printer, ArrowLeft, Download, AlertTriangle, CheckCircle2, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 
 export default function ProjectCostSheetPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const orderId = params.id as string;
+  const token = searchParams.get('token') || '';
+
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch(`/api/orders/${orderId}`);
+        const query = token ? `?token=${encodeURIComponent(token)}` : '';
+        const res = await fetch(`/api/orders/${orderId}${query}`);
         if (res.ok) {
           const data = await res.json();
           setOrder(data.order);
@@ -26,7 +30,7 @@ export default function ProjectCostSheetPage() {
       }
     }
     load();
-  }, [orderId]);
+  }, [orderId, token]);
 
   if (loading) {
     return <div className="p-12 text-center text-xs text-slate-500">Cargando ficha de costos y rentabilidad...</div>;
@@ -239,12 +243,19 @@ export default function ProjectCostSheetPage() {
     <div className="min-h-screen bg-slate-100 p-4 sm:p-8 print:p-0 print:bg-white text-slate-800">
       {/* Action Toolbar */}
       <div className="max-w-4xl mx-auto mb-6 flex flex-wrap items-center justify-between gap-3 no-print">
-        <Link
-          href={`/orders/${order.id}`}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-xs"
-        >
-          <ArrowLeft className="w-4 h-4" /> Volver a la SP
-        </Link>
+        {token ? (
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-teal-50 border border-teal-200 text-xs font-bold text-teal-900 shadow-2xs">
+            <ShieldCheck className="w-4 h-4 text-teal-600" />
+            <span>Ficha Financiera Oficial (Acceso Externo)</span>
+          </div>
+        ) : (
+          <Link
+            href={`/orders/${order.id}`}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-xs cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" /> Volver a la SP
+          </Link>
+        )}
 
         <div className="flex items-center gap-2">
           <button
