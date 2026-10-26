@@ -9,7 +9,7 @@ import {
   DIGITAL_FORMATS,
   DIGITAL_RESOURCES_LIST
 } from '@/lib/order-utils';
-import { Printer, ArrowLeft, ShieldCheck, Newspaper, FileText } from 'lucide-react';
+import { Printer, ArrowLeft, ShieldCheck, Newspaper, FileText, Download } from 'lucide-react';
 import Link from 'next/link';
 import EditorialRequestForm from '@/components/orders/EditorialRequestForm';
 
@@ -19,6 +19,7 @@ export default function PrintOrderPage() {
   const orderId = params.id as string;
   const token = searchParams.get('token') || '';
   const typeParam = searchParams.get('type') || '';
+  const autoprint = searchParams.get('autoprint') === 'true';
 
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -41,6 +42,15 @@ export default function PrintOrderPage() {
     }
     load();
   }, [orderId, token]);
+
+  useEffect(() => {
+    if (!loading && order && autoprint) {
+      const timer = setTimeout(() => {
+        window.print();
+      }, 700);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, order, autoprint]);
 
   if (loading) {
     return <div className="p-8 text-center text-xs text-slate-400">Cargando formato de impresión...</div>;
@@ -132,9 +142,9 @@ export default function PrintOrderPage() {
 
         <button
           onClick={() => window.print()}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2 rounded-xl text-xs flex items-center gap-2 shadow-md transition-all cursor-pointer self-end sm:self-auto"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md transition-all cursor-pointer self-end sm:self-auto"
         >
-          <Printer className="w-4 h-4" /> 🖨️ Imprimir / Guardar como PDF
+          <Download className="w-4 h-4" /> 📥 Descargar como PDF / Imprimir
         </button>
       </div>
 

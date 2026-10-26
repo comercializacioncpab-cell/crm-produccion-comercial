@@ -19,7 +19,8 @@ import {
   RefreshCw,
   FolderOpen,
   ArrowRight,
-  Filter
+  Filter,
+  Trophy
 } from 'lucide-react';
 import { STATUS_CONFIG, PRIORITY_CONFIG } from '@/lib/order-utils';
 
@@ -34,6 +35,7 @@ export default function TodayWorkboardPage() {
   const [deliveryNotes, setDeliveryNotes] = useState('');
   const [submittingDelivery, setSubmittingDelivery] = useState(false);
   const [deliveryError, setDeliveryError] = useState('');
+  const [rankingHonor, setRankingHonor] = useState<any>(null);
 
   const loadAssignedOrders = async () => {
     try {
@@ -52,7 +54,25 @@ export default function TodayWorkboardPage() {
 
   useEffect(() => {
     loadAssignedOrders();
-  }, []);
+
+    async function checkRanking() {
+      try {
+        const res = await fetch('/api/ranking');
+        if (res.ok) {
+          const rankData = await res.json();
+          if (user && rankData.topPostProducer && rankData.topPostProducer.id === user.id && rankData.topPostProducer.deliveredOrders > 0) {
+            setRankingHonor({
+              monthLabel: rankData.monthLabel,
+              deliveredOrders: rankData.topPostProducer.deliveredOrders,
+            });
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    checkRanking();
+  }, [user]);
 
   const handleStartWork = async (orderId: string) => {
     try {
@@ -163,6 +183,36 @@ export default function TodayWorkboardPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
+        {/* Banner de Reconocimiento #1 del Mes */}
+        {rankingHonor && (
+          <div className="bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 rounded-3xl p-4 sm:p-5 text-slate-950 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4 border-2 border-yellow-400 animate-in fade-in">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-slate-950 text-amber-400 flex items-center justify-center text-2xl font-black shadow-md shrink-0">
+                🏆
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="bg-slate-950 text-amber-300 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full">
+                    👑 ¡Reconocimiento #1 del Mes! ({rankingHonor.monthLabel})
+                  </span>
+                </div>
+                <h2 className="text-base font-black text-slate-950 mt-1">
+                  ¡Felicitaciones {user?.name.split(' ')[0]}! Eres el #1 en el Ranking de Post-Producción
+                </h2>
+                <p className="text-xs text-slate-900 font-semibold mt-0.5">
+                  Lideras el podio con {rankingHonor.deliveredOrders} SPs atendidas y entregadas con máxima calidad.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/ranking"
+              className="bg-slate-950 hover:bg-slate-900 text-amber-300 font-black text-xs px-4 py-2.5 rounded-xl shadow-md transition-all shrink-0 flex items-center gap-1.5"
+            >
+              <Trophy className="w-3.5 h-3.5" /> Ver Podio de Honor
+            </Link>
+          </div>
+        )}
+
         {/* Header Hero */}
         <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden border border-slate-800">
           <div className="absolute right-0 top-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>

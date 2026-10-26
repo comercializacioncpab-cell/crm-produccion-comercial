@@ -17,7 +17,8 @@ import {
   Calendar,
   Sparkles,
   Inbox,
-  BarChart3
+  BarChart3,
+  Trophy
 } from 'lucide-react';
 import { STATUS_CONFIG, PRIORITY_CONFIG } from '@/lib/order-utils';
 
@@ -26,15 +27,39 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rankingHonor, setRankingHonor] = useState<any>(null);
 
   useEffect(() => {
     async function loadData() {
       try {
-        const res = await fetch('/api/stats');
-        if (res.ok) {
-          const data = await res.json();
+        const [resStats, resRanking] = await Promise.all([
+          fetch('/api/stats'),
+          fetch('/api/ranking'),
+        ]);
+
+        if (resStats.ok) {
+          const data = await resStats.json();
           setStats(data.stats);
           setRecentOrders(data.recentOrders || []);
+        }
+
+        if (resRanking.ok) {
+          const rankData = await resRanking.json();
+          if (user) {
+            if (rankData.topExecutive && rankData.topExecutive.id === user.id && rankData.topExecutive.commercialRevenue > 0) {
+              setRankingHonor({
+                category: 'Ventas Comerciales ($ USD)',
+                monthLabel: rankData.monthLabel,
+                detail: `Lideras el ranking con $${rankData.topExecutive.commercialRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD en ${rankData.topExecutive.totalOrders} órdenes SP.`,
+              });
+            } else if (rankData.topPostProducer && rankData.topPostProducer.id === user.id && rankData.topPostProducer.deliveredOrders > 0) {
+              setRankingHonor({
+                category: 'Post-Producción & Entregas',
+                monthLabel: rankData.monthLabel,
+                detail: `Lideras el podio con ${rankData.topPostProducer.deliveredOrders} SPs atendidas y entregadas a tiempo con excelente calidad.`,
+              });
+            }
+          }
         }
       } catch (e) {
         console.error(e);
@@ -43,11 +68,41 @@ export default function DashboardPage() {
       }
     }
     loadData();
-  }, []);
+  }, [user]);
 
   return (
     <AppLayout>
       <div className="space-y-6">
+        {/* Banner de Reconocimiento #1 del Mes */}
+        {rankingHonor && (
+          <div className="bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 rounded-3xl p-4 sm:p-5 text-slate-950 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4 border-2 border-yellow-400 animate-in fade-in">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-slate-950 text-amber-400 flex items-center justify-center text-2xl font-black shadow-md shrink-0">
+                🏆
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="bg-slate-950 text-amber-300 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full">
+                    👑 ¡Reconocimiento #1 del Mes! ({rankingHonor.monthLabel})
+                  </span>
+                </div>
+                <h2 className="text-base font-black text-slate-950 mt-1">
+                  ¡Felicitaciones {user?.name.split(' ')[0]}! Eres el #1 en el Ranking de {rankingHonor.category}
+                </h2>
+                <p className="text-xs text-slate-900 font-semibold mt-0.5">
+                  {rankingHonor.detail}
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/ranking"
+              className="bg-slate-950 hover:bg-slate-900 text-amber-300 font-black text-xs px-4 py-2.5 rounded-xl shadow-md transition-all shrink-0 flex items-center gap-1.5"
+            >
+              <Trophy className="w-3.5 h-3.5" /> Ver Podio de Honor
+            </Link>
+          </div>
+        )}
+
         {/* Top Welcome Banner */}
         <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-cyan-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
           <div className="absolute right-0 top-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>

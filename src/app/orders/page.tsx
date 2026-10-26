@@ -23,7 +23,9 @@ import {
   CheckSquare,
   Square,
   Smartphone,
-  Copy
+  Copy,
+  Printer,
+  Download
 } from 'lucide-react';
 import { STATUS_CONFIG, PRIORITY_CONFIG } from '@/lib/order-utils';
 
@@ -493,6 +495,15 @@ function OrdersContent() {
                             className="bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-700 font-bold px-2.5 py-1 rounded-lg transition-all inline-flex items-center gap-1 text-[11px]"
                           >
                             Gestionar <ExternalLink className="w-3 h-3" />
+                          </Link>
+
+                          <Link
+                            href={`/orders/${order.id}/print?autoprint=true`}
+                            target="_blank"
+                            className="bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-700 border border-emerald-200 p-1.5 rounded-lg transition-all inline-flex items-center justify-center text-[11px]"
+                            title="Descargar o imprimir formato oficial en PDF"
+                          >
+                            <Download className="w-3 h-3" />
                           </Link>
 
                           <Link

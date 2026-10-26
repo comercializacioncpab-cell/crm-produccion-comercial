@@ -1556,23 +1556,25 @@ export default function OrderDetailPage() {
               <Mail className="w-3.5 h-3.5" /> ✉️ Enviar por Mail (PDF / Externo)
             </button>
 
-            {/* Print Official Format (replicates Excel) */}
+            {/* Descargar como PDF (Abre e inicia guardado automático) */}
             <Link
-              href={`/orders/${order.id}/print`}
+              href={`/orders/${order.id}/print?autoprint=true`}
               target="_blank"
-              className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
+              title="Descargar o guardar como PDF la ficha oficial de la SP"
             >
-              <Printer className="w-3.5 h-3.5 text-slate-500" /> Formato Oficial SP (PDF)
+              <Download className="w-3.5 h-3.5" /> 📥 Descargar SP (PDF)
             </Link>
 
             {/* Print Official Editorial Request Format (PDF) */}
             {order.requiresNewsroom && (
               <Link
-                href={`/orders/${order.id}/print?type=editorial`}
+                href={`/orders/${order.id}/print?type=editorial&autoprint=true`}
                 target="_blank"
                 className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
+                title="Descargar o guardar como PDF el formulario de solicitud editorial (OI)"
               >
-                <Printer className="w-3.5 h-3.5 text-white" /> 📰 Formato Editorial (OI)
+                <Download className="w-3.5 h-3.5 text-white" /> 📰 Descargar Formato Editorial (PDF)
               </Link>
             )}
           </div>
@@ -2159,12 +2161,13 @@ export default function OrderDetailPage() {
                           </button>
                         )}
                         <Link
-                          href={`/orders/${order.id}/print?type=editorial`}
+                          href={`/orders/${order.id}/print?type=editorial&autoprint=true`}
                           target="_blank"
                           className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all"
+                          title="Descargar o imprimir formato oficial de redacción en PDF"
                         >
-                          <Printer className="w-3.5 h-3.5" />
-                          <span>🖨️ Ver / Imprimir Formato Editorial (PDF)</span>
+                          <Download className="w-3.5 h-3.5" />
+                          <span>📥 Descargar Formato Editorial (PDF)</span>
                         </Link>
                       </div>
                     </div>

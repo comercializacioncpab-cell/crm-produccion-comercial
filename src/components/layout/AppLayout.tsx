@@ -18,7 +18,8 @@ import {
   BarChart3,
   CalendarClock,
   Sparkles,
-  Newspaper
+  Newspaper,
+  Trophy
 } from 'lucide-react';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -131,6 +132,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       href: '/reports',
       icon: BarChart3,
       roles: ['COORDINADOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR', 'JEFE_MONETIZACION'],
+    },
+    {
+      name: 'Ranking Mensual',
+      href: '/ranking',
+      icon: Trophy,
+      roles: ['SOLICITANTE', 'EJECUTIVA_DIGITAL', 'COORDINADORA_VENTAS', 'COORDINADOR', 'POST_PRODUCTOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR', 'CREATIVO_DIGITAL', 'COMMUNITY_MANAGER', 'JEFE_MONETIZACION', 'REDACCION'],
     },
   ];
 

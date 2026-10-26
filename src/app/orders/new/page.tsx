@@ -28,7 +28,9 @@ import {
   Smartphone,
   Share2,
   Send,
-  Copy
+  Copy,
+  Printer,
+  Download
 } from 'lucide-react';
 import { SPONSORSHIP_OPTIONS, SPONSORSHIP_CATEGORIES, hasStrategicPnt, hasCobertura, formatInitials, SP_TEMPLATES } from '@/lib/order-utils';
 import DigitalOrderForm from '@/components/orders/DigitalOrderForm';
@@ -335,7 +337,7 @@ function NewOrderForm() {
     setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSaveOrder = async (isDraftMode: boolean = false) => {
+  const handleSaveOrder = async (isDraftMode: boolean = false, downloadPdfImmediately: boolean = false) => {
     if (isCoordinatorOrAdmin && !selectedExecutiveId) {
       setError('Por favor selecciona de qué Ejecutiva es la cuenta antes de ingresar la SP.');
       return;
@@ -503,6 +505,10 @@ function NewOrderForm() {
             body: uploadFormData,
           });
         }
+      }
+
+      if (downloadPdfImmediately) {
+        window.open(`/orders/${createdOrderId}/print?autoprint=true`, '_blank');
       }
 
       router.push(`/orders/${createdOrderId}`);
@@ -880,6 +886,16 @@ function NewOrderForm() {
                 >
                   <FileText className="w-4 h-4" />
                   {loading ? 'Guardando...' : '💾 Guardar como Borrador (Sin Enviar)'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveOrder(false, true)}
+                  disabled={loading}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-5 py-3.5 rounded-xl text-xs shadow-md transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                  title="Guardar la orden e inmediatamente descargarla en formato PDF oficial"
+                >
+                  <Download className="w-4 h-4" />
+                  {loading ? 'Procesando...' : '📥 Guardar y Descargar como PDF'}
                 </button>
                 <button
                   type="submit"
@@ -1485,6 +1501,16 @@ function NewOrderForm() {
             >
               <FileText className="w-4 h-4" />
               💾 Guardar Borrador
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSaveOrder(false, true)}
+              disabled={loading}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-5 py-3 rounded-xl text-xs shadow-md transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+              title="Guardar la orden e inmediatamente descargarla en formato PDF oficial"
+            >
+              <Download className="w-4 h-4" />
+              {loading ? 'Procesando...' : '📥 Guardar y Descargar como PDF'}
             </button>
             <button
               type="submit"
