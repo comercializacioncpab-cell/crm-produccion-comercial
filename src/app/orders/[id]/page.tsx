@@ -379,7 +379,7 @@ export default function OrderDetailPage() {
         const data = await res.json();
         const allUsers = data.users || [];
         const salesUsers = allUsers.filter(
-          (u: any) => u.status === 'APROBADO' && (u.role === 'SOLICITANTE' || u.role === 'ADMIN' || u.role === 'PRODUCTOR_SENIOR' || u.role === 'COORDINADOR' || u.role === 'COORDINADOR_PRODUCTOR')
+          (u: any) => u.status === 'APROBADO' && (u.role === 'SOLICITANTE' || u.role === 'EJECUTIVA_DIGITAL' || u.role === 'EJECUTIVA' || u.role === 'COORDINADORA_VENTAS' || u.role === 'CREATIVO_DIGITAL' || u.role === 'COMMUNITY_MANAGER' || u.role === 'ADMIN' || u.role === 'PRODUCTOR_SENIOR' || u.role === 'COORDINADOR' || u.role === 'COORDINADOR_PRODUCTOR')
         );
         setExecutives(salesUsers);
       }
@@ -1409,6 +1409,26 @@ export default function OrderDetailPage() {
     )
   );
 
+  const isExecutiveOrRequester = Boolean(
+    user && (
+      user.role === 'SOLICITANTE' ||
+      user.role === 'EJECUTIVA_DIGITAL' ||
+      user.role === 'EJECUTIVA' ||
+      user.role === 'COORDINADORA_VENTAS' ||
+      user.role === 'CREATIVO_DIGITAL' ||
+      user.role === 'COMMUNITY_MANAGER' ||
+      order?.executiveId === user?.id ||
+      order?.creatorId === user?.id
+    )
+  );
+
+  const canApproveOrRequestChanges = Boolean(
+    isExecutiveOrRequester ||
+    isCoordinator ||
+    user?.role === 'ADMIN' ||
+    user?.role === 'PRODUCTOR_SENIOR'
+  );
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -1504,7 +1524,7 @@ export default function OrderDetailPage() {
 
           <div className="flex items-center gap-2 flex-wrap">
             {/* Convert Demo to Official Commercial SP Action */}
-            {order.isDemo && order.demoStatus !== 'VENDIDO' && (isCoordinator || user?.role === 'SOLICITANTE') && (
+            {order.isDemo && order.demoStatus !== 'VENDIDO' && (isCoordinator || isExecutiveOrRequester) && (
               <Link
                 href={`/orders/new?fromDemoId=${order.id}`}
                 className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-md animate-pulse"
@@ -1666,7 +1686,7 @@ export default function OrderDetailPage() {
               </div>
             </div>
 
-            {order.demoStatus !== 'VENDIDO' && (isCoordinator || user?.role === 'SOLICITANTE') && (
+            {order.demoStatus !== 'VENDIDO' && (isCoordinator || isExecutiveOrRequester) && (
               <Link
                 href={`/orders/new?fromDemoId=${order.id}`}
                 className="bg-purple-700 hover:bg-purple-800 text-white text-xs font-black px-4 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5"
@@ -1696,6 +1716,61 @@ export default function OrderDetailPage() {
             >
               Ver Demo Original ({order.sourceDemo.orderNumber}) <ExternalLink className="w-3 h-3" />
             </Link>
+          </div>
+        )}
+
+        {/* Banner de Requerimiento Atendido / Material Entregado */}
+        {(order.status === 'RESUELTA' || order.status === 'ENTREGADO') && !order.approved && (
+          <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-sky-50 border-2 border-emerald-400 p-5 rounded-3xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black text-2xl shrink-0 shadow-md">
+                ✨
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-sm font-black text-emerald-950 uppercase tracking-wider">
+                    ¡Requerimiento Atendido! Material Entregado
+                  </h3>
+                  <span className="text-[10px] font-black bg-emerald-200 text-emerald-900 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                    Listo para Revisión
+                  </span>
+                </div>
+                <p className="text-xs text-emerald-900 mt-1 font-medium leading-relaxed">
+                  {order.postProducer?.name || 'El post-productor'} ha finalizado el trabajo de producción. Revisa el material entregado y confirma si está listo al aire o si necesitas solicitar ajustes.
+                </p>
+                {order.deliveryNotes && (
+                  <div className="mt-2 text-xs text-slate-800 bg-white/90 p-2.5 rounded-xl border border-emerald-200">
+                    <span className="font-bold text-emerald-900">📌 Detalle de Entrega:</span> {order.deliveryNotes}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {canApproveOrRequestChanges && (
+              <div className="flex items-center gap-2.5 self-end md:self-auto shrink-0 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAcceptCostChecked(false);
+                    setShowChangesModal(true);
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-white border-2 border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-black shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <RotateCcw className="w-4 h-4 text-rose-600" />
+                  <span>Solicitar Ajustes / Cambios {order.changesCount > 0 && `(Actual: ${order.changesCount})`}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleApprove}
+                  disabled={actionLoading}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Aprobar Comercial (Listo al Aire)</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -2731,6 +2806,42 @@ export default function OrderDetailPage() {
                           )}
                         </div>
                       </div>
+
+                      {/* Direct Review Actions for Executive / Requester */}
+                      {canApproveOrRequestChanges && (outputFiles.length > 0 || order.deliveredAt || order.status === 'RESUELTA' || order.status === 'ENTREGADO') && !order.approved && (
+                        <div className="mt-3 p-3 bg-gradient-to-r from-slate-50 to-emerald-50/50 border border-emerald-200 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-2.5">
+                          <div>
+                            <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                              <span>🎬</span> Revisión del Material de Entrega
+                            </span>
+                            <span className="text-[10px] text-slate-500 block">
+                              ¿El entregable cumple con lo requerido o necesita correcciones?
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAcceptCostChecked(false);
+                                setShowChangesModal(true);
+                              }}
+                              className="px-3.5 py-2 rounded-xl bg-white border border-rose-300 hover:bg-rose-50 text-rose-700 text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+                              <span>Solicitar Cambios {order.changesCount > 0 && `(#${order.changesCount + 1})`}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleApprove}
+                              disabled={actionLoading}
+                              className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black transition-all flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Aprobar Solicitud</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
@@ -3434,7 +3545,7 @@ export default function OrderDetailPage() {
               </div>
 
               {/* Si el usuario actual es la Ejecutiva o Coordinador o Admin: botón o formulario para consultar */}
-              {(user?.role === 'SOLICITANTE' || user?.role === 'EJECUTIVA_DIGITAL' || isCoordinator || user?.id === order.executiveId || user?.id === order.creatorId) && (
+              {(isExecutiveOrRequester || isCoordinator) && (
                 <div className="space-y-3">
                   {!showInquiryForm ? (
                     <button
@@ -3550,8 +3661,8 @@ export default function OrderDetailPage() {
               )}
             </div>
 
-            {/* PANEL 3: APROBACIÓN Y REVISIÓN (Solicitante / Coordinadora / Admin / Productor Senior / Coordinador-Productor) */}
-            {(user?.role === 'SOLICITANTE' || isCoordinator) && (
+            {/* PANEL 3: APROBACIÓN Y REVISIÓN (Ejecutiva Digital / Solicitante / Coordinadora / Admin / Productor Senior) */}
+            {canApproveOrRequestChanges && (
               <div className="bg-white rounded-3xl border border-emerald-200 p-5 shadow-sm space-y-4">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
