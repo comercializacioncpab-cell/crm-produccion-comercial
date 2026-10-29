@@ -60,5 +60,5 @@ export function isCoordinatorOrAdminRole(role?: string | null): boolean {
 }
 
 export function isPostProducerRole(role?: string | null): boolean {
-  return role === 'POST_PRODUCTOR' || role === 'PRODUCTOR_SENIOR' || role === 'COORDINADOR_PRODUCTOR';
+  return role === 'POST_PRODUCTOR' || role === 'PRODUCTOR_SENIOR' || role === 'COORDINADOR_PRODUCTOR' || role === 'CREATIVO_DIGITAL';
 }

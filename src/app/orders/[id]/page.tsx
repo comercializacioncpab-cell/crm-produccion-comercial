@@ -1386,7 +1386,7 @@ export default function OrderDetailPage() {
     (user.role === 'COORDINADOR' || user.role === 'COORDINADOR_PRODUCTOR' || user.role === 'ADMIN' || user.role === 'PRODUCTOR_SENIOR' || (user.role?.toUpperCase().includes('COORDINAD') && !user.role?.toUpperCase().includes('VENTAS')))
   );
   const isPostProducerUser = Boolean(
-    user && (user.role === 'POST_PRODUCTOR' || user.role === 'PRODUCTOR_SENIOR' || user.role === 'COORDINADOR_PRODUCTOR' || user.role === 'ADMIN')
+    user && (user.role === 'POST_PRODUCTOR' || user.role === 'PRODUCTOR_SENIOR' || user.role === 'COORDINADOR_PRODUCTOR' || user.role === 'ADMIN' || user.role === 'CREATIVO_DIGITAL')
   );
   const canEditOrder = Boolean(
     user && ['ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR', 'COORDINADORA', 'COORDINADOR_PRODUCTOR', 'SOLICITANTE', 'EJECUTIVA', 'EJECUTIVA_DIGITAL', 'COORDINADORA_VENTAS', 'CREATIVO_DIGITAL', 'COMMUNITY_MANAGER', 'JEFE_MONETIZACION'].includes(user.role)
@@ -2899,7 +2899,7 @@ export default function OrderDetailPage() {
                       )}
                       {postProducers.map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.workload?.dot ? `${p.workload.dot} ` : ''}{p.role === 'PRODUCTOR_SENIOR' ? '👑 ' : p.role === 'COORDINADOR_PRODUCTOR' ? '🎯 ' : '🎬 '}{p.name} {p.activeOrders !== undefined ? `[${p.activeOrders} activas]` : ''} {p.role === 'PRODUCTOR_SENIOR' ? '(Senior)' : p.role === 'COORDINADOR_PRODUCTOR' ? '(Coord-Prod)' : ''}
+                          {p.workload?.dot ? `${p.workload.dot} ` : ''}{p.role === 'PRODUCTOR_SENIOR' ? '👑 ' : p.role === 'COORDINADOR_PRODUCTOR' ? '🎯 ' : p.role === 'CREATIVO_DIGITAL' ? '🎨 ' : '🎬 '}{p.name} {p.activeOrders !== undefined ? `[${p.activeOrders} activas]` : ''} {p.role === 'PRODUCTOR_SENIOR' ? '(Senior)' : p.role === 'COORDINADOR_PRODUCTOR' ? '(Coord-Prod)' : p.role === 'CREATIVO_DIGITAL' ? '(Creativo)' : ''}
                         </option>
                       ))}
                     </select>
@@ -2923,7 +2923,7 @@ export default function OrderDetailPage() {
                         .filter((p) => p.id !== selectedPostId)
                         .map((p) => (
                           <option key={p.id} value={p.id}>
-                            {p.workload?.dot ? `${p.workload.dot} ` : ''}{p.role === 'PRODUCTOR_SENIOR' ? '👑 ' : p.role === 'COORDINADOR_PRODUCTOR' ? '🎯 ' : '🤝 '}{p.name} {p.activeOrders !== undefined ? `[${p.activeOrders} activas]` : ''}
+                            {p.workload?.dot ? `${p.workload.dot} ` : ''}{p.role === 'PRODUCTOR_SENIOR' ? '👑 ' : p.role === 'COORDINADOR_PRODUCTOR' ? '🎯 ' : p.role === 'CREATIVO_DIGITAL' ? '🎨 ' : '🤝 '}{p.name} {p.activeOrders !== undefined ? `[${p.activeOrders} activas]` : ''} {p.role === 'CREATIVO_DIGITAL' ? '(Creativo)' : ''}
                           </option>
                         ))}
                     </select>
@@ -4835,7 +4835,7 @@ export default function OrderDetailPage() {
                           )}
                           {postProducers.map((p) => (
                             <option key={p.id} value={p.id}>
-                              {p.workload?.dot ? `${p.workload.dot} ` : ''}{p.role === 'PRODUCTOR_SENIOR' ? '👑 ' : p.role === 'COORDINADOR_PRODUCTOR' ? '🎯 ' : '🎬 '}{p.name} {p.activeOrders !== undefined ? `[${p.activeOrders} activas]` : ''}
+                              {p.workload?.dot ? `${p.workload.dot} ` : ''}{p.role === 'PRODUCTOR_SENIOR' ? '👑 ' : p.role === 'COORDINADOR_PRODUCTOR' ? '🎯 ' : p.role === 'CREATIVO_DIGITAL' ? '🎨 ' : '🎬 '}{p.name} {p.activeOrders !== undefined ? `[${p.activeOrders} activas]` : ''} {p.role === 'CREATIVO_DIGITAL' ? '(Creativo)' : ''}
                             </option>
                           ))}
                         </select>
@@ -4858,7 +4858,7 @@ export default function OrderDetailPage() {
                             .filter((p) => p.id !== editFormData.postProducerId)
                             .map((p) => (
                               <option key={p.id} value={p.id}>
-                                {p.workload?.dot ? `${p.workload.dot} ` : ''}{p.role === 'PRODUCTOR_SENIOR' ? '👑 ' : p.role === 'COORDINADOR_PRODUCTOR' ? '🎯 ' : '🤝 '}{p.name} {p.activeOrders !== undefined ? `[${p.activeOrders} activas]` : ''}
+                                {p.workload?.dot ? `${p.workload.dot} ` : ''}{p.role === 'PRODUCTOR_SENIOR' ? '👑 ' : p.role === 'COORDINADOR_PRODUCTOR' ? '🎯 ' : p.role === 'CREATIVO_DIGITAL' ? '🎨 ' : '🤝 '}{p.name} {p.activeOrders !== undefined ? `[${p.activeOrders} activas]` : ''} {p.role === 'CREATIVO_DIGITAL' ? '(Creativo)' : ''}
                               </option>
                             ))}
                         </select>

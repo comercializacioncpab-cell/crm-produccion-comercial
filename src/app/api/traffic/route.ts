@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     // Post-producers and seniors/coordinators who can edit
     const postProducers = await prisma.user.findMany({
       where: {
-        role: { in: ['POST_PRODUCTOR', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'] },
+        role: { in: ['POST_PRODUCTOR', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR', 'CREATIVO_DIGITAL'] },
         status: 'APROBADO',
       },
       select: {

@@ -308,7 +308,13 @@ export default function TrafficPage() {
                             {prod.name}
                           </h3>
                           <span className="text-[11px] text-slate-400 block mt-0.5">
-                            {prod.role === 'PRODUCTOR_SENIOR' ? '👑 Productor Senior' : prod.role === 'COORDINADOR_PRODUCTOR' ? '🎯 Coord. - Productor' : '🎬 Post-Productor / Productor Digital'}
+                            {prod.role === 'PRODUCTOR_SENIOR'
+                              ? '👑 Productor Senior'
+                              : prod.role === 'COORDINADOR_PRODUCTOR'
+                              ? '🎯 Coord. - Productor'
+                              : prod.role === 'CREATIVO_DIGITAL'
+                              ? '🎨 Creativo Digital'
+                              : '🎬 Post-Productor / Productor Digital'}
                           </span>
                         </div>
                       </div>

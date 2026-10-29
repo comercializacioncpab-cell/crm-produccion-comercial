@@ -37,10 +37,17 @@ export async function GET(req: Request) {
       ];
     } else if (scope !== 'all') {
       // Default fallback when scope is omitted:
-      if (user.role === 'SOLICITANTE' || user.role === 'EJECUTIVA_DIGITAL' || user.role === 'CREATIVO_DIGITAL' || user.role === 'COMMUNITY_MANAGER') {
+      if (user.role === 'SOLICITANTE' || user.role === 'EJECUTIVA_DIGITAL' || user.role === 'COMMUNITY_MANAGER') {
         where.OR = [
           { creatorId: user.id },
           { executiveId: user.id },
+        ];
+      } else if (user.role === 'CREATIVO_DIGITAL') {
+        where.OR = [
+          { creatorId: user.id },
+          { executiveId: user.id },
+          { postProducerId: user.id },
+          { secondaryPostProducerId: user.id },
         ];
       } else if (user.role === 'POST_PRODUCTOR') {
         where.OR = [

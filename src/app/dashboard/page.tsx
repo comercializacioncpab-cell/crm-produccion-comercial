@@ -120,6 +120,7 @@ export default function DashboardPage() {
                 {user?.role === 'COORDINADOR' && 'Bandeja de recepción general: revisa solicitudes entrantes, asígnalas a post-productores y consulta métricas de productividad.'}
                 {user?.role === 'COORDINADOR_PRODUCTOR' && 'Panel híbrido de coordinación y post-producción: revisa solicitudes, coordina asignaciones, autoasígnate SPs y edita entregables.'}
                 {user?.role === 'POST_PRODUCTOR' && 'Aquí tienes tus órdenes asignadas para edición. Sube los masters terminados y avisa a las ejecutivas.'}
+                {user?.role === 'CREATIVO_DIGITAL' && 'Diseña briefs, gestiona tus solicitudes creativas y atiende las órdenes de producción digital asignadas a tu cargo.'}
                 {user?.role === 'PRODUCTOR_SENIOR' && 'Panel de control maestro de producción comercial, asignaciones, auditoría y métricas de desempeño.'}
                 {user?.role === 'ADMIN' && 'Panel de control maestro de producción comercial, auditoría y métricas de desempeño.'}
               </p>
@@ -135,7 +136,7 @@ export default function DashboardPage() {
                 </Link>
               )}
 
-              {(user?.role === 'SOLICITANTE' || user?.role === 'COORDINADOR' || user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR' || user?.role === 'COORDINADOR_PRODUCTOR') && (
+              {(user?.role === 'SOLICITANTE' || user?.role === 'EJECUTIVA_DIGITAL' || user?.role === 'COORDINADORA_VENTAS' || user?.role === 'COORDINADOR' || user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR' || user?.role === 'COORDINADOR_PRODUCTOR' || user?.role === 'CREATIVO_DIGITAL') && (
                 <Link
                   href="/orders/new"
                   className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-5 py-3 rounded-2xl text-xs sm:text-sm shadow-lg hover:shadow-cyan-500/30 transition-all flex items-center gap-2"

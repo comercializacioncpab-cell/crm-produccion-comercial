@@ -107,7 +107,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       name: 'Mis Asignaciones',
       href: '/orders?scope=assigned_to_me',
       icon: Clapperboard,
-      roles: ['POST_PRODUCTOR', 'COORDINADOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'],
+      roles: ['POST_PRODUCTOR', 'COORDINADOR', 'ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR', 'CREATIVO_DIGITAL'],
     },
     {
       name: 'Equipo y Roles',

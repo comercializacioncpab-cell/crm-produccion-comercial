@@ -309,7 +309,7 @@ function OrdersContent() {
             >
               <option value="all">🌐 Todas las Órdenes (Global)</option>
               <option value="my_orders">👤 Solo Mis Órdenes Ingresadas</option>
-              {(user?.role === 'POST_PRODUCTOR' || user?.role === 'COORDINADOR_PRODUCTOR' || user?.role === 'PRODUCTOR_SENIOR' || user?.role === 'ADMIN') && (
+              {(user?.role === 'POST_PRODUCTOR' || user?.role === 'COORDINADOR_PRODUCTOR' || user?.role === 'PRODUCTOR_SENIOR' || user?.role === 'ADMIN' || user?.role === 'CREATIVO_DIGITAL') && (
                 <option value="assigned_to_me">🎬 Mis Asignaciones</option>
               )}
             </select>

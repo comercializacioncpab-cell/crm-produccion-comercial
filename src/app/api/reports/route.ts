@@ -34,7 +34,7 @@ export async function GET(req: Request) {
     const categoryParam = searchParams.get('category') || 'ALL'; // 'ALL', 'TV', 'DIGITAL'
 
     const postProducersList = await prisma.user.findMany({
-      where: { role: { in: ['POST_PRODUCTOR', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'] } },
+      where: { role: { in: ['POST_PRODUCTOR', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR', 'CREATIVO_DIGITAL'] } },
       select: { id: true, name: true, email: true, phone: true, initials: true, role: true },
       orderBy: { name: 'asc' },
     });

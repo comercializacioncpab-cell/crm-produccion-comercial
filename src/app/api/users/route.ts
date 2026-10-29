@@ -16,7 +16,7 @@ export async function GET(req: Request) {
     const where: any = {};
     if (role) {
       if (role === 'POST_PRODUCTOR') {
-        where.role = { in: ['POST_PRODUCTOR', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR'] };
+        where.role = { in: ['POST_PRODUCTOR', 'PRODUCTOR_SENIOR', 'COORDINADOR_PRODUCTOR', 'CREATIVO_DIGITAL'] };
       } else if (role.includes(',')) {
         where.role = { in: role.split(',') };
       } else {
