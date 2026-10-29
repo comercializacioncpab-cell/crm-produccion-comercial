@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
-import { sendNotification } from '@/lib/notifications';
+import { sendNotification, generateWhatsAppUrl } from '@/lib/notifications';
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
@@ -462,6 +462,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         },
       });
 
+      // Generate WhatsApp link for post producer
+      let postProducerWhatsAppUrl: string | null = null;
+      if (order.postProducer?.phone) {
+        const waText = `⚠️ *Solicitud de Cambio #${nextCount}*\n*Orden:* ${order.orderNumber}\n*Producto:* ${order.product}\n*Solicitado por:* ${user.name}\n\n*Ajustes requeridos:*\n"${changeNotes}"${nextCount >= 4 ? '\n\n⚠️ *(Cuenta con costo adicional de $200 USD aceptado)*' : ''}\n\n👉 Ver en CRM: https://crm-produccion-comercial.vercel.app/orders/${id}`;
+        postProducerWhatsAppUrl = generateWhatsAppUrl(order.postProducer.phone, waText);
+      }
+
       if (order.postProducerId) {
         await sendNotification({
           userId: order.postProducerId,
@@ -488,7 +495,37 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         });
       }
 
-      return NextResponse.json({ success: true, order: updatedOrder, changesCount: nextCount });
+      // Always Notify Coordinators & Senior Producer so coordination is fully informed of the change
+      const coordinators = await prisma.user.findMany({
+        where: {
+          role: { in: ['COORDINADOR', 'COORDINADOR_PRODUCTOR', 'PRODUCTOR_SENIOR', 'ADMIN'] },
+          id: { not: user.id },
+        },
+      });
+
+      for (const coord of coordinators) {
+        if (coord.id !== order.postProducerId && coord.id !== order.secondaryPostProducerId) {
+          await sendNotification({
+            userId: coord.id,
+            orderId: id,
+            type: 'CHANGES_REQUESTED',
+            title: `🔄 Cambio #${nextCount} solicitado en ${order.orderNumber}`,
+            message: `${user.name} solicitó cambio #${nextCount} para ${order.product} (${order.postProducer?.name ? `Editor: ${order.postProducer.name}` : 'Sin editor asignado'}): "${changeNotes}"`,
+            userPhone: coord.phone,
+            userEmail: coord.email,
+            orderNumber: order.orderNumber,
+          });
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        order: updatedOrder,
+        changesCount: nextCount,
+        whatsappUrl: postProducerWhatsAppUrl,
+        postProducerName: order.postProducer?.name || null,
+        postProducerPhone: order.postProducer?.phone || null,
+      });
     }
 
     // 5. ACTION: APPROVE ORDER (Solicitante / Coordinador)

@@ -427,6 +427,25 @@ export default function TodayWorkboardPage() {
                       )}
                     </div>
 
+                    {/* Detalle de Cambios Solicitados por la Ejecutiva */}
+                    {(order.status === 'CON_CAMBIOS' || order.changeNotes) && (
+                      <div className="bg-rose-50/90 border border-rose-300 rounded-xl p-3 space-y-1.5 animate-in fade-in">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-black text-rose-950 flex items-center gap-1">
+                            <span>⚠️</span> Cambios Solicitados por la Ejecutiva {order.changesCount > 0 ? `(#${order.changesCount})` : ''}
+                          </span>
+                          <span className="text-[10px] font-bold bg-rose-200 text-rose-900 px-2 py-0.5 rounded-full">
+                            Pendiente
+                          </span>
+                        </div>
+                        {order.changeNotes && (
+                          <p className="text-xs text-rose-950 font-medium whitespace-pre-wrap bg-white p-2.5 rounded-lg border border-rose-200">
+                            {order.changeNotes}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     {/* Change Checklist (if available) */}
                     {checklist.length > 0 && (
                       <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-3 space-y-2">
@@ -491,7 +510,7 @@ export default function TodayWorkboardPage() {
                         </button>
                       )}
 
-                      {(order.status === 'EN_PROCESO' || order.status === 'CON_CAMBIOS') && (
+                      {(order.status === 'EN_PROCESO' || order.status === 'CON_CAMBIOS' || order.status === 'ASIGNADA') && (
                         <button
                           onClick={() => {
                             setDeliveryModalOrder(order);
@@ -502,7 +521,7 @@ export default function TodayWorkboardPage() {
                           }}
                           className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-95 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
                         >
-                          <Upload className="w-3 h-3" /> Entregar Comercial
+                          <Upload className="w-3 h-3" /> ✅ Entregar SP / Material
                         </button>
                       )}
                     </div>
@@ -673,11 +692,11 @@ export default function TodayWorkboardPage() {
                     </>
                   ) : deliveryMethod === 'EMAIL' ? (
                     <>
-                      <span>✉️</span> Confirmar (Enviado por Mail)
+                      <span>✉️</span> ✅ Marcar como Entregado (Enviado por Mail)
                     </>
                   ) : (
                     <>
-                      <Upload className="w-3.5 h-3.5" /> Confirmar Entrega
+                      <Upload className="w-3.5 h-3.5" /> ✅ Confirmar y Marcar como Entregado
                     </>
                   )}
                 </button>

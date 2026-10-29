@@ -87,6 +87,12 @@ export default function OrderDetailPage() {
   const [changeChecklistItems, setChangeChecklistItems] = useState<string[]>(['']);
   const [showChangesModal, setShowChangesModal] = useState(false);
   const [acceptCostChecked, setAcceptCostChecked] = useState(false);
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [changesSuccessNotification, setChangesSuccessNotification] = useState<{
+    whatsappUrl?: string | null;
+    postProducerName?: string | null;
+    changeCount: number;
+  } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -737,8 +743,15 @@ export default function OrderDetailPage() {
 
       setMsg({ 
         type: 'success', 
-        text: `¡Solicitud de Cambio #${nextChangeNum} registrada exitosamente! ${nextChangeNum >= 4 ? '(Con Costo Adicional de $200 USD aceptado)' : ''}` 
+        text: `¡Solicitud de Cambio #${nextChangeNum} registrada exitosamente! Notificado a post-producción y coordinación. ${nextChangeNum >= 4 ? '(Con Costo Adicional de $200 USD aceptado)' : ''}` 
       });
+      if (data.whatsappUrl) {
+        setChangesSuccessNotification({
+          whatsappUrl: data.whatsappUrl,
+          postProducerName: data.postProducerName || 'el Editor Asignado',
+          changeCount: nextChangeNum,
+        });
+      }
       setShowChangesModal(false);
       setChangeNotes('');
       setChangeChecklistItems(['']);
@@ -1429,6 +1442,24 @@ export default function OrderDetailPage() {
     user?.role === 'PRODUCTOR_SENIOR'
   );
 
+  const canDeliver = Boolean(
+    user && (
+      isPostProducerUser ||
+      isCoordinator ||
+      order?.postProducerId === user?.id ||
+      order?.secondaryPostProducerId === user?.id ||
+      order?.creatorId === user?.id ||
+      order?.executiveId === user?.id ||
+      user.role === 'POST_PRODUCTOR' ||
+      user.role === 'CREATIVO_DIGITAL' ||
+      user.role === 'PRODUCTOR_SENIOR' ||
+      user.role === 'COORDINADOR_PRODUCTOR' ||
+      user.role === 'COORDINADOR' ||
+      user.role === 'ADMIN' ||
+      (isDigital && (user.role === 'EJECUTIVA_DIGITAL' || user.role === 'COMMUNITY_MANAGER' || user.role === 'COORDINADORA_VENTAS'))
+    )
+  );
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -1523,6 +1554,19 @@ export default function OrderDetailPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Quick Deliver SP Action */}
+            {canDeliver && (
+              <button
+                type="button"
+                onClick={() => setShowDeliveryModal(true)}
+                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-md cursor-pointer animate-in fade-in"
+                title="Registrar entrega de material o enlaces y marcar la SP como atendida"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>{order.status === 'RESUELTA' || order.status === 'ENTREGADO' ? '🔄 Actualizar Entrega' : '✅ Marcar como Entregado'}</span>
+              </button>
+            )}
+
             {/* Convert Demo to Official Commercial SP Action */}
             {order.isDemo && order.demoStatus !== 'VENDIDO' && (isCoordinator || isExecutiveOrRequester) && (
               <Link
@@ -1771,6 +1815,158 @@ export default function OrderDetailPage() {
                 </button>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Banner Modal / Alert: Notificación Inmediata por WhatsApp al Editor */}
+        {changesSuccessNotification && changesSuccessNotification.whatsappUrl && (
+          <div className="bg-emerald-50 border-2 border-emerald-400 p-4 rounded-3xl shadow-md flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold text-xl shrink-0">
+                💬
+              </div>
+              <div>
+                <h4 className="text-xs font-black text-emerald-950 uppercase tracking-wide">
+                  ¡Cambio #{changesSuccessNotification.changeCount} Registrado! Enviar por WhatsApp
+                </h4>
+                <p className="text-[11px] text-emerald-800">
+                  Notifica directamente a <strong>{changesSuccessNotification.postProducerName}</strong> en su WhatsApp con el detalle exacto de los cambios:
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+              <a
+                href={changesSuccessNotification.whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setChangesSuccessNotification(null)}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Abrir WhatsApp y Notificar</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => setChangesSuccessNotification(null)}
+                className="p-2 text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Banner de Solicitud de Cambios Requeridos por la Ejecutiva */}
+        {(order.status === 'CON_CAMBIOS' || (order.hasChanges && !order.approved && order.changeNotes)) && (
+          <div className="bg-gradient-to-r from-rose-50 via-amber-50 to-orange-50 border-2 border-rose-400 p-5 rounded-3xl shadow-md flex flex-col md:flex-row md:items-start justify-between gap-4 animate-in fade-in">
+            <div className="flex items-start gap-3.5 flex-1">
+              <div className="w-12 h-12 rounded-2xl bg-rose-600 text-white flex items-center justify-center font-black text-2xl shrink-0 shadow-md">
+                🔄
+              </div>
+              <div className="space-y-2 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-sm font-black text-rose-950 uppercase tracking-wider">
+                    ⚠️ ¡Ajustes Requeridos por la Ejecutiva! (Cambio #{order.changesCount || 1})
+                  </h3>
+                  <span className="text-[10px] font-black bg-rose-200 text-rose-900 px-2.5 py-0.5 rounded-full border border-rose-300">
+                    Pendiente de Edición
+                  </span>
+                  {order.changesCount >= 4 && (
+                    <span className="text-[10px] font-black bg-amber-200 text-amber-950 px-2.5 py-0.5 rounded-full border border-amber-400 animate-pulse">
+                      💰 Costo Adicional de $200 USD Aceptado por el Cliente
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-xs text-rose-900 font-medium">
+                  {order.executive?.name ? `La ejecutiva ${order.executive.name}` : 'La ejecutiva / solicitante'} ha devuelto esta orden solicitando las siguientes correcciones antes de la aprobación final:
+                </p>
+
+                {/* Detalle de los Cambios */}
+                <div className="bg-white/95 rounded-2xl border border-rose-200 p-4 shadow-2xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-black text-rose-950 uppercase tracking-wide flex items-center gap-1.5">
+                      <span>📌</span> Detalle de Correcciones Requeridas:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(order.changeNotes || '');
+                        alert('¡Detalle de cambios copiado al portapapeles!');
+                      }}
+                      className="text-[10px] text-slate-500 hover:text-slate-800 font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <Copy className="w-3 h-3" /> Copiar texto
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-900 whitespace-pre-wrap font-semibold leading-relaxed bg-rose-50/40 p-3 rounded-xl border border-rose-100">
+                    {order.changeNotes || 'Sin detalle de cambios especificado.'}
+                  </p>
+
+                  {/* Checklist si existe */}
+                  {Array.isArray(order.changeChecklist) && order.changeChecklist.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-rose-100 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                          <CheckSquare className="w-3.5 h-3.5 text-rose-600" /> Checklist de Puntos Específicos:
+                        </span>
+                        <span className="text-[10px] font-bold bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full">
+                          {order.changeChecklist.filter((c: any) => c.done).length} / {order.changeChecklist.length} completados
+                        </span>
+                      </div>
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                        {order.changeChecklist.map((item: any, idx: number) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => handleToggleChecklist(idx)}
+                            className={`w-full text-left flex items-start gap-2 p-2 rounded-xl text-xs transition-colors cursor-pointer ${
+                              item.done ? 'bg-slate-100 text-slate-400 line-through' : 'bg-rose-50/70 text-slate-800 hover:bg-rose-100/70 border border-rose-200'
+                            }`}
+                          >
+                            {item.done ? (
+                              <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                            ) : (
+                              <Square className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                            )}
+                            <span className="leading-snug">{item.text}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Botones de acción del banner */}
+            <div className="flex flex-col sm:flex-row md:flex-col items-stretch gap-2 shrink-0 self-stretch md:self-start">
+              {/* WhatsApp direct notification button to editor */}
+              {order.postProducer?.phone && (
+                <a
+                  href={`https://wa.me/${order.postProducer.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                    `⚠️ *Solicitud de Cambio #${order.changesCount || 1} en ${order.orderNumber}*\n*Producto:* ${order.product}\n\n*Ajustes requeridos:*\n"${order.changeNotes || ''}"\n\n👉 Abrir CRM: https://crm-produccion-comercial.vercel.app/orders/${order.id}`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Notificar al Editor por WhatsApp</span>
+                </a>
+              )}
+
+              {canDeliver && (
+                <button
+                  type="button"
+                  onClick={() => setShowDeliveryModal(true)}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>📦 Entregar Versión con Cambios</span>
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -2807,6 +3003,29 @@ export default function OrderDetailPage() {
                         </div>
                       </div>
 
+                      {/* Direct Deliver Action for Editor / Producer */}
+                      {canDeliver && (
+                        <div className="mt-3 p-3 bg-gradient-to-r from-emerald-50 via-teal-50 to-sky-50 border border-emerald-300 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-2.5">
+                          <div>
+                            <span className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
+                              <Upload className="w-4 h-4 text-emerald-700" />
+                              <span>Entrega de Material Terminado / Master</span>
+                            </span>
+                            <span className="text-[10px] text-emerald-800 block">
+                              ¿Terminaste el trabajo? Registra el enlace o marca la entrega para que la ejecutiva lo apruebe.
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowDeliveryModal(true)}
+                            className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black shadow-md transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>{order.status === 'RESUELTA' || order.status === 'ENTREGADO' ? '🔄 Actualizar Entrega' : '✅ Marcar como Entregado'}</span>
+                          </button>
+                        </div>
+                      )}
+
                       {/* Direct Review Actions for Executive / Requester */}
                       {canApproveOrRequestChanges && (outputFiles.length > 0 || order.deliveredAt || order.status === 'RESUELTA' || order.status === 'ENTREGADO') && !order.approved && (
                         <div className="mt-3 p-3 bg-gradient-to-r from-slate-50 to-emerald-50/50 border border-emerald-200 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-2.5">
@@ -3158,14 +3377,14 @@ export default function OrderDetailPage() {
             )}
 
             {/* PANEL 2: POST-PRODUCTOR ACCIONES (Recepción y Entrega) */}
-            {(isPostProducerUser || order.postProducerId === user?.id || order.secondaryPostProducerId === user?.id) && (
+            {(canDeliver || isPostProducerUser || order.postProducerId === user?.id || order.secondaryPostProducerId === user?.id) && (
               <div className="bg-white rounded-3xl border border-blue-200 p-5 shadow-sm space-y-4">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
                     🎬
                   </div>
                   <div>
-                    <h3 className="font-bold text-xs text-slate-900">Acciones de Post-Producción</h3>
+                    <h3 className="font-bold text-xs text-slate-900">Acciones de Post-Producción y Entrega</h3>
                     <p className="text-[11px] text-slate-500">
                       {order.postProducer?.name ? `Principal: ${order.postProducer.name}` : 'Sin asignar'}
                       {order.secondaryPostProducer?.name ? ` • Apoyo: ${order.secondaryPostProducer.name}` : ''}
@@ -3194,6 +3413,25 @@ export default function OrderDetailPage() {
                       <Play className="w-4 h-4" />
                       {actionLoading ? 'Registrando recepción...' : 'Confirmar Recepción e Iniciar Edición'}
                     </button>
+                  </div>
+                )}
+
+                {/* Notice of pending changes in post producer panel */}
+                {(order.status === 'CON_CAMBIOS' || order.changeNotes) && (
+                  <div className="bg-rose-50 border border-rose-300 rounded-2xl p-3.5 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-rose-950 flex items-center gap-1.5">
+                        <span>⚠️</span> Ajustes Solicitados ({order.changesCount ? `Cambio #${order.changesCount}` : 'Revisión'})
+                      </span>
+                      <span className="text-[10px] font-bold bg-rose-200 text-rose-900 px-2 py-0.5 rounded-full">
+                        Pendiente
+                      </span>
+                    </div>
+                    {order.changeNotes && (
+                      <p className="text-[11px] text-rose-950 font-medium whitespace-pre-wrap bg-white p-2.5 rounded-xl border border-rose-200">
+                        {order.changeNotes}
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -3231,7 +3469,7 @@ export default function OrderDetailPage() {
                 )}
 
                 {/* Sub-Action B: Formulario de Entrega Final de Post */}
-                {(order.status === 'EN_PROCESO' || order.status === 'CON_CAMBIOS' || order.status === 'ASIGNADA' || user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR') && (
+                {(order.status === 'EN_PROCESO' || order.status === 'CON_CAMBIOS' || order.status === 'ASIGNADA' || order.status === 'NUEVA' || order.status === 'RESUELTA' || order.status === 'ENTREGADO' || user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR') && (
                   <form onSubmit={handleResolveDelivery} className="space-y-3.5 pt-1">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
@@ -3404,10 +3642,10 @@ export default function OrderDetailPage() {
                       {actionLoading
                         ? 'Procesando entrega...'
                         : deliveryMethod === 'EMAIL'
-                        ? '✉️ Marcar como Entregada (Enviado por Mail)'
+                        ? '✅ Marcar como Entregada (Enviado por Mail)'
                         : deliveryMethod === 'LINK'
-                        ? '🔗 Entregar con Enlace Nube'
-                        : '📁 Subir y Entregar Video'}
+                        ? '✅ Marcar como Entregada (Enlace Nube)'
+                        : '✅ Marcar como Entregada (Subir Video)'}
                     </button>
                   </form>
                 )}
@@ -3958,6 +4196,194 @@ export default function OrderDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Modal de Entrega Directa de Material / Master */}
+        {showDeliveryModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-lg">
+                    📦
+                  </div>
+                  <div>
+                    <h3 className="font-black text-sm text-slate-900">
+                      {order.status === 'RESUELTA' || order.status === 'ENTREGADO' ? 'Actualizar Entrega de Material' : 'Marcar como Entregado'}
+                    </h3>
+                    <p className="text-xs text-slate-500 font-mono">
+                      {order.orderNumber} • {order.product}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDeliveryModal(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 cursor-pointer text-sm font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Si hay cambios pendientes, recordatorio visible */}
+              {(order.status === 'CON_CAMBIOS' || order.changeNotes) && (
+                <div className="bg-rose-50 border border-rose-300 rounded-2xl p-3.5 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-rose-950 flex items-center gap-1.5">
+                      <span>⚠️</span> Entregando Correcciones ({order.changesCount ? `Cambio #${order.changesCount}` : 'Revisión'})
+                    </span>
+                    <span className="text-[10px] font-bold bg-rose-200 text-rose-900 px-2 py-0.5 rounded-full">
+                      Ajustes
+                    </span>
+                  </div>
+                  {order.changeNotes && (
+                    <p className="text-[11px] text-rose-950 font-medium whitespace-pre-wrap bg-white p-2.5 rounded-xl border border-rose-200">
+                      {order.changeNotes}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <form
+                onSubmit={async (e) => {
+                  await handleResolveDelivery(e);
+                  setShowDeliveryModal(false);
+                }}
+                className="space-y-4"
+              >
+                {/* Selector de Método de Entrega */}
+                <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryMethod('EMAIL')}
+                    className={`py-2 px-2 rounded-xl text-[11px] font-black transition-all flex flex-col sm:flex-row items-center justify-center gap-1 cursor-pointer ${
+                      deliveryMethod === 'EMAIL'
+                        ? 'bg-white text-sky-700 shadow-sm border border-sky-200'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>✉️</span>
+                    <span className="truncate">Enviado por Mail</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryMethod('LINK')}
+                    className={`py-2 px-2 rounded-xl text-[11px] font-black transition-all flex flex-col sm:flex-row items-center justify-center gap-1 cursor-pointer ${
+                      deliveryMethod === 'LINK'
+                        ? 'bg-white text-indigo-700 shadow-sm border border-indigo-200'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>🔗</span>
+                    <span className="truncate">Enlace Nube</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryMethod('FILE')}
+                    className={`py-2 px-2 rounded-xl text-[11px] font-black transition-all flex flex-col sm:flex-row items-center justify-center gap-1 cursor-pointer ${
+                      deliveryMethod === 'FILE'
+                        ? 'bg-white text-emerald-700 shadow-sm border border-emerald-200'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>📁</span>
+                    <span className="truncate">Subir Archivo</span>
+                  </button>
+                </div>
+
+                {/* Contenido según método */}
+                {deliveryMethod === 'EMAIL' && (
+                  <div className="bg-sky-50/90 border border-sky-200 rounded-2xl p-3.5 space-y-1.5">
+                    <div className="flex items-center gap-2 text-sky-950 font-black text-xs">
+                      <span>✉️</span>
+                      <span>Entrega directa vía Correo Electrónico (Mail)</span>
+                    </div>
+                    <p className="text-[11px] text-sky-800 leading-relaxed">
+                      <strong>Sin subir archivos pesados:</strong> Marca la SP como entregada si ya enviaste las piezas por mail. El sistema cambiará el estado a <strong>Resuelta</strong> y notificará a la ejecutiva.
+                    </p>
+                  </div>
+                )}
+
+                {deliveryMethod === 'LINK' && (
+                  <div className="bg-indigo-50/70 border border-indigo-200 rounded-2xl p-3.5 space-y-2">
+                    <label className="text-[11px] font-black text-indigo-950 flex items-center gap-1.5">
+                      <Link2 className="w-3.5 h-3.5 text-indigo-600" /> Enlace en la Nube (Drive / Frame.io / WeTransfer / Dropbox): *
+                    </label>
+                    <input
+                      type="url"
+                      value={deliveryExternalUrl}
+                      onChange={(e) => setDeliveryExternalUrl(e.target.value)}
+                      placeholder="https://drive.google.com/... o enlace de descarga"
+                      className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                )}
+
+                {deliveryMethod === 'FILE' && (
+                  <div className="space-y-2">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Archivo de Video / Pieza Terminada:
+                    </label>
+                    <input
+                      type="file"
+                      onChange={(e) => setDeliveryFile(e.target.files?.[0] || null)}
+                      className="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer border border-slate-200 rounded-xl p-1"
+                    />
+                    {deliveryFile && (
+                      <div className={`p-2.5 rounded-xl border text-[11px] space-y-1 ${
+                        deliveryFile.size > 10 * 1024 * 1024
+                          ? 'bg-amber-50 border-amber-300 text-amber-900'
+                          : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                      }`}>
+                        <div className="flex items-center justify-between font-bold">
+                          <span className="truncate">📁 {deliveryFile.name}</span>
+                          <span className="font-mono shrink-0 ml-2">{(deliveryFile.size / (1024 * 1024)).toFixed(1)} MB</span>
+                        </div>
+                        {deliveryFile.size > 10 * 1024 * 1024 && (
+                          <p className="text-[10px] text-amber-800 leading-tight">
+                            ⚠️ <strong>Video pesado (más de 10 MB):</strong> Te recomendamos usar <strong>"Enlace Nube"</strong> o <strong>"Enviado por Mail"</strong>.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Notas de Entrega / Aclaraciones:
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={deliveryNotes}
+                    onChange={(e) => setDeliveryNotes(e.target.value)}
+                    placeholder="Ej: Material final listo, renderizado con cintillos y audio masterizado..."
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  ></textarea>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeliveryModal(false)}
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={actionLoading}
+                    className={`px-5 py-2.5 rounded-xl text-xs font-black text-white shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${
+                      deliveryMethod === 'EMAIL' ? 'bg-sky-600 hover:bg-sky-700' : 'bg-emerald-600 hover:bg-emerald-700'
+                    }`}
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>{actionLoading ? 'Procesando entrega...' : '✅ Confirmar y Marcar como Entregado'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Modal de Solicitud de Cambios con Advertencia de Costo a partir del 4to Cambio */}
         {showChangesModal && (
