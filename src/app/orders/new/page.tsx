@@ -530,16 +530,17 @@ function NewOrderForm() {
     }
     setFormData((prev) => ({
       ...prev,
-      product: tpl.defaults.product || prev.product,
-      voiceoverType: tpl.defaults.voiceoverType || prev.voiceoverType,
-      priority: tpl.defaults.priority || prev.priority,
-      materialNotes: tpl.defaults.materialNotes
+      product: tpl.defaults?.product || tpl.title || prev.product,
+      voiceoverType: tpl.defaults?.voiceoverType || tpl.voiceoverType || prev.voiceoverType,
+      voiceoverText: tpl.defaults?.voiceoverText || tpl.voiceoverDefaultText || prev.voiceoverText,
+      priority: tpl.defaults?.priority || tpl.priority || prev.priority,
+      materialNotes: (tpl.defaults?.materialNotes || tpl.notesSuggestion)
         ? prev.materialNotes
-          ? `${prev.materialNotes}\n${tpl.defaults.materialNotes}`
-          : tpl.defaults.materialNotes
+          ? `${prev.materialNotes}\n${tpl.defaults?.materialNotes || tpl.notesSuggestion}`
+          : (tpl.defaults?.materialNotes || tpl.notesSuggestion)
         : prev.materialNotes,
-      sponsorshipTypes: tpl.defaults.sponsorshipTypes?.length
-        ? tpl.defaults.sponsorshipTypes
+      sponsorshipTypes: (tpl.defaults?.sponsorshipTypes || tpl.sponsorshipTypes)?.length
+        ? (tpl.defaults?.sponsorshipTypes || tpl.sponsorshipTypes)
         : prev.sponsorshipTypes,
     }));
   };
