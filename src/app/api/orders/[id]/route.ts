@@ -697,6 +697,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         requiresNewsroom,
         newsroomStatus,
         newsroomData,
+        isDemo,
+        demoStatus,
       } = body;
 
       const parsedPackageValue = packageValue !== undefined && packageValue !== null && packageValue !== ''
@@ -754,7 +756,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           ...(customSponsorship !== undefined && { customSponsorship: customSponsorship.trim() }),
           ...(voiceoverType !== undefined && { voiceoverType }),
           ...(voiceoverText !== undefined && { voiceoverText }),
-          ...(parsedPackageValue !== undefined && { packageValue: isNaN(parsedPackageValue) ? 0 : parsedPackageValue }),
+          ...(isDemo !== undefined && {
+            isDemo: Boolean(isDemo),
+            demoStatus: Boolean(isDemo) ? (demoStatus || order.demoStatus || 'PENDIENTE_VENTA') : null,
+          }),
+          ...(parsedPackageValue !== undefined && { packageValue: Boolean(isDemo) ? 0 : (isNaN(parsedPackageValue) ? 0 : parsedPackageValue) }),
           ...(priority !== undefined && { priority }),
           ...(executiveId !== undefined && { executiveId: executiveId || null }),
           ...(secondaryPostProducerId !== undefined && { secondaryPostProducerId: secondaryPostProducerId || null }),
@@ -769,6 +775,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
       // Track modification in activity log
       const changesSummary: string[] = [];
+      if (isDemo !== undefined && Boolean(isDemo) !== order.isDemo) {
+        changesSummary.push(Boolean(isDemo) ? '🎯 Modalidad cambiada a DEMO (Preventa / Costo $0)' : '💼 Modalidad cambiada a SP Oficial / Comercial');
+      }
       if (clientAgency && clientAgency !== order.clientAgency) changesSummary.push(`Cliente: "${clientAgency}"`);
       if (product && product !== order.product) changesSummary.push(`Producto: "${product}"`);
       if (program !== undefined && program !== order.program) changesSummary.push(`Programa: "${program}"`);

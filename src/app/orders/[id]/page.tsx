@@ -116,6 +116,7 @@ export default function OrderDetailPage() {
   const [editFormData, setEditFormData] = useState({
     orderNumber: '',
     oiNumber: '',
+    isDemo: false,
     requiresNewsroom: false,
     clientAgency: '',
     product: '',
@@ -1100,6 +1101,7 @@ export default function OrderDetailPage() {
     setEditFormData({
       orderNumber: order.orderNumber || '',
       oiNumber: order.oiNumber || '',
+      isDemo: Boolean(order.isDemo),
       requiresNewsroom: Boolean(order.requiresNewsroom),
       clientAgency: order.clientAgency || '',
       product: order.product || '',
@@ -1254,7 +1256,7 @@ export default function OrderDetailPage() {
         financialCosts: {
           ...(parsedDigital.financialCosts || {}),
           agencyCommissionApplies: editFormData.agencyCommissionApplies,
-          packageValue: parseFloat(editFormData.packageValue) || order.packageValue || 0,
+          packageValue: editFormData.isDemo ? 0 : (parseFloat(editFormData.packageValue) || order.packageValue || 0),
         },
       } : undefined;
 
@@ -1264,6 +1266,7 @@ export default function OrderDetailPage() {
         body: JSON.stringify({
           action: 'EDIT_ORDER',
           ...editFormData,
+          packageValue: editFormData.isDemo ? 0 : editFormData.packageValue,
           digitalData: updatedDigitalPayload,
           informProfiles: isOrderDigital ? {
             creativeDigital: editFormData.informCreativeDigital,
@@ -1568,7 +1571,7 @@ export default function OrderDetailPage() {
             )}
 
             {/* Convert Demo to Official Commercial SP Action */}
-            {order.isDemo && order.demoStatus !== 'VENDIDO' && (isCoordinator || isExecutiveOrRequester) && (
+            {order.isDemo && order.demoStatus !== 'VENDIDO' && (isCoordinator || isExecutiveOrRequester || canEditOrder) && (
               <Link
                 href={`/orders/new?fromDemoId=${order.id}`}
                 className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-md animate-pulse"
@@ -1730,7 +1733,7 @@ export default function OrderDetailPage() {
               </div>
             </div>
 
-            {order.demoStatus !== 'VENDIDO' && (isCoordinator || isExecutiveOrRequester) && (
+            {order.demoStatus !== 'VENDIDO' && (isCoordinator || isExecutiveOrRequester || canEditOrder) && (
               <Link
                 href={`/orders/new?fromDemoId=${order.id}`}
                 className="bg-purple-700 hover:bg-purple-800 text-white text-xs font-black px-4 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5"
@@ -4657,6 +4660,41 @@ export default function OrderDetailPage() {
                     />
                     <label htmlFor="editRequiresNewsroom" className="text-xs font-bold text-amber-900 cursor-pointer select-none">
                       📰 Requiere gestión en Mesa de Redacción
+                    </label>
+                  </div>
+
+                  {/* Option to convert to DEMO */}
+                  <div className={`p-3.5 rounded-xl border transition-all ${editFormData.isDemo ? 'bg-purple-50/90 border-purple-300 ring-2 ring-purple-400' : 'bg-slate-50 border-slate-200'}`}>
+                    <label className="flex items-start gap-3 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        id="editIsDemo"
+                        checked={Boolean(editFormData.isDemo)}
+                        onChange={(e) => {
+                          const isChecked = e.target.checked;
+                          setEditFormData({
+                            ...editFormData,
+                            isDemo: isChecked,
+                            packageValue: isChecked ? '0' : (order.packageValue ? String(order.packageValue) : editFormData.packageValue),
+                          });
+                        }}
+                        className="mt-0.5 w-4 h-4 text-purple-600 rounded focus:ring-purple-500 cursor-pointer"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-purple-900 flex items-center gap-1.5">
+                            🎯 Convertir a Modalidad DEMO (Preventa / Costo $0)
+                          </span>
+                          {editFormData.isDemo && (
+                            <span className="bg-purple-200 text-purple-900 text-[10px] font-black px-2 py-0.5 rounded-md">
+                              DEMO ACTIVO
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-purple-700 mt-1 font-medium leading-relaxed">
+                          Al marcar esta opción, la SP se convertirá en un <strong>DEMO</strong> para preventa o propuesta comercial sin costo ($0). Luego podrás usar el botón <strong>&ldquo;💰 Convertir a Venta Oficial&rdquo;</strong> para crear una nueva SP comercial definitiva partiendo de este demo.
+                        </p>
+                      </div>
                     </label>
                   </div>
 
