@@ -32,6 +32,18 @@ import { STATUS_CONFIG, PRIORITY_CONFIG } from '@/lib/order-utils';
 function OrdersContent() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
+
+  const canDeleteOrders = Boolean(
+    user && (
+      user.role === 'ADMIN' ||
+      user.role === 'PRODUCTOR_SENIOR' ||
+      user.role === 'COORDINADOR' ||
+      user.role === 'COORDINADORA' ||
+      user.role === 'COORDINADOR_PRODUCTOR' ||
+      user.role === 'COORDINADORA_VENTAS' ||
+      user.role?.toUpperCase().includes('COORDINAD')
+    )
+  );
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
@@ -225,7 +237,7 @@ function OrdersContent() {
           </span>
         </div>
 
-        {selectedOrderIds.length > 0 && (user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR') && (
+        {selectedOrderIds.length > 0 && canDeleteOrders && (
           <button
             onClick={() => setShowBulkDeleteModal(true)}
             className="bg-red-600 hover:bg-red-700 text-white text-xs font-black px-4 py-2 rounded-xl shadow-md transition-all flex items-center gap-1.5 animate-bounce"
@@ -514,7 +526,7 @@ function OrdersContent() {
                             <Copy className="w-3 h-3" />
                           </Link>
 
-                          {(user?.role === 'ADMIN' || user?.role === 'PRODUCTOR_SENIOR') && (
+                          {canDeleteOrders && (
                             <button
                               onClick={() => setOrderToDelete(order)}
                               className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 p-1 rounded-lg transition-all inline-flex items-center justify-center"

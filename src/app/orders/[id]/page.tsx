@@ -1144,6 +1144,30 @@ export default function OrderDetailPage() {
 
   const [duplicating, setDuplicating] = useState(false);
   const [submittingDraft, setSubmittingDraft] = useState(false);
+  const [showDeleteOrderModal, setShowDeleteOrderModal] = useState(false);
+  const [isDeletingOrder, setIsDeletingOrder] = useState(false);
+
+  const handleDeleteOrder = async () => {
+    if (!order) return;
+    setIsDeletingOrder(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        router.push('/orders');
+      } else {
+        const data = await res.json();
+        setMsg({ type: 'error', text: data.error || 'Error al eliminar la orden' });
+        setShowDeleteOrderModal(false);
+      }
+    } catch (err: any) {
+      setMsg({ type: 'error', text: err.message || 'Error al eliminar la orden' });
+      setShowDeleteOrderModal(false);
+    } finally {
+      setIsDeletingOrder(false);
+    }
+  };
 
   const handleDuplicateOrder = async () => {
     const confirmDup = window.confirm(
@@ -1407,6 +1431,17 @@ export default function OrderDetailPage() {
   const canEditOrder = Boolean(
     user && ['ADMIN', 'PRODUCTOR_SENIOR', 'COORDINADOR', 'COORDINADORA', 'COORDINADOR_PRODUCTOR', 'SOLICITANTE', 'EJECUTIVA', 'EJECUTIVA_DIGITAL', 'COORDINADORA_VENTAS', 'CREATIVO_DIGITAL', 'COMMUNITY_MANAGER', 'JEFE_MONETIZACION'].includes(user.role)
   );
+  const canDeleteOrder = Boolean(
+    user && (
+      user.role === 'ADMIN' ||
+      user.role === 'PRODUCTOR_SENIOR' ||
+      user.role === 'COORDINADOR' ||
+      user.role === 'COORDINADORA' ||
+      user.role === 'COORDINADOR_PRODUCTOR' ||
+      user.role === 'COORDINADORA_VENTAS' ||
+      user.role?.toUpperCase().includes('COORDINAD')
+    )
+  );
   const canManageFinancials = Boolean(
     user && (
       isCoordinator || 
@@ -1602,6 +1637,18 @@ export default function OrderDetailPage() {
               <Copy className="w-3.5 h-3.5" />
               {duplicating ? 'Duplicando...' : '📑 Duplicar SP'}
             </button>
+
+            {/* Delete SP Action (Admin, Productor Senior, Coordinadoras) */}
+            {canDeleteOrder && (
+              <button
+                type="button"
+                onClick={() => setShowDeleteOrderModal(true)}
+                className="bg-red-50 hover:bg-red-600 hover:text-white text-red-600 border border-red-200 text-xs font-bold px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                title="Eliminar permanentemente esta SP"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> 🗑️ Eliminar SP
+              </button>
+            )}
 
             {/* Direct WhatsApp Share */}
             <a
@@ -5636,6 +5683,50 @@ export default function OrderDetailPage() {
                   <Printer className="w-3.5 h-3.5 text-slate-500" />
                   <span>Vista Previa PDF</span>
                 </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL DE CONFIRMACIÓN DE BORRADO DE SP */}
+        {showDeleteOrderModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+              <div className="w-14 h-14 bg-red-100 text-red-600 rounded-3xl flex items-center justify-center mx-auto">
+                <Trash2 className="w-7 h-7" />
+              </div>
+
+              <div className="text-center">
+                <h3 className="text-lg font-black text-slate-900">
+                  ¿Eliminar Orden {order.orderNumber}?
+                </h3>
+                <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                  Esta acción es irreversible y eliminará por completo esta Solicitud de Producción, junto con sus archivos adjuntos, registro de trazabilidad y notificaciones.
+                </p>
+                <div className="mt-3 p-3 bg-red-50 rounded-xl text-left border border-red-100">
+                  <p className="text-xs font-bold text-red-900">📦 {order.product}</p>
+                  <p className="text-[11px] text-red-700">🏢 Cliente: {order.clientAgency}</p>
+                  <p className="text-[11px] text-red-700">📺 Programa: {order.program || 'N/A'}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteOrderModal(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteOrder}
+                  disabled={isDeletingOrder}
+                  className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-black shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {isDeletingOrder ? 'Eliminando...' : 'Sí, Eliminar SP'}
+                </button>
               </div>
             </div>
           </div>

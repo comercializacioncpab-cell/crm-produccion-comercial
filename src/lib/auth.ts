@@ -56,7 +56,17 @@ export function isAdminRole(role?: string | null): boolean {
 }
 
 export function isCoordinatorOrAdminRole(role?: string | null): boolean {
-  return role === 'COORDINADOR' || role === 'COORDINADOR_PRODUCTOR' || role === 'ADMIN' || role === 'PRODUCTOR_SENIOR';
+  if (!role) return false;
+  const r = role.toUpperCase();
+  return (
+    r === 'ADMIN' ||
+    r === 'PRODUCTOR_SENIOR' ||
+    r === 'COORDINADOR' ||
+    r === 'COORDINADORA' ||
+    r === 'COORDINADOR_PRODUCTOR' ||
+    r === 'COORDINADORA_VENTAS' ||
+    r.includes('COORDINAD')
+  );
 }
 
 export function isPostProducerRole(role?: string | null): boolean {

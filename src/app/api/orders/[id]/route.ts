@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser, isCoordinatorOrAdminRole } from '@/lib/auth';
 import { sendNotification, generateWhatsAppUrl } from '@/lib/notifications';
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
@@ -1317,11 +1317,17 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
     const user = await getCurrentUser();
-    if (!user || (user.role !== 'ADMIN' && user.role !== 'PRODUCTOR_SENIOR')) {
-      return NextResponse.json({ error: 'Solo los Administradores y Productores Senior pueden eliminar solicitudes de producción' }, { status: 403 });
+    if (!user || !isCoordinatorOrAdminRole(user.role)) {
+      return NextResponse.json({ error: 'Solo los Administradores, Productores Senior y Coordinadoras pueden eliminar solicitudes de producción' }, { status: 403 });
     }
 
     const { id } = params;
+
+    // Disconnect demo conversion references to avoid FK constraint errors
+    await prisma.productionOrder.updateMany({
+      where: { sourceDemoId: id },
+      data: { sourceDemoId: null },
+    });
 
     await prisma.notification.deleteMany({ where: { orderId: id } });
     await prisma.activityLog.deleteMany({ where: { orderId: id } });
